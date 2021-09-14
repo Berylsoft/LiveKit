@@ -1,5 +1,6 @@
 pub mod package {
-    use crate::head::Head;
+    use std::convert::TryInto;
+    use crate::head::{Head, HEAD_LENGTH_SIZE};
 
     pub enum Package {
         Unknown(Vec<u8>),
@@ -13,9 +14,7 @@ pub mod package {
 
     impl Package {
         pub fn decode(raw: Vec<u8>) -> Self {
-            use std::convert::TryInto;
-
-            let (head, payload) = raw.split_at(16);
+            let (head, payload) = raw.split_at(HEAD_LENGTH_SIZE);
 
             match Head::decode(head) {
                 Some(head) => match head.msg_type {
@@ -32,6 +31,18 @@ pub mod package {
                     _ => Package::Unknown(raw),
                 },
                 None => Package::Unknown(raw),
+            }
+        }
+
+        pub fn encode(self) -> Vec<u8> {
+            match self {
+                Package::HeartbeatRequest() => Head::new(2, 0).encode(),
+                Package::InitRequest(payload) => {
+                    let mut buf = Head::new(7, payload.len().try_into().unwrap()).encode();
+                    buf.append(&mut payload.into_bytes());
+                    buf
+                },
+                _ => unreachable!(),
             }
         }
     }
@@ -115,11 +126,13 @@ pub mod head {
     use binread::{BinRead, BinReaderExt};
     use binwrite::BinWrite;
 
-    pub type HeadBuf = [u8; 16];
+    pub const HEAD_LENGTH: u16 = 16;
+    pub const HEAD_LENGTH_SIZE: usize = 16;
+    pub type HeadBuf = [u8; HEAD_LENGTH_SIZE];
 
     #[derive(BinRead)]
     #[binread(big)]
-    #[binread(assert(head_length == 16, "unexpected head length: {}", head_length))]
+    #[binread(assert(head_length == HEAD_LENGTH, "unexpected head length: {}", head_length))]
     #[derive(BinWrite)]
     #[binwrite(big)]
     pub struct Head {
@@ -141,6 +154,16 @@ pub mod head {
             self.write(&mut bytes).unwrap();
             bytes
         }
+
+        pub fn new(msg_type: u32, payload_length: u32) -> Self {
+            Head {
+                length: u32::from(HEAD_LENGTH) + payload_length,
+                head_length: HEAD_LENGTH,
+                proto_ver: 1,
+                msg_type,
+                seq: 1,
+            }
+        }
     }
 
     #[cfg(test)]
@@ -160,7 +183,7 @@ pub mod head {
 
         #[test]
         fn test() {
-            use super::Head;
+            use super::{Head, HEAD_LENGTH};
 
             let raw = examples::INIT_REQUEST;
 
@@ -168,7 +191,7 @@ pub mod head {
             assert_eq!(raw.to_vec(), head.encode());
 
             assert_eq!(head.length, 0xf9);
-            assert_eq!(head.head_length, 16);
+            assert_eq!(head.head_length, HEAD_LENGTH);
             assert_eq!(head.proto_ver, 1);
             assert_eq!(head.msg_type, 7);
             assert_eq!(head.seq, 1);
