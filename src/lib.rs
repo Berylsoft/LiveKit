@@ -1,21 +1,40 @@
-pub enum Package {
-    Unknown(Vec<u8>),
-    InitRequest(String),
-    InitResponse(String),
-    HeartbeatRequest(),
-    HeartbeatResponse(u32),
-    Json(String),
-    Multi(Vec<Package>),
-}
+pub mod package {
+    use crate::head::Head;
 
-pub enum PackageType {
-    Unknown,
-    InitRequest,
-    InitResponse,
-    HeartbeatRequest,
-    HeartbeatResponse,
-    Json,
-    Multi,
+    pub enum Package {
+        Unknown(Vec<u8>),
+        InitRequest(String),
+        InitResponse(String),
+        HeartbeatRequest(),
+        HeartbeatResponse(u32),
+        Json(String),
+        Multi(Vec<Package>),
+    }
+
+    impl Package {
+        pub fn decode(raw: Vec<u8>) -> Self {
+            use std::convert::TryInto;
+
+            let (head, payload) = raw.split_at(16);
+
+            match Head::decode(head) {
+                Some(head) => match head.msg_type {
+                    5 => match head.proto_ver {
+                        0 => Package::Json(String::from_utf8(payload.to_vec()).unwrap()),
+                        2 => unimplemented!(),
+                        3 => unimplemented!(),
+                        _ => Package::Unknown(raw),
+                    }
+                    2 => Package::HeartbeatRequest(),
+                    3 => Package::HeartbeatResponse(u32::from_be_bytes(payload[0..4].try_into().unwrap())),
+                    7 => Package::InitRequest(String::from_utf8(payload.to_vec()).unwrap()),
+                    8 => Package::InitResponse(String::from_utf8(payload.to_vec()).unwrap()),
+                    _ => Package::Unknown(raw),
+                },
+                None => Package::Unknown(raw),
+            }
+        }
+    }
 }
 
 pub mod util {
@@ -92,7 +111,8 @@ pub mod api_schema {
 }
 
 pub mod head {
-    use binread::BinRead;
+    use std::io::Cursor;
+    use binread::{BinRead, BinReaderExt};
     use binwrite::BinWrite;
 
     pub type HeadBuf = [u8; 16];
@@ -108,6 +128,19 @@ pub mod head {
         pub proto_ver: u16,
         pub msg_type: u32,
         pub seq: u32,
+    }
+
+    impl Head {
+        pub fn decode(raw: &[u8]) -> Option<Self> {
+            let mut reader = Cursor::new(raw);
+            reader.read_be().ok()?
+        }
+
+        pub fn encode(&self) -> Vec<u8> {
+            let mut bytes = vec![];
+            self.write(&mut bytes).unwrap();
+            bytes
+        }
     }
 
     #[cfg(test)]
@@ -126,26 +159,19 @@ pub mod head {
         }
 
         #[test]
-        fn decode_and_encode() {
-            use std::io::Cursor;
-            use binread::BinReaderExt;
-            use binwrite::BinWrite;
+        fn test() {
             use super::Head;
 
             let raw = examples::INIT_REQUEST;
 
-            let mut reader = Cursor::new(raw);
-            let head: Head = reader.read_ne().unwrap();
+            let head = Head::decode(&raw).unwrap();
+            assert_eq!(raw.to_vec(), head.encode());
 
             assert_eq!(head.length, 0xf9);
             assert_eq!(head.head_length, 16);
             assert_eq!(head.proto_ver, 1);
             assert_eq!(head.msg_type, 7);
             assert_eq!(head.seq, 1);
-
-            let mut bytes = vec![];
-            head.write(&mut bytes).unwrap();
-            assert_eq!(raw.to_vec(), bytes);
         }
     }
 }
