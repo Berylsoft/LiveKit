@@ -1,3 +1,6 @@
+pub mod util;
+pub mod api_schema;
+
 pub mod package {
     use std::convert::TryInto;
     use crate::head::{Head, HEAD_LENGTH_SIZE};
@@ -38,85 +41,13 @@ pub mod package {
             match self {
                 Package::HeartbeatRequest() => Head::new(2, 0).encode(),
                 Package::InitRequest(payload) => {
+                    let mut payload = payload.into_bytes();
                     let mut buf = Head::new(7, payload.len().try_into().unwrap()).encode();
-                    buf.append(&mut payload.into_bytes());
+                    buf.append(&mut payload);
                     buf
                 },
                 _ => unreachable!(),
             }
-        }
-    }
-}
-
-pub mod util {
-    pub async fn call_rest_api<Data>(url: String) -> Option<Data>
-    where
-        Data: serde::de::DeserializeOwned,
-    {
-        use serde_json::from_str as parse_json;
-        use reqwest::{get as http_get, StatusCode};
-        use crate::api_schema::rest::RestApiResponse;
-
-        let resp = http_get(url.as_str()).await.unwrap();
-        match resp.status() {
-            StatusCode::OK => (),
-            _ => return None,
-        }
-        let resp = resp.text().await.unwrap();
-        let resp: RestApiResponse<Data> = parse_json(resp.as_str()).unwrap();
-        match resp.code {
-            0 => Some(resp.data),
-            _ => None, // Err(resp.message)
-        }
-    }
-}
-
-pub mod api_schema {
-    pub mod rest {
-        use serde::Deserialize;
-
-        #[derive(Deserialize)]
-        pub struct RestApiResponse<Data> {
-            pub code: i32,
-            pub data: Data,
-            pub message: String,
-            pub ttl: i32,
-        }
-
-        #[inline]
-        pub fn get_hosts_info(roomid: u32) -> String {
-            format!(
-                "https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo?id={}&type=0",
-                roomid
-            )
-        }
-
-        #[derive(Deserialize)]
-        pub struct HostsInfo {
-            pub host_list: Vec<HostInfo>,
-            pub token: String,
-        }
-
-        #[derive(Deserialize)]
-        pub struct HostInfo {
-            pub host: String,
-            // pub port: u16,
-            // pub ws_port: u16,
-            pub wss_port: u16,
-        }
-    }
-
-    pub mod msg {
-        use serde::Serialize;
-
-        #[derive(Serialize)]
-        pub struct ConnectInfo {
-            pub uid: u32,
-            pub roomid: u32,
-            pub protover: u8, // unknown number
-            pub platform: String,
-            pub r#type: u8, // unknown number
-            pub key: Option<String>,
         }
     }
 }
