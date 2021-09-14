@@ -58,6 +58,7 @@ pub mod head {
     use binwrite::BinWrite;
 
     pub const HEAD_LENGTH: u16 = 16;
+    pub const HEAD_LENGTH_32: u32 = 16;
     pub const HEAD_LENGTH_SIZE: usize = 16;
     pub type HeadBuf = [u8; HEAD_LENGTH_SIZE];
 
@@ -88,7 +89,7 @@ pub mod head {
 
         pub fn new(msg_type: u32, payload_length: u32) -> Self {
             Head {
-                length: u32::from(HEAD_LENGTH) + payload_length,
+                length: HEAD_LENGTH_32 + payload_length,
                 head_length: HEAD_LENGTH,
                 proto_ver: 1,
                 msg_type,
@@ -114,12 +115,13 @@ pub mod head {
 
         #[test]
         fn test() {
-            use super::{Head, HEAD_LENGTH};
+            use super::{Head, HEAD_LENGTH, HEAD_LENGTH_32};
 
             let raw = examples::INIT_REQUEST;
 
             let head = Head::decode(&raw).unwrap();
             assert_eq!(raw.to_vec(), head.encode());
+            assert_eq!(raw.to_vec(), Head::new(7, 0xf9 - HEAD_LENGTH_32).encode());
 
             assert_eq!(head.length, 0xf9);
             assert_eq!(head.head_length, HEAD_LENGTH);
