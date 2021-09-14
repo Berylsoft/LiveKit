@@ -4,7 +4,7 @@ where
 {
     use serde_json::from_str as parse_json;
     use reqwest::{get as http_get, StatusCode};
-    use crate::api_schema::rest::RestApiResponse;
+    use crate::rest::RestApiResponse;
 
     let resp = http_get(url.as_str()).await.unwrap();
     match resp.status() {

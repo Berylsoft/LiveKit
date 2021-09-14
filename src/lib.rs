@@ -1,5 +1,6 @@
 pub mod util;
-pub mod api_schema;
+pub mod rest;
+pub mod schema;
 
 pub mod package {
     use std::convert::TryInto;
@@ -134,7 +135,7 @@ pub mod head {
 
 pub mod connect {
     use rand::{seq::SliceRandom, thread_rng as rng};
-    use crate::api_schema::rest::HostsInfo;
+    use crate::rest::HostsInfo;
 
     pub struct ConnectNeeds {
         pub url: String,
