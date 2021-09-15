@@ -94,6 +94,25 @@ pub mod package {
             Package::Multi(unpacked)
         }
     }
+
+    #[cfg(test)]
+    mod tests {
+        use hex_literal::hex;
+        use super::Package;
+
+        const EXAMPLE_RAW: [u8; 289] = hex!("000001210010000300000005000000001b7c01002c0e32b9173be1482c4d132ebcf86bd4ac5ab67f8247585ab7e899d9684941a296550487e250572f9cbde7d3855c45cd6486cd6c4213f89e2c3a7de5f4954153694f0f380e4c5a81b52c6901061aca897fb8fdf35f6f58f6900f39a47c9ed5dd6e7fd85dec14ce77532b3e7e3e116e787dfbda3d60de63348668f4ccdcacd4de6825acd4d24c45a5b250ab534449aed4d237c815305c0ff0497069e5dfa4787eb9c46f70e41a353c9213ff5fb6c02de1580d46513449a211981cd6886df9d86f3305f0abb3734e701734600ab59e1b2dd4ac752740a14b1e8a46ab2d794f6ad3b0a058928a4722deffa4f8ca92049a06406052142f61b062f9455bd9203e1604bff1abbb729d30db2520c96e73");
+        const EXAMPLE_PAYLOAD: &str = "{\"cmd\":\"DANMU_MSG\",\"info\":[[0,1,25,5816798,1631676810606,1631676772,0,\"6420484f\",0,0,0,\"\",0,\"{}\",\"{}\"],\"Hello, LiveKit!!!\",[573732342,\"进栈检票\",1,0,0,10000,1,\"\"],[18,\"滑稽果\",\"老弟一号\",10308958,13081892,\"\",0,13081892,13081892,13081892,0,1,178429408],[13,0,6406234,\"\\u003e50000\",0],[\"\",\"\"],0,0,null,{\"ts\":1631676810,\"ct\":\"2D2BF6C4\"},0,0,null,null,0,91]}";
+
+        #[test]
+        fn test() {
+            let package = Package::decode(EXAMPLE_RAW.to_vec());
+            if let Package::Multi(unpacked) = package {
+                if let Package::Json(payload) = &unpacked[0] {
+                    assert_eq!(payload, EXAMPLE_PAYLOAD);
+                } else { panic!() }
+            } else { panic!() }
+        }
+    }
 }
 
 pub mod head {
