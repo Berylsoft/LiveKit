@@ -19,7 +19,7 @@ pub mod package {
     }
 
     impl Package {
-        pub fn decode(raw: Vec<u8>) -> Self {
+        pub fn decode(raw: &Vec<u8>) -> Self {
             use inflate::inflate_bytes as inflate;
 
             fn brotli(raw: &[u8]) -> Vec<u8> {
@@ -37,17 +37,17 @@ pub mod package {
                 Some(head) => match head.msg_type {
                     5 => match head.proto_ver {
                         0 => Package::Json(String::from_utf8(payload.to_vec()).unwrap()),
-                        2 => Package::unpack(inflate(payload).unwrap()),
                         3 => Package::unpack(brotli(payload)),
-                        _ => Package::Unknown(raw),
+                        2 => Package::unpack(inflate(payload).unwrap()),
+                        _ => Package::Unknown(raw.clone()),
                     },
                     2 => Package::HeartbeatRequest(),
                     3 => Package::HeartbeatResponse(u32::from_be_bytes(payload[0..4].try_into().unwrap())),
                     7 => Package::InitRequest(String::from_utf8(payload.to_vec()).unwrap()),
                     8 => Package::InitResponse(String::from_utf8(payload.to_vec()).unwrap()),
-                    _ => Package::Unknown(raw),
+                    _ => Package::Unknown(raw.clone()),
                 },
-                None => Package::Unknown(raw),
+                None => Package::Unknown(raw.clone()),
             }
         }
 
@@ -64,7 +64,7 @@ pub mod package {
             }
         }
 
-        pub fn create_init_request(connect: Connect) -> Self {
+        pub fn create_init_request(connect: &Connect) -> Self {
             use serde_json::to_string as build_json;
             use crate::schema::ConnectInfo;
 
@@ -72,7 +72,7 @@ pub mod package {
                 build_json(&ConnectInfo {
                     uid: 0,
                     roomid: connect.roomid,
-                    protover: 2,
+                    protover: 3,
                     platform: "web".to_string(),
                     r#type: 2,
                     key: connect.key.to_string(),
@@ -88,7 +88,7 @@ pub mod package {
                 let length_buf = pack[offset..offset + 4].try_into().unwrap();
                 let length: usize = u32::from_be_bytes(length_buf).try_into().unwrap();
                 let raw = (&pack[offset..offset + length]).to_vec();
-                unpacked.push(Package::decode(raw));
+                unpacked.push(Package::decode(&raw));
                 offset += length;
             }
             Package::Multi(unpacked)
@@ -105,7 +105,7 @@ pub mod package {
 
         #[test]
         fn test() {
-            let package = Package::decode(EXAMPLE_RAW.to_vec());
+            let package = Package::decode(&EXAMPLE_RAW.to_vec());
             if let Package::Multi(unpacked) = package {
                 if let Package::Json(payload) = &unpacked[0] {
                     assert_eq!(payload, EXAMPLE_PAYLOAD);
