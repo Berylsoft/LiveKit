@@ -20,13 +20,14 @@ pub mod package {
 
     impl Package {
         pub fn decode(raw: Vec<u8>) -> Self {
+            use inflate::inflate_bytes as inflate;
             let (head, payload) = raw.split_at(HEAD_LENGTH_SIZE);
 
             match Head::decode(head) {
                 Some(head) => match head.msg_type {
                     5 => match head.proto_ver {
                         0 => Package::Json(String::from_utf8(payload.to_vec()).unwrap()),
-                        2 => unimplemented!(),
+                        2 => Package::unpack(inflate(payload).unwrap()),
                         3 => unimplemented!(),
                         _ => Package::Unknown(raw),
                     },
@@ -67,6 +68,20 @@ pub mod package {
                     key: connect.key.to_string(),
                 }).unwrap()
             )
+        }
+
+        fn unpack(pack: Vec<u8>) -> Self {
+            let pack_length = pack.len();
+            let mut unpacked = Vec::new();
+            let mut offset = 0;
+            while offset < pack_length {
+                let length_buf = pack[offset..offset + 4].try_into().unwrap();
+                let length: usize = u32::from_be_bytes(length_buf).try_into().unwrap();
+                let raw = (&pack[offset..offset + length]).to_vec();
+                unpacked.push(Package::decode(raw));
+                offset += length;
+            }
+            Package::Multi(unpacked)
         }
     }
 }
