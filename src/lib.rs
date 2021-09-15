@@ -21,6 +21,16 @@ pub mod package {
     impl Package {
         pub fn decode(raw: Vec<u8>) -> Self {
             use inflate::inflate_bytes as inflate;
+
+            fn brotli(raw: &[u8]) -> Vec<u8> {
+                use std::io::Cursor;
+                use brotli_decompressor::BrotliDecompress as brotli_inner;
+
+                let mut decoded = Vec::new();
+                brotli_inner(&mut Cursor::new(raw), &mut Cursor::new(&mut decoded)).unwrap();
+                decoded
+            }
+
             let (head, payload) = raw.split_at(HEAD_LENGTH_SIZE);
 
             match Head::decode(head) {
@@ -28,7 +38,7 @@ pub mod package {
                     5 => match head.proto_ver {
                         0 => Package::Json(String::from_utf8(payload.to_vec()).unwrap()),
                         2 => Package::unpack(inflate(payload).unwrap()),
-                        3 => unimplemented!(),
+                        3 => Package::unpack(brotli(payload)),
                         _ => Package::Unknown(raw),
                     },
                     2 => Package::HeartbeatRequest(),
