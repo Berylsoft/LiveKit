@@ -1,10 +1,9 @@
-pub mod util;
 pub mod rest;
 pub mod schema;
 
 pub mod package {
     use std::convert::TryInto;
-    use crate::head::{Head, HEAD_LENGTH_SIZE};
+    use crate::{head::{Head, HEAD_LENGTH_SIZE}, connect::Connect};
 
     pub enum Package {
         Unknown(Vec<u8>),
@@ -49,6 +48,20 @@ pub mod package {
                 },
                 _ => unreachable!(),
             }
+        }
+
+        pub fn create_init_request(connect: Connect) -> Self {
+            use serde_json::to_string as build_json;
+            use crate::schema::ConnectInfo;
+
+            Package::InitRequest(build_json(&ConnectInfo {
+                uid: 0,
+                roomid: connect.roomid,
+                protover: 2,
+                platform: "web".to_string(),
+                r#type: 2,
+                key: connect.key.to_string(),
+            }).unwrap())
         }
     }
 }
@@ -137,16 +150,21 @@ pub mod connect {
     use rand::{seq::SliceRandom, thread_rng as rng};
     use crate::rest::HostsInfo;
 
-    pub struct ConnectNeeds {
+    pub struct Connect {
+        pub roomid: u32,
         pub url: String,
         pub key: String,
     }
-
-    pub fn get_connect_needs(hosts_info: HostsInfo) -> ConnectNeeds {
-        let host = &hosts_info.host_list.choose(&mut rng()).unwrap();
-        ConnectNeeds {
-            url: format!("wss://{}:{}/sub", host.host, host.wss_port),
-            key: hosts_info.token,
+    
+    impl Connect {
+        pub async fn new(roomid: u32) -> Option<Self> {
+            let hosts_info = HostsInfo::get(roomid).await?;
+            let host = &hosts_info.host_list.choose(&mut rng()).unwrap();
+            Some(Connect {
+                roomid: roomid,
+                url: format!("wss://{}:{}/sub", host.host, host.wss_port),
+                key: hosts_info.token,
+            })
         }
     }
 }

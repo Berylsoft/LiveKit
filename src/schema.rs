@@ -7,5 +7,5 @@ pub struct ConnectInfo {
     pub protover: u8, // unknown number
     pub platform: String,
     pub r#type: u8, // unknown number
-    pub key: Option<String>,
+    pub key: String,
 }
