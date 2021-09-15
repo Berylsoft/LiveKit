@@ -98,7 +98,7 @@ pub mod package {
     #[cfg(test)]
     mod tests {
         use hex_literal::hex;
-        use crate::connect::Connect;
+        use crate::{connect::Connect, head::HEAD_LENGTH_SIZE};
         use super::Package;
 
         const EXAMPLE_RAW: [u8; 289] = hex!("000001210010000300000005000000001b7c01002c0e32b9173be1482c4d132ebcf86bd4ac5ab67f8247585ab7e899d9684941a296550487e250572f9cbde7d3855c45cd6486cd6c4213f89e2c3a7de5f4954153694f0f380e4c5a81b52c6901061aca897fb8fdf35f6f58f6900f39a47c9ed5dd6e7fd85dec14ce77532b3e7e3e116e787dfbda3d60de63348668f4ccdcacd4de6825acd4d24c45a5b250ab534449aed4d237c815305c0ff0497069e5dfa4787eb9c46f70e41a353c9213ff5fb6c02de1580d46513449a211981cd6886df9d86f3305f0abb3734e701734600ab59e1b2dd4ac752740a14b1e8a46ab2d794f6ad3b0a058928a4722deffa4f8ca92049a06406052142f61b062f9455bd9203e1604bff1abbb729d30db2520c96e73");
@@ -118,9 +118,12 @@ pub mod package {
         #[tokio::test]
         async fn test_init() {
             let connect = Connect::new(10308958).await.unwrap();
-            if let Package::InitRequest(payload) = Package::create_init_request(&connect) {
+            let init = Package::create_init_request(&connect);
+            if let Package::InitRequest(payload) = &init {
                 assert!(payload.starts_with(EXAMPLE_INIT_BEGINNING))
             } else { panic!() }
+            let init = init.encode();
+            assert_eq!(init.len(), HEAD_LENGTH_SIZE + EXAMPLE_INIT_BEGINNING.len() + 148 /* token length */ + 2 /* "} */);
         }
     }
 }
