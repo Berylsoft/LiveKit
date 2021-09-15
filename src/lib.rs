@@ -3,7 +3,10 @@ pub mod schema;
 
 pub mod package {
     use std::convert::TryInto;
-    use crate::{head::{Head, HEAD_LENGTH_SIZE}, connect::Connect};
+    use crate::{
+        head::{Head, HEAD_LENGTH_SIZE},
+        connect::Connect,
+    };
 
     pub enum Package {
         Unknown(Vec<u8>),
@@ -26,7 +29,7 @@ pub mod package {
                         2 => unimplemented!(),
                         3 => unimplemented!(),
                         _ => Package::Unknown(raw),
-                    }
+                    },
                     2 => Package::HeartbeatRequest(),
                     3 => Package::HeartbeatResponse(u32::from_be_bytes(payload[0..4].try_into().unwrap())),
                     7 => Package::InitRequest(String::from_utf8(payload.to_vec()).unwrap()),
@@ -54,14 +57,16 @@ pub mod package {
             use serde_json::to_string as build_json;
             use crate::schema::ConnectInfo;
 
-            Package::InitRequest(build_json(&ConnectInfo {
-                uid: 0,
-                roomid: connect.roomid,
-                protover: 2,
-                platform: "web".to_string(),
-                r#type: 2,
-                key: connect.key.to_string(),
-            }).unwrap())
+            Package::InitRequest(
+                build_json(&ConnectInfo {
+                    uid: 0,
+                    roomid: connect.roomid,
+                    protover: 2,
+                    platform: "web".to_string(),
+                    r#type: 2,
+                    key: connect.key.to_string(),
+                }).unwrap()
+            )
         }
     }
 }
@@ -155,7 +160,7 @@ pub mod connect {
         pub url: String,
         pub key: String,
     }
-    
+
     impl Connect {
         pub async fn new(roomid: u32) -> Option<Self> {
             let hosts_info = HostsInfo::get(roomid).await?;
