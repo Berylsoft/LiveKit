@@ -11,15 +11,20 @@ pub mod compress {
     }
 }
 
-pub struct Timestamp(i64);
+pub struct Timestamp(i64); // u64?
 
 impl Timestamp {
     pub fn now() -> Self {
-        Timestamp(chrono::Utc::now().timestamp())
+        Timestamp(chrono::Utc::now().timestamp_millis())
+    }
+
+    #[inline]
+    pub fn digits(&self) -> i64 {
+        self.0
     }
 
     pub fn to_bytes(&self) -> [u8; 8] {
-        self.0.to_be_bytes()
+        self.digits().to_be_bytes()
     }
 }
 
