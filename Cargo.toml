@@ -5,6 +5,7 @@ edition = "2018"
 
 [dependencies]
 rand = "0.8"
+structopt = "0.3"
 # compress
 inflate = "0.4"
 brotli-decompressor = "2.3"

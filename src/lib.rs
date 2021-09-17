@@ -8,6 +8,7 @@ pub mod package {
         connect::Connect,
     };
 
+    #[derive(Debug)]
     pub enum Package {
         Unknown(Vec<u8>),
         InitRequest(String),
