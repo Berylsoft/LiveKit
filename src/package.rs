@@ -2,7 +2,7 @@ use std::{convert::TryInto, io::Cursor};
 use binread::{BinRead, BinReaderExt};
 use binwrite::BinWrite;
 use crate::{
-    util::compress::{de_brotli, inflate},
+    util::{compress::{de_brotli, inflate}, bytes},
     connect::Connect, schema::ConnectInfo
 };
 
@@ -82,12 +82,10 @@ impl Package {
     pub fn encode(self) -> Vec<u8> {
         match self {
             Package::HeartbeatRequest() => Head::new(2, 0).encode(),
-            Package::InitRequest(payload) => {
-                let mut payload = payload.into_bytes();
-                let mut buf = Head::new(7, payload.len().try_into().unwrap()).encode();
-                buf.append(&mut payload);
-                buf
-            },
+            Package::InitRequest(payload) => bytes::concat(
+                Head::new(7, payload.len().try_into().unwrap()).encode(),
+                payload.into_bytes(),
+            ),
             _ => unreachable!(),
         }
     }
@@ -123,18 +121,17 @@ impl Package {
 }
 
 #[cfg(test)]
-#[allow(dead_code)]
 mod tests {
     use hex_literal::hex;
     use crate::connect::Connect;
     use super::*;
 
     const HEAD_INIT_REQUEST: HeadBuf = hex!("0000 00f9 0010 0001 0000 0007 0000 0001");
-    const HEAD_INIT_RESPONSE: HeadBuf = hex!("0000 001a 0010 0001 0000 0008 0000 0001");
-    const HEAD_HEARTBEAT_REQUEST: HeadBuf = hex!("0000 001f 0010 0001 0000 0002 0000 0001");
-    const HEAD_HEARTBEAT_RESPONSE: HeadBuf = hex!("0000 0014 0010 0001 0000 0003 0000 0000");
-    const HEAD_JSON: HeadBuf = hex!("0000 00ff 0010 0000 0000 0005 0000 0000"); // simulated
-    const HEAD_MULTI_JSON: HeadBuf = hex!("0000 03d5 0010 0003 0000 0005 0000 0000");
+    const _HEAD_INIT_RESPONSE: HeadBuf = hex!("0000 001a 0010 0001 0000 0008 0000 0001");
+    const _HEAD_HEARTBEAT_REQUEST: HeadBuf = hex!("0000 001f 0010 0001 0000 0002 0000 0001");
+    const _HEAD_HEARTBEAT_RESPONSE: HeadBuf = hex!("0000 0014 0010 0001 0000 0003 0000 0000");
+    const _HEAD_JSON: HeadBuf = hex!("0000 00ff 0010 0000 0000 0005 0000 0000"); // simulated
+    const _HEAD_MULTI_JSON: HeadBuf = hex!("0000 03d5 0010 0003 0000 0005 0000 0000");
 
     #[test]
     fn test_head() {

@@ -22,3 +22,10 @@ impl Timestamp {
         self.0.to_be_bytes()
     }
 }
+
+pub mod bytes {
+    pub fn concat(mut a: Vec<u8>, mut b: Vec<u8>) -> Vec<u8> {
+        a.append(&mut b);
+        a
+    }
+}

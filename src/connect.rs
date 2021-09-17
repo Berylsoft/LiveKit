@@ -12,7 +12,7 @@ impl Connect {
         let hosts_info = HostsInfo::get(roomid).await?;
         let host = &hosts_info.host_list.choose(&mut rng()).unwrap();
         Some(Connect {
-            roomid: roomid,
+            roomid,
             url: format!("wss://{}:{}/sub", host.host, host.wss_port),
             key: hosts_info.token,
         })
