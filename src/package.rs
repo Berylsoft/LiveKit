@@ -1,7 +1,10 @@
 use std::{convert::TryInto, io::Cursor};
 use binread::{BinRead, BinReaderExt};
 use binwrite::BinWrite;
-use crate::{util::compress::{brotli, inflate}, connect::Connect, schema::ConnectInfo};
+use crate::{
+    util::compress::{de_brotli, inflate},
+    connect::Connect, schema::ConnectInfo
+};
 
 pub const HEAD_LENGTH: u16 = 16;
 pub const HEAD_LENGTH_32: u32 = 16;
@@ -62,7 +65,7 @@ impl Package {
             Some(head) => match head.msg_type {
                 5 => match head.proto_ver {
                     0 => Package::Json(String::from_utf8(payload.to_vec()).unwrap()),
-                    3 => Package::unpack(brotli(payload).unwrap()),
+                    3 => Package::unpack(de_brotli(payload).unwrap()),
                     2 => Package::unpack(inflate(payload).unwrap()),
                     _ => Package::Unknown(raw.clone()),
                 },
@@ -91,14 +94,16 @@ impl Package {
 
     pub fn create_init_request(connect: &Connect) -> Self {
         Package::InitRequest(
-            serde_json::to_string(&ConnectInfo {
-                uid: 0,
-                roomid: connect.roomid,
-                protover: 3,
-                platform: "web".to_string(),
-                r#type: 2,
-                key: connect.key.to_string(),
-            }).unwrap()
+            serde_json::to_string(
+                &ConnectInfo {
+                    uid: 0,
+                    roomid: connect.roomid,
+                    protover: 3,
+                    platform: "web".to_string(),
+                    r#type: 2,
+                    key: connect.key.to_string(),
+                }
+            ).unwrap()
         )
     }
 
