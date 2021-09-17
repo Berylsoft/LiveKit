@@ -1,6 +1,7 @@
 use std::{convert::TryInto, io::Cursor};
 use binread::{BinRead, BinReaderExt};
 use binwrite::BinWrite;
+use crate::{util::compress::{brotli, inflate}, connect::Connect, schema::ConnectInfo};
 
 pub const HEAD_LENGTH: u16 = 16;
 pub const HEAD_LENGTH_32: u32 = 16;
@@ -56,23 +57,12 @@ pub enum Package {
 
 impl Package {
     pub fn decode(raw: &Vec<u8>) -> Self {
-        use inflate::inflate_bytes as inflate;
-
-        fn brotli(raw: &[u8]) -> Vec<u8> {
-            use brotli_decompressor::BrotliDecompress as brotli_inner;
-
-            let mut decoded = Vec::new();
-            brotli_inner(&mut Cursor::new(raw), &mut Cursor::new(&mut decoded)).unwrap();
-            decoded
-        }
-
         let (head, payload) = raw.split_at(HEAD_LENGTH_SIZE);
-
         match Head::decode(head) {
             Some(head) => match head.msg_type {
                 5 => match head.proto_ver {
                     0 => Package::Json(String::from_utf8(payload.to_vec()).unwrap()),
-                    3 => Package::unpack(brotli(payload)),
+                    3 => Package::unpack(brotli(payload).unwrap()),
                     2 => Package::unpack(inflate(payload).unwrap()),
                     _ => Package::Unknown(raw.clone()),
                 },
@@ -99,12 +89,9 @@ impl Package {
         }
     }
 
-    pub fn create_init_request(connect: &crate::connect::Connect) -> Self {
-        use serde_json::to_string as build_json;
-        use crate::schema::ConnectInfo;
-
+    pub fn create_init_request(connect: &Connect) -> Self {
         Package::InitRequest(
-            build_json(&ConnectInfo {
+            serde_json::to_string(&ConnectInfo {
                 uid: 0,
                 roomid: connect.roomid,
                 protover: 3,

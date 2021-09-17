@@ -4,7 +4,6 @@ pub async fn call<Data>(url: String) -> Option<Data>
 where
     Data: serde::de::DeserializeOwned,
 {
-    use serde_json::from_str as parse_json;
     use reqwest::{get as http_get, StatusCode};
 
     let resp = http_get(url.as_str()).await.unwrap();
@@ -13,7 +12,7 @@ where
         _ => return None,
     }
     let resp = resp.text().await.unwrap();
-    let resp: RestApiResponse<Data> = parse_json(resp.as_str()).unwrap();
+    let resp: RestApiResponse<Data> = serde_json::from_str(resp.as_str()).unwrap();
     match resp.code {
         0 => Some(resp.data),
         _ => None, // Err(resp.message)
