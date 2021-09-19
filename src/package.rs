@@ -119,7 +119,7 @@ impl Package {
     }
 
     pub fn into_events(self) -> Vec<Event> {
-        // TODO process recursive `Multi`
+        // TODO process recursive `Multi` & return iter
         let mut vec = Vec::new();
         match self {
             Package::Multi(payloads) => for payload in payloads {

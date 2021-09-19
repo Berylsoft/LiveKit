@@ -3,7 +3,7 @@ use tokio::{spawn, sync::broadcast::Sender, time::{self, Duration}};
 use futures_util::{StreamExt, SinkExt};
 use tokio_tungstenite::{connect_async, tungstenite::{self, protocol::Message}};
 use rocksdb::DB;
-use crate::{package::Package, util::Timestamp, rest::HostsInfo};
+use crate::{config::HEARTBEAT_RATE_SEC, util::Timestamp, package::Package, rest::HostsInfo};
 
 pub struct Connect {
     pub roomid: u32,
@@ -38,15 +38,15 @@ pub async fn repeater(roomid: u32, channel_tx: &mut Sender<Event>, storage: &DB)
 
     let init = Message::Binary(Package::create_init_request(&connection).encode());
     socket_tx.send(init).await.unwrap();
-    println!("> init sent");
+    eprintln!("> init sent");
 
     spawn(async move {
         let heartbeat = Message::Binary(Package::HeartbeatRequest().encode());
-        let mut interval = time::interval(Duration::from_secs(30));
+        let mut interval = time::interval(Duration::from_secs(HEARTBEAT_RATE_SEC));
         loop {
             interval.tick().await;
             socket_tx.send(heartbeat.clone()).await.unwrap();
-            println!("> heartbeat sent");
+            eprintln!("> heartbeat sent");
         }
     });
 
@@ -54,7 +54,7 @@ pub async fn repeater(roomid: u32, channel_tx: &mut Sender<Event>, storage: &DB)
         for maybe_message in socket_rx.next().await {
             match maybe_message? {
                 Message::Binary(payload) => {
-                    println!("> received");
+                    eprintln!("> received");
                     storage.put(Timestamp::now().to_bytes(), &payload).unwrap();
                     for event in Package::decode(&payload).into_events() {
                         channel_tx.send(event).unwrap();

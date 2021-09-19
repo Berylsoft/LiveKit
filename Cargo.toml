@@ -1,7 +1,10 @@
 [package]
-name = "livekit"
+name = "LiveKit"
 version = "0.1.0"
 edition = "2018"
+
+[lib]
+name = "livekit"
 
 [dependencies]
 rand = "0.8"
