@@ -28,8 +28,8 @@ impl Timestamp {
     }
 }
 
-pub mod bytes {
-    pub fn concat(mut a: Vec<u8>, mut b: Vec<u8>) -> Vec<u8> {
+pub mod vec {
+    pub fn concat<T>(mut a: Vec<T>, mut b: Vec<T>) -> Vec<T> {
         a.append(&mut b);
         a
     }

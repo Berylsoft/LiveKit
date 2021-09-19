@@ -2,8 +2,8 @@ use std::{convert::TryInto, io::Cursor};
 use binread::{BinRead, BinReaderExt};
 use binwrite::BinWrite;
 use crate::{
-    util::{compress::{de_brotli, inflate}, bytes},
-    connect::Connect, schema::ConnectInfo
+    util::{compress::{de_brotli, inflate}, vec},
+    client::{Connect, Event}, schema::ConnectInfo
 };
 
 pub const HEAD_LENGTH: u16 = 16;
@@ -11,10 +11,9 @@ pub const HEAD_LENGTH_32: u32 = 16;
 pub const HEAD_LENGTH_SIZE: usize = 16;
 pub type HeadBuf = [u8; HEAD_LENGTH_SIZE];
 
-#[derive(BinRead)]
+#[derive(BinRead, BinWrite)]
 #[binread(big)]
 #[binread(assert(head_length == HEAD_LENGTH, "unexpected head length: {}", head_length))]
-#[derive(BinWrite)]
 #[binwrite(big)]
 pub struct Head {
     pub length: u32,
@@ -82,7 +81,7 @@ impl Package {
     pub fn encode(self) -> Vec<u8> {
         match self {
             Package::HeartbeatRequest() => Head::new(2, 0).encode(),
-            Package::InitRequest(payload) => bytes::concat(
+            Package::InitRequest(payload) => vec::concat(
                 Head::new(7, payload.len().try_into().unwrap()).encode(),
                 payload.into_bytes(),
             ),
@@ -118,12 +117,30 @@ impl Package {
         }
         Package::Multi(unpacked)
     }
+
+    pub fn into_events(self) -> Vec<Event> {
+        // TODO process recursive `Multi`
+        let mut vec = Vec::new();
+        match self {
+            Package::Multi(payloads) => for payload in payloads {
+                match payload {
+                    Package::Json(payload) => vec.push(Event::Message(payload)),
+                    _ => unreachable!(),
+                }
+            },
+            Package::Json(payload) => vec.push(Event::Message(payload)),
+            Package::HeartbeatResponse(payload) => vec.push(Event::Popularity(payload)),
+            Package::InitResponse(_) => (),
+            _ => unreachable!(),
+        }
+        vec
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use hex_literal::hex;
-    use crate::connect::Connect;
+    use crate::client::Connect;
     use super::*;
 
     const HEAD_INIT_REQUEST: HeadBuf = hex!("0000 00f9 0010 0001 0000 0007 0000 0001");
