@@ -3,7 +3,12 @@ use tokio::{spawn, sync::broadcast, time::{self, Duration}};
 use futures_util::{StreamExt, SinkExt};
 use tokio_tungstenite::{connect_async, tungstenite::{self, protocol::Message}};
 use rocksdb::DB;
-use crate::{config::HEARTBEAT_RATE_SEC, util::Timestamp, package::Package, rest::room::HostsInfo};
+use crate::{
+    config::HEARTBEAT_RATE_SEC,
+    util::Timestamp,
+    package::Package,
+    rest::room::HostsInfo,
+};
 
 pub struct Connect {
     pub roomid: u32,
@@ -35,7 +40,7 @@ pub type Sender = broadcast::Sender<Event>;
 pub type Receiver = broadcast::Receiver<Event>;
 pub use broadcast::channel;
 
-pub async fn repeater(roomid: u32, channel_sender: &mut Sender, storage: &DB) -> Result<(), tungstenite::Error> {
+pub async fn client(roomid: u32, channel_sender: &mut Sender, storage: &DB) -> Result<(), tungstenite::Error> {
     let connection = Connect::new(roomid).await;
     let (socket, _) = connect_async(connection.url.as_str()).await.unwrap();
     let (mut socket_sender, mut socket_receiver) = socket.split();
@@ -65,5 +70,15 @@ pub async fn repeater(roomid: u32, channel_sender: &mut Sender, storage: &DB) ->
                 _ => panic!("unexpected received websocket message type"),
             }
         }
+    }
+}
+
+pub async fn client_thread(roomid: u32, mut channel_sender: Sender, storage: DB) {
+    for _ in 1..2 {
+        channel_sender.send(Event::Open).unwrap();
+        if let Err(error) = client(roomid, &mut channel_sender, &storage).await {
+            channel_sender.send(Event::Close).unwrap();
+            eprintln!("!> {}", error);
+        };
     }
 }

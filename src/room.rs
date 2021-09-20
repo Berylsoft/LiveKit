@@ -2,14 +2,14 @@ use rocksdb::DB;
 use crate::{
     config::{STORAGE_VERSION, EVENT_CHANNEL_BUFFER_SIZE, RoomConfig, GeneralConfig},
     rest::room::RoomInfo,
-    client::{Event, channel, Sender, Receiver, repeater},
+    client::{channel, Sender, Receiver},
 };
 
 pub struct Room {
     pub roomid: u32,
     pub info: RoomInfo,
-    storage: DB,
-    channel_sender: Sender, 
+    pub storage: DB,
+    pub channel_sender: Sender, 
 }
 
 impl Room {
@@ -33,16 +33,6 @@ impl Room {
 
     pub async fn update_info(&mut self) {
         self.info = RoomInfo::call(self.roomid).await.unwrap();
-    }
-
-    pub async fn client_thread(&self) {
-        for _ in 1..2 {
-            self.channel_sender.send(Event::Open).unwrap();
-            if let Err(error) = repeater(self.roomid, &mut self.channel_sender.clone(), &self.storage).await {
-                self.channel_sender.send(Event::Close).unwrap();
-                eprintln!("!> {}", error);
-            };
-        }
     }
 
     pub fn receive(&self) -> Receiver {

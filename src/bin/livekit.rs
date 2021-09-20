@@ -1,6 +1,10 @@
 use structopt::StructOpt;
 use tokio::{spawn, signal, fs::read_to_string};
-use livekit::{config::Config, room::Room};
+use livekit::{
+    config::Config,
+    client::client_thread,
+    room::Room,
+};
 
 #[derive(StructOpt)]
 struct Args {
@@ -15,10 +19,11 @@ async fn main() {
 
     let room = Room::init(&config.rooms[0], &config.general).await;
 
-    spawn(room.client_thread());
+    spawn(client_thread(room.roomid, room.channel_sender.clone(), room.storage));
+
+    let mut receiver = room.channel_sender.subscribe();
 
     spawn(async move {
-        let mut receiver = room.receive();
         loop {
             println!("{:?}", receiver.recv().await.unwrap());
         }
