@@ -17,11 +17,11 @@ async fn main() {
     let config = read_to_string(Args::from_args().config_path).await.unwrap();
     let config: Config = serde_json::from_str(config.as_str()).unwrap();
 
-    let room = Room::init(&config.rooms[0], &config.general).await;
+    let (room, storage) = Room::init(&config.rooms[0], &config.general).await;
 
-    spawn(client_thread(room.roomid, room.channel_sender.clone(), room.storage));
+    spawn(client_thread(room.id(), room.sender(), storage));
 
-    let mut receiver = room.channel_sender.subscribe();
+    let mut receiver = room.receiver();
 
     spawn(async move {
         loop {

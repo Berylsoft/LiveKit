@@ -53,7 +53,7 @@ pub mod room {
         }
     }
 
-    #[derive(Deserialize)]
+    #[derive(Clone, Deserialize)]
     #[repr(u8)]
     pub enum LiveStatus {
         Off = 0,
@@ -61,7 +61,7 @@ pub mod room {
         Carousel,
     }
 
-    #[derive(Deserialize)]
+    #[derive(Clone, Deserialize)]
     pub struct RoomInfo {
         pub uid: u32,
         pub room_id: u32,
@@ -70,16 +70,16 @@ pub mod room {
         pub parent_area_name: String,
         pub area_name: String,
         pub title: String,
-        // pub attention: u32,
-        // pub online: u32,
-        // pub is_portrait: bool,
-        // pub description: String,
-        // pub area_id: u16,
-        // pub parent_area_id: u8,
-        // pub background: String,
-        // pub user_cover: String,
-        // pub keyframe: String,
-        // pub tags: String,
+        pub attention: u32,
+        pub online: u32,
+        pub is_portrait: bool,
+        pub description: String,
+        pub area_id: u16,
+        pub parent_area_id: u8,
+        pub background: String,
+        pub user_cover: String,
+        pub keyframe: String,
+        pub tags: String,
     }
 
     impl RoomInfo {
