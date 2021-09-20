@@ -1,7 +1,6 @@
 use structopt::StructOpt;
-use tokio::{spawn, signal, sync::broadcast::channel, fs::read_to_string};
-use rocksdb::DB;
-use livekit::{config::{Config, EVENT_CHANNEL_BUFFER_SIZE}, client::{repeater, Event}};
+use tokio::{spawn, signal, fs::read_to_string};
+use livekit::{config::Config, room::Room};
 
 #[derive(StructOpt)]
 struct Args {
@@ -14,26 +13,14 @@ async fn main() {
     let config = read_to_string(Args::from_args().config_path).await.unwrap();
     let config: Config = serde_json::from_str(config.as_str()).unwrap();
 
-    let room = &config.rooms[0];
-    let roomid = room.roomid;
-    let storage_path = room.storage_name();
+    let room = Room::init(&config.rooms[0], config.storage_root).await;
 
-    let storage = DB::open_default(format!("{}/{}", config.storage_root, storage_path)).unwrap();
-    let (channel_sender, mut channel_receiver) = channel(EVENT_CHANNEL_BUFFER_SIZE);
+    spawn(room.client_thread());
 
     spawn(async move {
-        for _ in 1..2 {
-            channel_sender.send(Event::Open).unwrap();
-            if let Err(error) = repeater(roomid, &mut channel_sender.clone(), &storage).await {
-                channel_sender.send(Event::Close).unwrap();
-                eprintln!("!> {}", error);
-            };
-        }
-    });
-
-    spawn(async move {
+        let mut receiver = room.receive();
         loop {
-            println!("{:?}", channel_receiver.recv().await.unwrap());
+            println!("{:?}", receiver.recv().await.unwrap());
         }
     });
 

@@ -1,5 +1,5 @@
 use rand::{seq::SliceRandom, thread_rng as rng};
-use tokio::{spawn, sync::broadcast::Sender, time::{self, Duration}};
+use tokio::{spawn, sync::broadcast, time::{self, Duration}};
 use futures_util::{StreamExt, SinkExt};
 use tokio_tungstenite::{connect_async, tungstenite::{self, protocol::Message}};
 use rocksdb::DB;
@@ -31,7 +31,11 @@ pub enum Event {
     Message(String),
 }
 
-pub async fn repeater(roomid: u32, channel_sender: &mut Sender<Event>, storage: &DB) -> Result<(), tungstenite::Error> {
+pub type Sender = broadcast::Sender<Event>;
+pub type Receiver = broadcast::Receiver<Event>;
+pub use broadcast::channel;
+
+pub async fn repeater(roomid: u32, channel_sender: &mut Sender, storage: &DB) -> Result<(), tungstenite::Error> {
     let connection = Connect::new(roomid).await;
     let (socket, _) = connect_async(connection.url.as_str()).await.unwrap();
     let (mut socket_sender, mut socket_receiver) = socket.split();

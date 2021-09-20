@@ -17,13 +17,3 @@ pub struct Room {
     pub roomid: u32,
     pub alias: Option<String>,
 }
-
-impl Room {
-    pub fn storage_name(&self) -> String {
-        // TODO actual roomid
-        match &self.alias {
-            None => format!("{}-{}", self.roomid, STORAGE_VERSION),
-            Some(alias) => format!("{}-{}", alias, STORAGE_VERSION),
-        }
-    }
-}

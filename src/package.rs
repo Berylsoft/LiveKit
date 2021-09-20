@@ -1,10 +1,10 @@
 use std::{convert::TryInto, io::Cursor};
-use tokio::sync::broadcast::Sender;
 use binread::{BinRead, BinReaderExt};
 use binwrite::BinWrite;
 use crate::{
     util::{compress::{de_brotli, inflate}, vec},
-    client::{Connect, Event}, schema::ConnectInfo
+    schema::ConnectInfo,
+    client::{Connect, Sender, Event},
 };
 
 pub const HEAD_LENGTH: u16 = 16;
@@ -119,7 +119,7 @@ impl Package {
         Package::Multi(unpacked)
     }
 
-    pub fn send_as_events(self, channel_sender: &mut Sender<Event>) {
+    pub fn send_as_events(self, channel_sender: &mut Sender) {
         // TODO process recursive `Multi` & return iter
         match self {
             Package::Multi(payloads) => for payload in payloads {
