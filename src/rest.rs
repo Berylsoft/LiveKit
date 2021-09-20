@@ -22,7 +22,6 @@ pub struct RestApiResponse<Data> {
     pub code: i32,
     pub data: Data,
     pub message: String,
-    pub ttl: i32,
 }
 
 pub mod room {
@@ -54,19 +53,11 @@ pub mod room {
     }
 
     #[derive(Clone, Deserialize)]
-    #[repr(u8)]
-    pub enum LiveStatus {
-        Off = 0,
-        On,
-        Carousel,
-    }
-
-    #[derive(Clone, Deserialize)]
     pub struct RoomInfo {
         pub uid: u32,
         pub room_id: u32,
         pub short_id: u32,
-        pub live_status: LiveStatus,
+        pub live_status: u8,
         pub parent_area_name: String,
         pub area_name: String,
         pub title: String,
