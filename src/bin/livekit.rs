@@ -13,7 +13,7 @@ async fn main() {
     let config = read_to_string(Args::from_args().config_path).await.unwrap();
     let config: Config = serde_json::from_str(config.as_str()).unwrap();
 
-    let room = Room::init(&config.rooms[0], config.storage_root).await;
+    let room = Room::init(&config.rooms[0], &config.general).await;
 
     spawn(room.client_thread());
 

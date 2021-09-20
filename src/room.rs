@@ -1,6 +1,6 @@
 use rocksdb::DB;
 use crate::{
-    config::{STORAGE_VERSION, EVENT_CHANNEL_BUFFER_SIZE, Room as ConfigRoom},
+    config::{STORAGE_VERSION, EVENT_CHANNEL_BUFFER_SIZE, RoomConfig, GeneralConfig},
     rest::room::RoomInfo,
     client::{Event, channel, Sender, Receiver, repeater},
 };
@@ -13,14 +13,14 @@ pub struct Room {
 }
 
 impl Room {
-    pub async fn init(config: &ConfigRoom, storage_root: String) -> Self {
-        let info = RoomInfo::call(config.roomid).await.unwrap();
+    pub async fn init(room_config: &RoomConfig, general_config: &GeneralConfig) -> Self {
+        let info = RoomInfo::call(room_config.roomid).await.unwrap();
         let roomid = info.room_id;
-        let storage_name = match &config.alias {
+        let storage_name = match &room_config.alias {
             None => format!("{}-{}", roomid, STORAGE_VERSION),
             Some(alias) => format!("{}-{}", alias, STORAGE_VERSION),
         };
-        let storage = DB::open_default(format!("{}/{}", storage_root, storage_name)).unwrap();
+        let storage = DB::open_default(format!("{}/{}", general_config.storage_root, storage_name)).unwrap();
         let (channel_sender, _) = channel(EVENT_CHANNEL_BUFFER_SIZE);
 
         Room {

@@ -8,12 +8,18 @@ pub const HEARTBEAT_RATE_SEC: u64 = 30;
 
 #[derive(Serialize, Deserialize)]
 pub struct Config {
-    pub rooms: Vec<Room>,
-    pub storage_root: String,
+    pub general: GeneralConfig,
+    pub rooms: Vec<RoomConfig>,
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct Room {
+pub struct GeneralConfig {
+    pub storage_root: String,
+    pub record_root: String,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct RoomConfig {
     pub roomid: u32,
     pub alias: Option<String>,
 }
