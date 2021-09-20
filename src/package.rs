@@ -1,4 +1,5 @@
 use std::{convert::TryInto, io::Cursor};
+use tokio::sync::broadcast::Sender;
 use binread::{BinRead, BinReaderExt};
 use binwrite::BinWrite;
 use crate::{
@@ -118,22 +119,20 @@ impl Package {
         Package::Multi(unpacked)
     }
 
-    pub fn into_events(self) -> Vec<Event> {
+    pub fn send_as_events(self, channel_sender: &mut Sender<Event>) {
         // TODO process recursive `Multi` & return iter
-        let mut vec = Vec::new();
         match self {
             Package::Multi(payloads) => for payload in payloads {
                 match payload {
-                    Package::Json(payload) => vec.push(Event::Message(payload)),
+                    Package::Json(payload) => { channel_sender.send(Event::Message(payload)).unwrap(); },
                     _ => unreachable!(),
                 }
             },
-            Package::Json(payload) => vec.push(Event::Message(payload)),
-            Package::HeartbeatResponse(payload) => vec.push(Event::Popularity(payload)),
+            Package::Json(payload) => { channel_sender.send(Event::Message(payload)).unwrap(); },
+            Package::HeartbeatResponse(payload) => { channel_sender.send(Event::Popularity(payload)).unwrap(); },
             Package::InitResponse(_) => (),
             _ => unreachable!(),
         }
-        vec
     }
 }
 
@@ -181,7 +180,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_init_request() {
-        let connect = Connect::new(10308958).await.unwrap();
+        let connect = Connect::new(10308958).await;
         let init = Package::create_init_request(&connect);
         if let Package::InitRequest(payload) = &init {
             assert!(payload.starts_with(PACKAGE_INIT_BEGINNING))

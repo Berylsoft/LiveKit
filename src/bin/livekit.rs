@@ -19,13 +19,13 @@ async fn main() {
     let storage_path = room.storage_name();
 
     let storage = DB::open_default(format!("{}/{}", config.storage_root, storage_path)).unwrap();
-    let (channel_tx, mut channel_rx) = channel(EVENT_CHANNEL_BUFFER_SIZE);
+    let (channel_sender, mut channel_receiver) = channel(EVENT_CHANNEL_BUFFER_SIZE);
 
     spawn(async move {
         for _ in 1..2 {
-            channel_tx.send(Event::Open).unwrap();
-            if let Err(error) = repeater(roomid, &mut channel_tx.clone(), &storage).await {
-                channel_tx.send(Event::Close).unwrap();
+            channel_sender.send(Event::Open).unwrap();
+            if let Err(error) = repeater(roomid, &mut channel_sender.clone(), &storage).await {
+                channel_sender.send(Event::Close).unwrap();
                 eprintln!("!> {}", error);
             };
         }
@@ -33,7 +33,7 @@ async fn main() {
 
     spawn(async move {
         loop {
-            println!("{:?}", channel_rx.recv().await.unwrap());
+            println!("{:?}", channel_receiver.recv().await.unwrap());
         }
     });
 
