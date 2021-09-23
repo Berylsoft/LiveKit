@@ -1,10 +1,10 @@
 use rand::{seq::SliceRandom, thread_rng as rng};
-use tokio::{spawn, sync::broadcast, time::{self, Duration}};
+use tokio::{spawn, sync::broadcast, time::{self, sleep, Duration}};
 use futures_util::{StreamExt, SinkExt};
 use tokio_tungstenite::{connect_async, tungstenite::{self, protocol::Message}};
 use rocksdb::DB;
 use crate::{
-    config::HEARTBEAT_RATE_SEC,
+    config::{HEARTBEAT_RATE_SEC, RETRY_INTERVAL_SEC},
     util::Timestamp,
     package::Package,
     rest::room::HostsInfo,
@@ -74,11 +74,12 @@ pub async fn client(roomid: u32, channel_sender: &mut Sender, storage: &DB) -> R
 }
 
 pub async fn client_thread(roomid: u32, mut channel_sender: Sender, storage: DB) {
-    for _ in 1..2 {
+    loop {
         channel_sender.send(Event::Open).unwrap();
         if let Err(error) = client(roomid, &mut channel_sender, &storage).await {
             channel_sender.send(Event::Close).unwrap();
             eprintln!("!> {}", error);
         };
+        sleep(Duration::from_secs(RETRY_INTERVAL_SEC)).await;
     }
 }
