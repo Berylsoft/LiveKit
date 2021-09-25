@@ -8,15 +8,27 @@ pub const HEARTBEAT_RATE_SEC: u64 = 30;
 pub const RETRY_INTERVAL_SEC: u64 = 30;
 
 #[derive(Serialize, Deserialize)]
-pub struct Config {
-    pub general: GeneralConfig,
-    pub rooms: Vec<RoomConfig>,
+pub struct General {
+    pub config: GeneralConfig,
+    pub groups: Vec<Group>,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct GeneralConfig {
+    pub rest_api_proxy: Option<String>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct Group {
+    pub config: GroupConfig,
+    pub rooms: Vec<RoomConfig>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct GroupConfig {
     pub storage_root: String,
     pub record_root: String,
+    pub access_token: Option<String>,
 }
 
 #[derive(Serialize, Deserialize)]

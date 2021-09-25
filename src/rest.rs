@@ -7,7 +7,7 @@ where
     use reqwest::{get as http_get, StatusCode};
 
     // TODO error handle
-    let resp = http_get(url.as_str()).await.unwrap();
+    let resp = http_get(format!("https://api.live.bilibili.com{}", url).as_str()).await.unwrap();
     assert_eq!(resp.status(), StatusCode::OK);
     let resp = resp.text().await.unwrap();
     let resp: RestApiResponse<Data> = serde_json::from_str(resp.as_str()).unwrap();
@@ -46,7 +46,7 @@ pub mod room {
         #[inline]
         pub async fn call(roomid: u32) -> Result<Self, String> {
             call(format!(
-                "https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo?id={}&type=0",
+                "/xlive/web-room/v1/index/getDanmuInfo?id={}&type=0",
                 roomid
             )).await
         }
@@ -77,7 +77,60 @@ pub mod room {
         #[inline]
         pub async fn call(roomid: u32) -> Result<Self, String> {
             call(format!(
-                "https://api.live.bilibili.com/room/v1/Room/get_info?id={}",
+                "/room/v1/Room/get_info?id={}",
+                roomid
+            )).await
+        }
+    }
+
+    #[derive(Deserialize)]
+    pub struct PlayUrlCodecUrlInfo {
+        pub host: String,
+        pub extra: String,
+        pub stream_ttl: i32,
+    }
+
+    #[derive(Deserialize)]
+    pub struct PlayUrlCodec {
+        pub codec_name: String,
+        pub current_qn: i32,
+        pub accept_qn: Vec<i32>,
+        pub base_url: String,
+        pub url_info: PlayUrlCodecUrlInfo,
+    }
+
+    #[derive(Deserialize)]
+    pub struct PlayUrlFormat {
+        pub format_name: String,
+        pub codec: Vec<PlayUrlCodec>,
+    }
+
+    #[derive(Deserialize)]
+    pub struct PlayUrlStream {
+        pub protocol_name: String,
+        pub format: Vec<PlayUrlFormat>,
+    }
+
+    #[derive(Deserialize)]
+    pub struct PlayUrl {
+        pub stream: Vec<PlayUrlStream>,
+    }
+
+    #[derive(Deserialize)]
+    pub struct PlayUrlInfo {
+        pub playurl: PlayUrl,
+    }
+
+    #[derive(Deserialize)]
+    pub struct PlayInfo {
+        pub playurl_info: PlayUrlInfo,
+    }
+
+    impl PlayInfo {
+        #[inline]
+        pub async fn call(roomid: u32) -> Result<Self, String> {
+            call(format!(
+                "/xlive/web-room/v2/index/getRoomPlayInfo?room_id={}&protocol=0,1&format=0,1,2&codec=0,1&platform=web&ptype=8",
                 roomid
             )).await
         }
