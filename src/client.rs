@@ -10,22 +10,13 @@ use crate::{
     rest::room::HostsInfo,
 };
 
-pub struct Connect {
-    pub roomid: u32,
-    pub url: String,
-    pub key: String,
-}
-
-impl Connect {
-    pub async fn new(roomid: u32) -> Self {
-        let hosts_info = HostsInfo::call(roomid).await.unwrap();
-        let host = &hosts_info.host_list.choose(&mut rng()).unwrap();
-        Connect {
-            roomid,
-            url: format!("wss://{}:{}/sub", host.host, host.wss_port),
-            key: hosts_info.token,
-        }
-    }
+pub async fn init(roomid: u32) -> (String, String) {
+    let hosts_info = HostsInfo::call(roomid).await.unwrap();
+    let host = &hosts_info.host_list.choose(&mut rng()).unwrap();
+    (
+        format!("wss://{}:{}/sub", host.host, host.wss_port),
+        hosts_info.token,
+    )
 }
 
 #[derive(Clone, Debug)]
@@ -41,11 +32,11 @@ pub type Receiver = broadcast::Receiver<Event>;
 pub use broadcast::channel;
 
 pub async fn client(roomid: u32, channel_sender: &mut Sender, storage: &DB) -> Result<(), tungstenite::Error> {
-    let connection = Connect::new(roomid).await;
-    let (socket, _) = connect_async(connection.url.as_str()).await.unwrap();
+    let (url, key) = init(roomid).await;
+    let (socket, _) = connect_async(url.as_str()).await.unwrap();
     let (mut socket_sender, mut socket_receiver) = socket.split();
 
-    let init = Message::Binary(Package::create_init_request(&connection).encode());
+    let init = Message::Binary(Package::create_init_request(roomid, key).encode());
     socket_sender.send(init).await.unwrap();
     eprintln!("> init sent");
 

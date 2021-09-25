@@ -4,7 +4,7 @@ use binwrite::BinWrite;
 use crate::{
     util::{compress::{de_brotli, inflate}, vec},
     schema::ConnectInfo,
-    client::{Connect, Sender, Event},
+    client::{Sender, Event},
 };
 
 pub const HEAD_LENGTH: u16 = 16;
@@ -90,16 +90,16 @@ impl Package {
         }
     }
 
-    pub fn create_init_request(connect: &Connect) -> Self {
+    pub fn create_init_request(roomid: u32, key: String) -> Self {
         Package::InitRequest(
             serde_json::to_string(
                 &ConnectInfo {
                     uid: 0,
-                    roomid: connect.roomid,
+                    roomid,
                     protover: 3,
                     platform: "web".to_string(),
                     r#type: 2,
-                    key: connect.key.to_string(),
+                    key,
                 }
             ).unwrap()
         )
@@ -139,8 +139,10 @@ impl Package {
 #[cfg(test)]
 mod tests {
     use hex_literal::hex;
-    use crate::client::Connect;
+    use crate::client::init;
     use super::*;
+
+    const TEST_ROOMID: u32 = 10308958;
 
     const HEAD_INIT_REQUEST: HeadBuf = hex!("0000 00f9 0010 0001 0000 0007 0000 0001");
     const _HEAD_INIT_RESPONSE: HeadBuf = hex!("0000 001a 0010 0001 0000 0008 0000 0001");
@@ -180,8 +182,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_init_request() {
-        let connect = Connect::new(10308958).await;
-        let init = Package::create_init_request(&connect);
+        let (_, key) = init(TEST_ROOMID).await;
+        let init = Package::create_init_request(TEST_ROOMID, key);
         if let Package::InitRequest(payload) = &init {
             assert!(payload.starts_with(PACKAGE_INIT_BEGINNING))
         } else { panic!() }
