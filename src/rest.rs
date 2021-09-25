@@ -7,7 +7,7 @@ where
     use reqwest::{get as http_get, StatusCode};
 
     // TODO error handle
-    let resp = http_get(format!("https://api.live.bilibili.com{}", url).as_str()).await.unwrap();
+    let resp = http_get(format!("https://api.live.bilibili.com{}", url)).await.unwrap();
     assert_eq!(resp.status(), StatusCode::OK);
     let resp = resp.text().await.unwrap();
     let resp: RestApiResponse<Data> = serde_json::from_str(resp.as_str()).unwrap();

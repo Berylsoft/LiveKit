@@ -29,6 +29,7 @@ pub struct GroupConfig {
     pub storage_root: String,
     pub record_root: String,
     pub access_token: Option<String>,
+    pub record_quality: Option<Vec<i32>>,
 }
 
 #[derive(Serialize, Deserialize)]
