@@ -15,10 +15,14 @@ impl Room {
     pub async fn init(room_config: &RoomConfig, group_config: &GroupConfig) -> (Self, DB) {
         let info = RoomInfo::call(room_config.roomid).await.unwrap();
         let roomid = info.room_id;
-        let storage_name = match &room_config.alias {
-            None => format!("{}-{}", roomid, STORAGE_VERSION),
-            Some(alias) => format!("{}-{}", alias, STORAGE_VERSION),
-        };
+        let storage_name = format!(
+            "{}-{}",
+            match &room_config.alias {
+                None => roomid.to_string(),
+                Some(alias) => alias.clone(),
+            },
+            STORAGE_VERSION,
+        );
         let storage = DB::open_default(format!("{}/{}", group_config.storage_root, storage_name)).unwrap();
         let (channel_sender, _) = channel(EVENT_CHANNEL_BUFFER_SIZE);
 

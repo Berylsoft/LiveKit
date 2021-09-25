@@ -96,7 +96,7 @@ pub mod room {
         pub current_qn: i32,
         pub accept_qn: Vec<i32>,
         pub base_url: String,
-        pub url_info: PlayUrlCodecUrlInfo,
+        pub url_info: Vec<PlayUrlCodecUrlInfo>,
     }
 
     #[derive(Deserialize)]
@@ -128,10 +128,11 @@ pub mod room {
 
     impl PlayInfo {
         #[inline]
-        pub async fn call(roomid: u32) -> Result<Self, String> {
+        pub async fn call(roomid: u32, qn: i32) -> Result<Self, String> {
             call(format!(
-                "/xlive/web-room/v2/index/getRoomPlayInfo?room_id={}&protocol=0,1&format=0,1,2&codec=0,1&platform=web&ptype=8",
-                roomid
+                "/xlive/web-room/v2/index/getRoomPlayInfo?room_id={}&protocol=0,1&format=0,1,2&codec=0,1&qn={}&platform=web&ptype=8",
+                roomid,
+                qn,
             )).await
         }
     }

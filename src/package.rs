@@ -47,7 +47,6 @@ impl Head {
     }
 }
 
-#[derive(Debug)]
 pub enum Package {
     Unknown(Vec<u8>),
     InitRequest(String),
@@ -139,7 +138,6 @@ impl Package {
 #[cfg(test)]
 mod tests {
     use hex_literal::hex;
-    use crate::client::init;
     use super::*;
 
     const TEST_ROOMID: u32 = 10308958;
@@ -182,12 +180,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_init_request() {
-        let (_, key) = init(TEST_ROOMID).await;
-        let init = Package::create_init_request(TEST_ROOMID, key);
+        let init = Package::create_init_request(TEST_ROOMID, "key".to_string());
         if let Package::InitRequest(payload) = &init {
             assert!(payload.starts_with(PACKAGE_INIT_BEGINNING))
         } else { panic!() }
         let init = init.encode();
-        assert_eq!(init.len(), HEAD_LENGTH_SIZE + PACKAGE_INIT_BEGINNING.len() + 148 /* token length */ + 2 /* "} */);
+        assert_eq!(init.len(), 94);
     }
 }
