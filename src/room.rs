@@ -5,13 +5,14 @@ use crate::{
         STORAGE_VERSION, EVENT_CHANNEL_BUFFER_SIZE, DEFAULT_FILE_TEMPLATE,
         RoomConfig, GroupConfig,
     },
-    rest::room::RoomInfo,
+    rest::room::{RoomInfo, UserInfo},
     client::{channel, Sender, Receiver},
 };
 
 pub struct Room {
     roomid: u32,
     info: RoomInfo,
+    user_info: UserInfo,
     channel_sender: Sender,
 }
 
@@ -19,6 +20,7 @@ impl Room {
     pub async fn init(room_config: &RoomConfig, group_config: &GroupConfig) -> (Self, DB) {
         let info = RoomInfo::call(room_config.roomid).await.unwrap();
         let roomid = info.room_id;
+        let user_info = UserInfo::call(roomid).await.unwrap();
         let storage_name = format!(
             "{}-{}",
             match &room_config.alias {
@@ -34,6 +36,7 @@ impl Room {
             Room {
                 roomid,
                 info,
+                user_info,
                 channel_sender,
             },
             storage,
@@ -50,6 +53,14 @@ impl Room {
 
     pub async fn update_info(&mut self) {
         self.info = RoomInfo::call(self.roomid).await.unwrap();
+    }
+
+    pub fn user_info(&self) -> UserInfo {
+        self.user_info.clone()
+    }
+
+    pub async fn update_user_info(&mut self) {
+        self.user_info = UserInfo::call(self.roomid).await.unwrap();
     }
 
     pub fn sender(&self) -> Sender {
@@ -73,7 +84,7 @@ impl Room {
             .replace("{random}", rng().gen_range(0..100).to_string().as_str())
             .replace("{roomid}", self.roomid.to_string().as_str())
             .replace("{title}", self.info.title.as_str())
-            // .replace("{name}", self.name)
+            .replace("{name}", self.user_info.info.uname.to_string().as_str())
             .replace("{parea}", self.info.parent_area_name.as_str())
             .replace("{area}", self.info.area_name.as_str())
     }

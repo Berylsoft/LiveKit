@@ -136,4 +136,35 @@ pub mod room {
             )).await
         }
     }
+
+    #[derive(Clone, Deserialize)]
+    pub struct UserInfoInfo {
+        pub uname: String,
+    }
+
+    #[derive(Clone, Deserialize)]
+    pub struct UserInfoLevelMaster {
+        pub level: u32,
+    }
+
+    #[derive(Clone, Deserialize)]
+    pub struct UserInfoLevel {
+        pub master_level: UserInfoLevelMaster,
+    }
+
+    #[derive(Clone, Deserialize)]
+    pub struct UserInfo {
+        pub info: UserInfoInfo,
+        pub level: UserInfoLevel,
+    }
+
+    impl UserInfo {
+        #[inline]
+        pub async fn call(roomid: u32) -> Result<Self, String> {
+            call(format!(
+                "/live_user/v1/UserInfo/get_anchor_in_room?roomid={}",
+                roomid,
+            )).await
+        }
+    }
 }
