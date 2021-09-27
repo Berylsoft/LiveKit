@@ -73,7 +73,7 @@ impl Room {
 
     pub fn record_file_name(&self, file_template: Option<String>) -> String {
         // group_config.record.file_template.clone()
-        let template = file_template.unwrap_or_else(|| DEFAULT_FILE_TEMPLATE.to_string());
+        let template = format!("{}.flv", file_template.unwrap_or_else(|| DEFAULT_FILE_TEMPLATE.to_string()));
         let time = chrono::Utc::now();
 
         template

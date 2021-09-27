@@ -18,6 +18,7 @@ pub struct General {
 #[derive(Serialize, Deserialize)]
 pub struct GeneralConfig {
     pub rest_api_proxy: Option<String>,
+    pub emulate_browser: bool,
 }
 
 #[derive(Serialize, Deserialize)]
