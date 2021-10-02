@@ -58,23 +58,28 @@ pub enum Package {
 }
 
 impl Package {
-    pub fn decode(raw: &Vec<u8>) -> Self {
+    pub fn decode(raw: &[u8]) -> Self {
         let (head, payload) = raw.split_at(HEAD_LENGTH_SIZE);
+
+        let unknown = || Package::Unknown(raw.to_vec());
+        let string_payload = || String::from_utf8(payload.to_vec()).unwrap();
+        let u32_payload = || u32::from_be_bytes(payload[0..4].try_into().unwrap());
+
         match Head::decode(head) {
-            Some(head) => match head.msg_type {
-                5 => match head.proto_ver {
-                    0 => Package::Json(String::from_utf8(payload.to_vec()).unwrap()),
-                    3 => Package::unpack(de_brotli(payload).unwrap()),
-                    2 => Package::unpack(inflate(payload).unwrap()),
-                    _ => Package::Unknown(raw.clone()),
+            Some(head) => match head.proto_ver {
+                0 => Package::Json(string_payload()),
+                3 => Package::unpack(de_brotli(payload).unwrap()),
+                1 => match head.msg_type {
+                    3 => Package::HeartbeatResponse(u32_payload()),
+                    8 => Package::InitResponse(string_payload()),
+                    2 => Package::HeartbeatRequest(),
+                    7 => Package::InitRequest(string_payload()),
+                    _ => unknown(),
                 },
-                2 => Package::HeartbeatRequest(),
-                3 => Package::HeartbeatResponse(u32::from_be_bytes(payload[0..4].try_into().unwrap())),
-                7 => Package::InitRequest(String::from_utf8(payload.to_vec()).unwrap()),
-                8 => Package::InitResponse(String::from_utf8(payload.to_vec()).unwrap()),
-                _ => Package::Unknown(raw.clone()),
+                2 => Package::unpack(inflate(payload).unwrap()),
+                _ => unknown(),
             },
-            None => Package::Unknown(raw.clone()),
+            None => unknown(),
         }
     }
 
@@ -111,8 +116,7 @@ impl Package {
         while offset < pack_length {
             let length_buf = pack[offset..offset + 4].try_into().unwrap();
             let length: usize = u32::from_be_bytes(length_buf).try_into().unwrap();
-            let raw = (&pack[offset..offset + length]).to_vec();
-            unpacked.push(Package::decode(&raw));
+            unpacked.push(Package::decode(&pack[offset..offset + length]));
             offset += length;
         }
         Package::Multi(unpacked)

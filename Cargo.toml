@@ -2,6 +2,11 @@
 name = "LiveKit"
 version = "0.1.0"
 edition = "2018"
+authors = ["stackinspector"]
+license = "Apache-2.0"
+repository = "https://github.com/Berylsoft/Zeon"
+description = "A range of scalable and portable utilities for Bilibili Live's hosts, post-production teams and viewers"
+# readme
 
 [lib]
 name = "livekit"
