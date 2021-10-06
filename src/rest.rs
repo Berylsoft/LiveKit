@@ -1,31 +1,6 @@
-use serde::Deserialize;
-
-pub async fn call<Data>(url: String) -> Result<Data, String>
-where
-    Data: serde::de::DeserializeOwned,
-{
-    use reqwest::{get as http_get, StatusCode};
-
-    // TODO error handle
-    let resp = http_get(format!("https://api.live.bilibili.com{}", url)).await.unwrap();
-    assert_eq!(resp.status(), StatusCode::OK);
-    let resp = resp.text().await.unwrap();
-    let resp: RestApiResponse<Data> = serde_json::from_str(resp.as_str()).unwrap();
-    match resp.code {
-        0 => Ok(resp.data),
-        _ => Err(resp.message),
-    }
-}
-
-#[derive(Deserialize)]
-pub struct RestApiResponse<Data> {
-    pub code: i32,
-    pub data: Data,
-    pub message: String,
-}
-
 pub mod room {
-    use super::{call, Deserialize};
+    use serde::Deserialize;
+    use crate::util::rest::call;
 
     #[derive(Deserialize)]
     pub struct HostsInfo {
