@@ -5,8 +5,8 @@ use crate::{
         STORAGE_VERSION, EVENT_CHANNEL_BUFFER_SIZE, DEFAULT_FILE_TEMPLATE,
         RoomConfig, GroupConfig,
     },
-    rest::room::{RoomInfo, UserInfo},
-    client::{channel, Sender, Receiver},
+    api::room::{RoomInfo, UserInfo},
+    feed::{channel, Sender, Receiver},
 };
 
 pub struct Room {

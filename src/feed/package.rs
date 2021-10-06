@@ -3,8 +3,10 @@ use binread::{BinRead, BinReaderExt};
 use binwrite::BinWrite;
 use crate::{
     util::{compress::{de_brotli, inflate}, vec},
+};
+use super::{
     schema::ConnectInfo,
-    client::{Sender, Event},
+    client::{Event, Sender},
 };
 
 pub const HEAD_LENGTH: u16 = 16;

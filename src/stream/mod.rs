@@ -2,7 +2,7 @@ use futures_util::Stream;
 use reqwest::get as http_get;
 use crate::{
     config::GroupConfig,
-    rest::room::{PlayInfo, PlayUrlCodec},
+    api::room::{PlayInfo, PlayUrlCodec},
 };
 
 pub fn select_url(play_info: PlayInfo) -> Option<PlayUrlCodec> {

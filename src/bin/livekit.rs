@@ -2,7 +2,7 @@ use structopt::StructOpt;
 use tokio::{spawn, signal, fs::read_to_string};
 use livekit::{
     config::General as GeneralConfig,
-    client::client_thread,
+    feed::client_thread,
     room::Room,
 };
 

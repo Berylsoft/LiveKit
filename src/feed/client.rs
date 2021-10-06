@@ -6,9 +6,9 @@ use rocksdb::DB;
 use crate::{
     config::{HEARTBEAT_RATE_SEC, RETRY_INTERVAL_SEC},
     util::Timestamp,
-    package::Package,
-    rest::room::HostsInfo,
+    api::room::HostsInfo,
 };
+use super::package::Package;
 
 pub async fn init(roomid: u32) -> (String, String) {
     let hosts_info = HostsInfo::call(roomid).await.unwrap();
