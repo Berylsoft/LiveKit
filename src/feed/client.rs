@@ -1,23 +1,11 @@
-use rand::{seq::SliceRandom, thread_rng as rng};
-use tokio::{spawn, sync::broadcast, time::{self, sleep, Duration}};
-use futures_util::{StreamExt, SinkExt};
-use tokio_tungstenite::{connect_async, tungstenite::{self, protocol::Message}};
+use tokio::{sync::broadcast, time::{sleep, Duration}};
+use futures::{future, StreamExt};
 use rocksdb::DB;
 use crate::{
-    config::{HEARTBEAT_RATE_SEC, RETRY_INTERVAL_SEC},
+    config::RETRY_INTERVAL_SEC,
     util::Timestamp,
-    api::room::HostsInfo,
+    feed::{package::Package, stream::FeedStream},
 };
-use super::package::Package;
-
-pub async fn init(roomid: u32) -> (String, String) {
-    let hosts_info = HostsInfo::call(roomid).await.unwrap();
-    let host = &hosts_info.host_list.choose(&mut rng()).unwrap();
-    (
-        format!("wss://{}:{}/sub", host.host, host.wss_port),
-        hosts_info.token,
-    )
-}
 
 #[derive(Clone, Debug)]
 pub enum Event {
@@ -31,46 +19,34 @@ pub type Sender = broadcast::Sender<Event>;
 pub type Receiver = broadcast::Receiver<Event>;
 pub use broadcast::channel;
 
-pub async fn client(roomid: u32, channel_sender: &mut Sender, storage: &DB) -> Result<(), tungstenite::Error> {
-    let (url, key) = init(roomid).await;
-    let (socket, _) = connect_async(url.as_str()).await.unwrap();
-    let (mut socket_sender, mut socket_receiver) = socket.split();
-
-    let init = Message::Binary(Package::create_init_request(roomid, key).encode());
-    socket_sender.send(init).await.unwrap();
-    eprintln!("> init sent");
-
-    spawn(async move {
-        let heartbeat = Message::Binary(Package::HeartbeatRequest().encode());
-        let mut interval = time::interval(Duration::from_secs(HEARTBEAT_RATE_SEC));
-        loop {
-            interval.tick().await;
-            socket_sender.send(heartbeat.clone()).await.unwrap();
-            eprintln!("> heartbeat sent");
-        }
-    });
-
-    loop {
-        for maybe_message in socket_receiver.next().await {
-            match maybe_message? {
-                Message::Binary(payload) => {
-                    eprintln!("> received");
-                    storage.put(Timestamp::now().to_bytes(), &payload).unwrap();
-                    Package::decode(&payload).send_as_events(channel_sender);
-                },
-                _ => panic!("unexpected received websocket message type"),
-            }
+impl Package {
+    pub fn send_as_events(self, channel_sender: &mut Sender) {
+        // TODO process recursive `Multi` & return iter
+        match self {
+            Package::Multi(payloads) => for payload in payloads {
+                match payload {
+                    Package::Json(payload) => { channel_sender.send(Event::Message(payload)).unwrap(); },
+                    _ => unreachable!(),
+                }
+            },
+            Package::Json(payload) => { channel_sender.send(Event::Message(payload)).unwrap(); },
+            Package::HeartbeatResponse(payload) => { channel_sender.send(Event::Popularity(payload)).unwrap(); },
+            Package::InitResponse(_) => (),
+            _ => unreachable!(),
         }
     }
 }
 
-pub async fn client_thread(roomid: u32, mut channel_sender: Sender, storage: DB) {
+pub async fn client(roomid: u32, mut channel_sender: Sender, storage: DB) {
     loop {
+        let stream = FeedStream::connect(roomid).await;
         channel_sender.send(Event::Open).unwrap();
-        if let Err(error) = client(roomid, &mut channel_sender, &storage).await {
-            channel_sender.send(Event::Close).unwrap();
-            eprintln!("!> {}", error);
-        };
+        stream.for_each(|message| {
+            storage.put(Timestamp::now().to_bytes(), &message).unwrap();
+            Package::decode(&message).send_as_events(&mut channel_sender);
+            future::ready(())
+        }).await;
+        channel_sender.send(Event::Close).unwrap();
         sleep(Duration::from_secs(RETRY_INTERVAL_SEC)).await;
     }
 }

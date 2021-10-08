@@ -3,10 +3,7 @@ use binread::{BinRead, BinReaderExt};
 use binwrite::BinWrite;
 use crate::{
     util::{compress::{de_brotli, inflate}, vec},
-};
-use super::{
-    schema::ConnectInfo,
-    client::{Event, Sender},
+    feed::schema::ConnectInfo,
 };
 
 pub const HEAD_LENGTH: u16 = 16;
@@ -122,22 +119,6 @@ impl Package {
             offset += length;
         }
         Package::Multi(unpacked)
-    }
-
-    pub fn send_as_events(self, channel_sender: &mut Sender) {
-        // TODO process recursive `Multi` & return iter
-        match self {
-            Package::Multi(payloads) => for payload in payloads {
-                match payload {
-                    Package::Json(payload) => { channel_sender.send(Event::Message(payload)).unwrap(); },
-                    _ => unreachable!(),
-                }
-            },
-            Package::Json(payload) => { channel_sender.send(Event::Message(payload)).unwrap(); },
-            Package::HeartbeatResponse(payload) => { channel_sender.send(Event::Popularity(payload)).unwrap(); },
-            Package::InitResponse(_) => (),
-            _ => unreachable!(),
-        }
     }
 }
 

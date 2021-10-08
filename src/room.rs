@@ -6,7 +6,7 @@ use crate::{
         RoomConfig, GroupConfig,
     },
     api::room::{RoomInfo, UserInfo},
-    feed::{channel, Sender, Receiver},
+    feed::client::{channel, Sender, Receiver},
 };
 
 pub struct Room {

@@ -1,4 +1,4 @@
-use futures_util::Stream;
+use futures::Stream;
 use reqwest::get as http_get;
 use crate::{
     config::GroupConfig,
