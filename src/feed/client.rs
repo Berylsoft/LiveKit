@@ -50,3 +50,14 @@ pub async fn client(roomid: u32, mut channel_sender: Sender, storage: DB) {
         sleep(Duration::from_secs(RETRY_INTERVAL_SEC)).await;
     }
 }
+
+pub async fn client_record_only(roomid: u32, storage: DB) {
+    loop {
+        let stream = FeedStream::connect(roomid).await;
+        stream.for_each(|message| {
+            storage.put(Timestamp::now().to_bytes(), &message).unwrap();
+            future::ready(())
+        }).await;
+        sleep(Duration::from_secs(RETRY_INTERVAL_SEC)).await;
+    }
+}

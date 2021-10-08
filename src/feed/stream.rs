@@ -49,6 +49,11 @@ impl Stream for FeedStream {
 
         Poll::Ready(match p {
             Some(Ok(Message::Binary(payload))) => Some(payload),
+            Some(Ok(Message::Ping(payload))) => {
+                assert!(payload.is_empty());
+                eprintln!("FEEDSTREAM RECEIVED ENPTY PING");
+                None
+            },
             Some(Ok(_)) => unreachable!(),
             Some(Err(error)) => {
                 eprintln!("FEEDSTREAM! {}", error);
