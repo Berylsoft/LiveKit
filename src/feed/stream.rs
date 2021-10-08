@@ -44,6 +44,7 @@ impl Stream for FeedStream {
     type Item = Vec<u8>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        // It works but I don't know why
         let p = ready!(Pin::new(&mut self.ws).poll_next(cx));
 
         Poll::Ready(match p {
