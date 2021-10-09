@@ -17,33 +17,37 @@ pub enum Event {
 
 pub type Sender = broadcast::Sender<Event>;
 pub type Receiver = broadcast::Receiver<Event>;
+pub type SendError = broadcast::error::SendError<Event>;
 pub use broadcast::channel;
 
 impl Package {
-    pub fn send_as_events(self, channel_sender: &mut Sender) {
-        // TODO process recursive `Multi` & return iter
+    fn send_as_events(self, channel_sender: &Sender) -> Result<(), SendError> {
         match self {
-            Package::Multi(payloads) => for payload in payloads {
-                match payload {
-                    Package::Json(payload) => { channel_sender.send(Event::Message(payload)).unwrap(); },
-                    _ => unreachable!(),
+            Package::Json(payload) => {
+                channel_sender.send(Event::Message(payload))?;
+            },
+            Package::Multi(payloads) => {
+                for payload in payloads {
+                    payload.send_as_events(channel_sender)?
                 }
             },
-            Package::Json(payload) => { channel_sender.send(Event::Message(payload)).unwrap(); },
-            Package::HeartbeatResponse(payload) => { channel_sender.send(Event::Popularity(payload)).unwrap(); },
-            Package::InitResponse(_) => (),
+            Package::HeartbeatResponse(payload) => {
+                channel_sender.send(Event::Popularity(payload))?;
+            },
+            Package::InitResponse(_) => {},
             _ => unreachable!(),
         }
+        Ok(())
     }
 }
 
-pub async fn client(roomid: u32, mut channel_sender: Sender, storage: DB) {
+pub async fn client(roomid: u32, channel_sender: Sender, storage: DB) {
     loop {
         let stream = FeedStream::connect(roomid).await;
         channel_sender.send(Event::Open).unwrap();
         stream.for_each(|message| {
             storage.put(Timestamp::now().to_bytes(), &message).unwrap();
-            Package::decode(&message).send_as_events(&mut channel_sender);
+            Package::decode(&message).send_as_events(&channel_sender).unwrap();
             future::ready(())
         }).await;
         channel_sender.send(Event::Close).unwrap();

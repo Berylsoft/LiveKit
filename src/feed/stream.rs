@@ -72,7 +72,7 @@ impl Stream for FeedStream {
                 Some(Err(error)) => {
                     eprintln!("FEEDSTREAM! {}", error);
                     None
-                }
+                },
                 None => None,
             },
             Err(TryRecvError::Disconnected) => unreachable!(),
