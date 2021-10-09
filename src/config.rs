@@ -5,7 +5,7 @@ pub const STORAGE_VERSION: &str = "alpha2";
 
 pub const EVENT_CHANNEL_BUFFER_SIZE: usize = 1024;
 pub const HEARTBEAT_RATE_SEC: u64 = 30;
-pub const RETRY_INTERVAL_SEC: u64 = 30;
+pub const RETRY_INTERVAL_SEC: u64 = 10;
 
 pub const DEFAULT_FILE_TEMPLATE: &str = "{roomid}-{date}-{time}{ms}-{title}";
 

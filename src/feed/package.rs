@@ -158,19 +158,22 @@ mod tests {
     #[test]
     fn test_package_decode() {
         let package = Package::decode(&PACKAGE_RAW.to_vec());
-        if let Package::Multi(unpacked) = package {
-            if let Package::Json(payload) = &unpacked[0] {
-                assert_eq!(payload, PACKAGE_PAYLOAD);
-            } else { panic!() }
-        } else { panic!() }
+        match package {
+            Package::Multi(unpacked) => match &unpacked[0] {
+                Package::Json(payload) => assert_eq!(payload, PACKAGE_PAYLOAD),
+                _ => panic!(),
+            },
+            _ => panic!(),
+        }
     }
 
     #[tokio::test]
     async fn test_init_request() {
         let init = Package::create_init_request(TEST_ROOMID, "key".to_string());
-        if let Package::InitRequest(payload) = &init {
-            assert!(payload.starts_with(PACKAGE_INIT_BEGINNING))
-        } else { panic!() }
+        match &init {
+            Package::InitRequest(payload) => assert!(payload.starts_with(PACKAGE_INIT_BEGINNING)),
+            _ => panic!(),
+        }
         let init = init.encode();
         assert_eq!(init.len(), 94);
     }
