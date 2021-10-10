@@ -3,7 +3,7 @@ use binread::{BinRead, BinReaderExt};
 use binwrite::BinWrite;
 use crate::{
     util::{compress::{de_brotli, inflate}, vec},
-    feed::schema::ConnectInfo,
+    feed::schema::InitRequest,
 };
 
 pub const HEAD_LENGTH: u16 = 16;
@@ -96,7 +96,7 @@ impl Package {
     pub fn create_init_request(roomid: u32, key: String) -> Self {
         Package::InitRequest(
             serde_json::to_string(
-                &ConnectInfo {
+                &InitRequest {
                     uid: 0,
                     roomid,
                     protover: 3,

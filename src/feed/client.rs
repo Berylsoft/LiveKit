@@ -61,18 +61,19 @@ pub async fn client_record_only(roomid: u32, storage: DB) {
     }
 }
 
-pub fn open_storage(path: String) -> DB {
-    DB::open_default(path).unwrap()
+pub fn open_storage(path: String) -> Result<DB, rocksdb::Error> {
+    // reserved independent function to contain tuning configurations later
+    DB::open_default(path)
 }
 
 pub fn init(roomid: u32, storage_path: String) -> Receiver<Event> {
     let (sender, receiver) = channel(EVENT_CHANNEL_BUFFER_SIZE);
-    let storage = open_storage(storage_path);
+    let storage = open_storage(storage_path).unwrap();
     spawn(client(roomid, sender, storage));
     receiver
 }
 
 pub fn init_record_only(roomid: u32, storage_path: String) {
-    let storage = open_storage(storage_path);
+    let storage = open_storage(storage_path).unwrap();
     spawn(client_record_only(roomid, storage));
 }
