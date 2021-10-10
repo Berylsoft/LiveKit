@@ -1,23 +1,21 @@
 use rand::{Rng, thread_rng as rng};
-use rocksdb::DB;
 use crate::{
     config::{
-        STORAGE_VERSION, EVENT_CHANNEL_BUFFER_SIZE, DEFAULT_FILE_TEMPLATE,
+        STORAGE_VERSION, DEFAULT_FILE_TEMPLATE,
         RoomConfig, GroupConfig,
     },
     api::room::{RoomInfo, UserInfo},
-    feed::client::{channel, Sender, Receiver},
 };
 
 pub struct Room {
     roomid: u32,
+    storage_path: String,
     info: RoomInfo,
     user_info: UserInfo,
-    channel_sender: Sender,
 }
 
 impl Room {
-    pub async fn init(room_config: &RoomConfig, group_config: &GroupConfig) -> (Self, DB) {
+    pub async fn init(room_config: &RoomConfig, group_config: &GroupConfig) -> Self {
         let info = RoomInfo::call(room_config.roomid).await.unwrap();
         let roomid = info.room_id;
         let user_info = UserInfo::call(roomid).await.unwrap();
@@ -29,22 +27,22 @@ impl Room {
             },
             STORAGE_VERSION,
         );
-        let storage = DB::open_default(format!("{}/{}", group_config.storage_root, storage_name)).unwrap();
-        let (channel_sender, _) = channel(EVENT_CHANNEL_BUFFER_SIZE);
+        let storage_path = format!("{}/{}", group_config.storage_root, storage_name);
 
-        (
-            Room {
-                roomid,
-                info,
-                user_info,
-                channel_sender,
-            },
-            storage,
-        )
+        Room {
+            roomid,
+            storage_path,
+            info,
+            user_info,
+        }
     }
 
     pub fn id(&self) -> u32 {
         self.roomid
+    }
+
+    pub fn storage_path(&self) -> String {
+        self.storage_path.clone()
     }
 
     pub fn info(&self) -> RoomInfo {
@@ -61,14 +59,6 @@ impl Room {
 
     pub async fn update_user_info(&mut self) {
         self.user_info = UserInfo::call(self.roomid).await.unwrap();
-    }
-
-    pub fn sender(&self) -> Sender {
-        self.channel_sender.clone()
-    }
-
-    pub fn receiver(&self) -> Receiver {
-        self.channel_sender.subscribe()
     }
 
     pub fn record_file_name(&self, file_template: Option<String>) -> String {

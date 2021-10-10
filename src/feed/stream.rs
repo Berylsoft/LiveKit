@@ -22,18 +22,18 @@ impl FeedStream {
         let host = &hosts_info.host_list.choose(&mut rng()).unwrap();
         let url = format!("wss://{}:{}/sub", host.host, host.wss_port);
 
-        let (socket, _) = connect_async(url.as_str()).await.unwrap(); // !
-        let (mut socket_sender, socket_receiver) = socket.split();
+        let (ws, _) = connect_async(url.as_str()).await.unwrap(); // !
+        let (mut sender, receiver) = ws.split();
 
         let init = Message::Binary(Package::create_init_request(roomid, hosts_info.token).encode());
-        socket_sender.send(init).await.unwrap(); // !
+        sender.send(init).await.unwrap(); // !
 
         spawn(async move {
             let heartbeat = Message::Binary(Package::HeartbeatRequest().encode());
             let mut interval = time::interval(Duration::from_secs(HEARTBEAT_RATE_SEC));
             loop {
                 interval.tick().await;
-                if let Err(error) = socket_sender.send(heartbeat.clone()).await {
+                if let Err(error) = sender.send(heartbeat.clone()).await {
                     if let Err(_) = error_sender.send(error).await {
                         break
                     }
@@ -42,7 +42,7 @@ impl FeedStream {
         });
 
         Self {
-            ws: socket_receiver,
+            ws: receiver,
             error: error_receiver,
         }
     }

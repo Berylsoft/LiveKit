@@ -1,4 +1,4 @@
-use tokio::{sync::broadcast, time::{sleep, Duration}};
+use tokio::{sync::broadcast::{Sender, error::SendError}, time::{sleep, Duration}};
 use futures::{future, StreamExt};
 use rocksdb::DB;
 use crate::{
@@ -15,24 +15,19 @@ pub enum Event {
     Message(String),
 }
 
-pub type Sender = broadcast::Sender<Event>;
-pub type Receiver = broadcast::Receiver<Event>;
-pub type SendError = broadcast::error::SendError<Event>;
-pub use broadcast::channel;
-
 impl Package {
-    fn send_as_events(self, channel_sender: &Sender) -> Result<(), SendError> {
+    fn send_as_events(self, sender: &Sender<Event>) -> Result<(), SendError<Event>> {
         match self {
             Package::Json(payload) => {
-                channel_sender.send(Event::Message(payload))?;
+                sender.send(Event::Message(payload))?;
             },
             Package::Multi(payloads) => {
                 for payload in payloads {
-                    payload.send_as_events(channel_sender)?
+                    payload.send_as_events(sender)?
                 }
             },
             Package::HeartbeatResponse(payload) => {
-                channel_sender.send(Event::Popularity(payload))?;
+                sender.send(Event::Popularity(payload))?;
             },
             Package::InitResponse(_) => {},
             _ => unreachable!(),
@@ -41,16 +36,16 @@ impl Package {
     }
 }
 
-pub async fn client(roomid: u32, channel_sender: Sender, storage: DB) {
+pub async fn client(roomid: u32, sender: Sender<Event>, storage: DB) {
     loop {
         let stream = FeedStream::connect(roomid).await;
-        channel_sender.send(Event::Open).unwrap();
+        sender.send(Event::Open).unwrap();
         stream.for_each(|message| {
             storage.put(Timestamp::now().to_bytes(), &message).unwrap();
-            Package::decode(&message).send_as_events(&channel_sender).unwrap();
+            Package::decode(&message).send_as_events(&sender).unwrap();
             future::ready(())
         }).await;
-        channel_sender.send(Event::Close).unwrap();
+        sender.send(Event::Close).unwrap();
         sleep(Duration::from_secs(RETRY_INTERVAL_SEC)).await;
     }
 }
@@ -64,4 +59,8 @@ pub async fn client_record_only(roomid: u32, storage: DB) {
         }).await;
         sleep(Duration::from_secs(RETRY_INTERVAL_SEC)).await;
     }
+}
+
+pub fn open_storage(path: String) -> DB {
+    DB::open_default(path).unwrap()
 }
