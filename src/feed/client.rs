@@ -1,8 +1,8 @@
-use tokio::{sync::broadcast::{Sender, error::SendError}, time::{sleep, Duration}};
+use tokio::{spawn, sync::broadcast::{channel, Sender, Receiver, error::SendError}, time::{sleep, Duration}};
 use futures::{future, StreamExt};
 use rocksdb::DB;
 use crate::{
-    config::RETRY_INTERVAL_SEC,
+    config::{RETRY_INTERVAL_SEC, EVENT_CHANNEL_BUFFER_SIZE},
     util::Timestamp,
     feed::{package::Package, stream::FeedStream},
 };
@@ -63,4 +63,16 @@ pub async fn client_record_only(roomid: u32, storage: DB) {
 
 pub fn open_storage(path: String) -> DB {
     DB::open_default(path).unwrap()
+}
+
+pub fn init(roomid: u32, storage_path: String) -> Receiver<Event> {
+    let (sender, receiver) = channel(EVENT_CHANNEL_BUFFER_SIZE);
+    let storage = open_storage(storage_path);
+    spawn(client(roomid, sender, storage));
+    receiver
+}
+
+pub fn init_record_only(roomid: u32, storage_path: String) {
+    let storage = open_storage(storage_path);
+    spawn(client_record_only(roomid, storage));
 }
