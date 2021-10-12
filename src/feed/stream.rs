@@ -10,6 +10,7 @@ use crate::{
 };
 
 pub struct FeedStream {
+    roomid: u32,
     ws: futures::stream::SplitStream<tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>>,
     error: mpsc::Receiver<tungstenite::Error>,
 }
@@ -42,6 +43,7 @@ impl FeedStream {
         });
 
         Self {
+            roomid,
             ws: receiver,
             error: error_receiver,
         }
@@ -58,19 +60,19 @@ impl Stream for FeedStream {
 
         Poll::Ready(match heartbeat_error {
             Ok(error) => {
-                eprintln!("FEEDSTREAM HEARTBEAT! {}", error);
+                eprintln!("[{}]FEEDSTREAM HEARTBEAT! {}", self.roomid, error);
                 None
             },
             Err(TryRecvError::Empty) => match message {
                 Some(Ok(Message::Binary(payload))) => Some(payload),
                 Some(Ok(Message::Ping(payload))) => {
                     assert!(payload.is_empty());
-                    eprintln!("FEEDSTREAM RECEIVED ENPTY PING");
+                    eprintln!("[{}]FEEDSTREAM RECEIVED ENPTY PING", self.roomid);
                     None
                 },
                 Some(Ok(_)) => unreachable!(),
                 Some(Err(error)) => {
-                    eprintln!("FEEDSTREAM! {}", error);
+                    eprintln!("[{}]FEEDSTREAM! {}", self.roomid, error);
                     None
                 },
                 None => None,

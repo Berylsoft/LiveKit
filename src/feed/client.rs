@@ -52,11 +52,13 @@ pub async fn client(roomid: u32, sender: Sender<Event>, storage: DB) {
 
 pub async fn client_record_only(roomid: u32, storage: DB) {
     loop {
+        eprintln!("[{}]open", roomid);
         let stream = FeedStream::connect(roomid).await;
         stream.for_each(|message| {
             storage.put(Timestamp::now().to_bytes(), &message).unwrap();
             future::ready(())
         }).await;
+        eprintln!("[{}]close", roomid);
         sleep(Duration::from_secs(RETRY_INTERVAL_SEC)).await;
     }
 }
