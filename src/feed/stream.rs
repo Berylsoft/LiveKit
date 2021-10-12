@@ -32,6 +32,7 @@ impl FeedStream {
         spawn(async move {
             let heartbeat = Message::Binary(Package::HeartbeatRequest().encode());
             let mut interval = time::interval(Duration::from_secs(HEARTBEAT_RATE_SEC));
+            interval.tick().await;
             loop {
                 interval.tick().await;
                 if let Err(error) = sender.send(heartbeat.clone()).await {

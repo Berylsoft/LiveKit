@@ -46,6 +46,7 @@ impl Head {
     }
 }
 
+#[derive(Debug)]
 pub enum Package {
     Unknown(Vec<u8>),
     InitRequest(String),
