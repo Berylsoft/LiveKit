@@ -1,7 +1,7 @@
 use rand::{Rng, thread_rng as rng};
 use crate::{
     config::{
-        STORAGE_VERSION, DEFAULT_FILE_TEMPLATE,
+        STORAGE_VERSION, STREAM_DEFAULT_FILE_TEMPLATE,
         RoomConfig, GroupConfig,
     },
     api::room::{RoomInfo, UserInfo},
@@ -63,7 +63,7 @@ impl Room {
 
     pub fn record_file_name(&self, file_template: Option<String>) -> String {
         // group_config.record.file_template.clone()
-        let template = format!("{}.flv", file_template.unwrap_or_else(|| DEFAULT_FILE_TEMPLATE.to_string()));
+        let template = format!("{}.flv", file_template.unwrap_or_else(|| STREAM_DEFAULT_FILE_TEMPLATE.to_string()));
         let time = chrono::Utc::now();
 
         template

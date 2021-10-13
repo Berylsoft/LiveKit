@@ -1,6 +1,9 @@
 use structopt::StructOpt;
-use tokio::signal;
-use livekit::{config::STORAGE_VERSION, feed};
+use tokio::{spawn, signal, time::{sleep, Duration}};
+use livekit::{
+    config::{STORAGE_VERSION, FEED_INIT_INTERVAL_MILLISEC},
+    feed::client::{open_storage, client_rec}
+};
 
 #[derive(StructOpt)]
 struct Args {
@@ -14,7 +17,9 @@ struct Args {
 async fn main() {
     let Args { storage_root, roomid_list } = Args::from_args();
     for roomid in roomid_list.split(",").map(|roomid| roomid.parse::<u32>().unwrap()) {
-        feed::client::init_record_only(roomid, format!("{}/{}-{}", storage_root, roomid, STORAGE_VERSION))
+        let storage = open_storage(format!("{}/{}-{}", storage_root, roomid, STORAGE_VERSION)).unwrap();
+        spawn(client_rec(roomid, storage));
+        sleep(Duration::from_millis(FEED_INIT_INTERVAL_MILLISEC)).await;
     }
     signal::ctrl_c().await.unwrap();
 }

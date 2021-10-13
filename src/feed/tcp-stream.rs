@@ -9,7 +9,7 @@ use tokio::{
 use futures::{Stream, StreamExt, SinkExt, ready};
 use rand::{seq::SliceRandom, thread_rng as rng};
 use crate::{
-    config::HEARTBEAT_RATE_SEC,
+    config::FEED_HEARTBEAT_RATE_SEC,
     api::room::HostsInfo,
     feed::package::Package,
 };
@@ -21,12 +21,10 @@ pub struct FeedStream {
 }
 
 impl FeedStream {
-    pub async fn connect(roomid: u32) -> Result<Self, io::Error> {
+    pub async fn connect(roomid: u32, hosts_info: HostsInfo) -> Result<Self, io::Error> {
         let (error_sender, error_receiver) = mpsc::channel::<io::Error>(2);
 
-        let hosts_info = HostsInfo::call(roomid).await.unwrap();
         let host = &hosts_info.host_list.choose(&mut rng()).unwrap();
-
         let tcp = TcpStream::connect((host.host.as_str(), host.port)).await?;
         let (receiver, mut sender) = tcp.into_split();
 
@@ -35,8 +33,7 @@ impl FeedStream {
 
         spawn(async move {
             let heartbeat = Package::HeartbeatRequest().encode();
-            let mut interval = time::interval(Duration::from_secs(HEARTBEAT_RATE_SEC));
-            interval.tick().await;
+            let mut interval = time::interval(Duration::from_secs(FEED_HEARTBEAT_RATE_SEC));
             loop {
                 interval.tick().await;
                 if let Err(error) = sender.write_all(heartbeat.as_slice()).await {
