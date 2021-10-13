@@ -10,8 +10,8 @@ pub struct HostsInfo {
 #[derive(Deserialize)]
 pub struct HostInfo {
     pub host: String,
-    // pub port: u16,
-    // pub ws_port: u16,
+    pub port: u16,
+    pub ws_port: u16,
     pub wss_port: u16,
 }
 

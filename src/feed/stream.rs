@@ -2,7 +2,7 @@ use std::{pin::Pin, task::{Context, Poll}};
 use tokio::{spawn, time::{self, Duration}, sync::mpsc::{self, error::TryRecvError}};
 use futures::{Stream, StreamExt, SinkExt, ready};
 use rand::{seq::SliceRandom, thread_rng as rng};
-use tokio_tungstenite::{connect_async, tungstenite::{self, protocol::Message}};
+use tokio_tungstenite::{connect_async, tungstenite::{protocol::Message, Error as WsError}};
 use crate::{
     config::HEARTBEAT_RATE_SEC,
     api::room::HostsInfo,
@@ -12,27 +12,26 @@ use crate::{
 pub struct FeedStream {
     roomid: u32,
     ws: futures::stream::SplitStream<tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>>,
-    error: mpsc::Receiver<tungstenite::Error>,
+    error: mpsc::Receiver<WsError>,
 }
 
 impl FeedStream {
-    pub async fn connect(roomid: u32) -> Self {
-        let (error_sender, error_receiver) = mpsc::channel::<tungstenite::Error>(2);
+    pub async fn connect(roomid: u32) -> Result<Self, WsError> {
+        let (error_sender, error_receiver) = mpsc::channel::<WsError>(2);
 
         let hosts_info = HostsInfo::call(roomid).await.unwrap(); // !
         let host = &hosts_info.host_list.choose(&mut rng()).unwrap();
         let url = format!("wss://{}:{}/sub", host.host, host.wss_port);
 
-        let (ws, _) = connect_async(url.as_str()).await.unwrap(); // !
+        let (ws, _) = connect_async(url.as_str()).await?; // !
         let (mut sender, receiver) = ws.split();
 
         let init = Message::Binary(Package::create_init_request(roomid, hosts_info.token).encode());
-        sender.send(init).await.unwrap(); // !
+        sender.send(init).await?; // !
 
         spawn(async move {
             let heartbeat = Message::Binary(Package::HeartbeatRequest().encode());
             let mut interval = time::interval(Duration::from_secs(HEARTBEAT_RATE_SEC));
-            interval.tick().await;
             loop {
                 interval.tick().await;
                 if let Err(error) = sender.send(heartbeat.clone()).await {
@@ -43,11 +42,11 @@ impl FeedStream {
             }
         });
 
-        Self {
+        Ok(Self {
             roomid,
             ws: receiver,
             error: error_receiver,
-        }
+        })
     }
 }
 
@@ -69,7 +68,7 @@ impl Stream for FeedStream {
                 Some(Ok(Message::Ping(payload))) => {
                     assert!(payload.is_empty());
                     eprintln!("[{}]FEEDSTREAM RECEIVED ENPTY PING", self.roomid);
-                    None
+                    return Poll::Pending
                 },
                 Some(Ok(_)) => unreachable!(),
                 Some(Err(error)) => {

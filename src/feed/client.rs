@@ -38,7 +38,7 @@ impl Package {
 
 pub async fn client(roomid: u32, sender: Sender<Event>, storage: DB) {
     loop {
-        let stream = FeedStream::connect(roomid).await;
+        let stream = FeedStream::connect(roomid).await.unwrap();
         sender.send(Event::Open).unwrap();
         stream.for_each(|message| {
             storage.put(Timestamp::now().to_bytes(), &message).unwrap();
@@ -53,7 +53,7 @@ pub async fn client(roomid: u32, sender: Sender<Event>, storage: DB) {
 pub async fn client_record_only(roomid: u32, storage: DB) {
     loop {
         eprintln!("[{}]open", roomid);
-        let stream = FeedStream::connect(roomid).await;
+        let stream = FeedStream::connect(roomid).await.unwrap();
         stream.for_each(|message| {
             storage.put(Timestamp::now().to_bytes(), &message).unwrap();
             future::ready(())
