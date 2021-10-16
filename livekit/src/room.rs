@@ -1,6 +1,6 @@
 use rand::{Rng, thread_rng as rng};
 use tokio::spawn;
-use futures::Future;
+use futures::{Future, StreamExt};
 use async_channel::{unbounded as channel, Receiver};
 use crate::{
     config::{
@@ -97,6 +97,19 @@ impl Room {
             loop {
                 println!("{}{:?}", roomid, receiver.recv().await.unwrap());
             }
+        }
+    }
+
+    pub async fn stream_flv_test(&self) -> impl Future<Output = ()> {
+        use crate::stream::flv::{get_url, get_stream};
+        let roomid = self.id();
+        let url = get_url(roomid).await;
+        let stream = get_stream(url).await.unwrap();
+        async move {
+            stream.for_each(|data| async move {
+                let data = data.unwrap();
+                // eprint!("[{:010}]recv {} ", roomid, data.len());
+            }).await;
         }
     }
 }

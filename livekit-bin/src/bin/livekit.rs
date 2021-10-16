@@ -20,6 +20,7 @@ async fn main() {
         for room in group.rooms {
             let room = Room::init(&room, &group.config).await;
             spawn(room.print_events_to_stdout());
+            spawn(room.stream_flv_test().await);
         }
     }
 

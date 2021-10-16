@@ -72,7 +72,7 @@ pub struct PlayUrlCodec {
     pub current_qn: Quality,
     pub accept_qn: Vec<Quality>,
     pub base_url: String,
-    pub url_info: Vec<PlayUrlCodecUrlInfo>,
+    pub url_info: Option<Vec<PlayUrlCodecUrlInfo>>,
     // pub hdr_qn: Option<Quality>,
 }
 

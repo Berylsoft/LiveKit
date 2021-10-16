@@ -14,6 +14,7 @@ name = "livekit"
 [dependencies]
 rand = "0.8"
 chrono = "0.4"
+bytes = "1.1"
 # compress
 inflate = "0.4"
 brotli-decompressor = "2.3"

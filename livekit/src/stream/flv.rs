@@ -11,15 +11,16 @@ pub async fn get_url(roomid: u32) -> String {
     stream_info.to_url()
 }
 
-pub async fn get_stream(roomid: u32) -> impl Stream {
-    let mut url = get_url(roomid).await;
-
+pub async fn get_stream(url: String) -> Option<impl Stream<Item = Result<bytes::Bytes, reqwest::Error>>> {
+    let mut url = url;
     loop {
+        println!("{}", url);
         let resp = http_get(url).await.unwrap();
         match resp.status().as_u16() {
-            200 => return resp.bytes_stream(),
+            200 => return Some(resp.bytes_stream()),
+            404 => return None,
             301 | 302 | 307 | 308 => url = resp.headers().get("location").unwrap().to_str().unwrap().to_string(),
-            _ => panic!(),
+            status => panic!("{}", status),
         }
     }
 }

@@ -23,7 +23,10 @@ impl StreamType<'_> {
                     if self.format == format.format_name {
                         for codec in format.codec {
                             if self.codec == codec.codec_name {
-                                return Some(codec)
+                                if codec.base_url != "" {
+                                    matches!(codec.url_info, Some(_));
+                                    return Some(codec)
+                                }
                             }
                         }
                     }
@@ -36,7 +39,8 @@ impl StreamType<'_> {
 
 impl StreamInfo {
     pub fn to_url(self) -> String {
-        let source = self.url_info.iter().filter(|source| !source.host.contains(".mcdn.")).choose(&mut rng()).unwrap();
+        let source = self.url_info.unwrap();
+        let source = source.iter().filter(|source| !source.host.contains(".mcdn.")).choose(&mut rng()).unwrap();
         format!("{}{}{}", source.host, self.base_url, source.extra)
     }
 }
