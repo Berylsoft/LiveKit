@@ -2,4 +2,5 @@
 members = [
     "livekit",
     "livekit-bin",
+    "livekit-flv",
 ]
