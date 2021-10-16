@@ -1,0 +1,15 @@
+[package]
+name = "livekit-bin"
+version = "0.1.0"
+edition = "2018"
+authors = ["stackinspector"]
+license = "Apache-2.0"
+repository = "https://github.com/Berylsoft/LiveKit"
+description = "A range of scalable and portable utilities for Bilibili Live's hosts, post-production teams and viewers"
+# readme
+
+[dependencies]
+tokio = { version = "1.12", features = ["full"] }
+serde_json = "1.0"
+structopt = "0.3"
+livekit = { path = "../livekit" }
