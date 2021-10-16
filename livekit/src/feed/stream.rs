@@ -56,19 +56,19 @@ impl Stream for FeedStream {
 
         Poll::Ready(match heartbeat_error {
             Ok(error) => {
-                eprintln!("[{:010}]FEEDSTREAM HEARTBEAT! {}", self.roomid, error);
+                eprintln!("[{:010} FEEDSTREAM HEARTBEAT]! {}", self.roomid, error);
                 None
             },
             Err(TryRecvError::Empty) => match message {
                 Some(Ok(Message::Binary(payload))) => Some(payload),
                 Some(Ok(Message::Ping(payload))) => {
                     assert!(payload.is_empty());
-                    eprintln!("[{:010}]FEEDSTREAM RECEIVED ENPTY PING", self.roomid);
+                    eprintln!("[{:010} FEEDSTREAM]RECEIVED ENPTY PING", self.roomid);
                     return Poll::Pending
                 },
                 Some(Ok(_)) => unreachable!(),
                 Some(Err(error)) => {
-                    eprintln!("[{:010}]FEEDSTREAM! {}", self.roomid, error);
+                    eprintln!("[{:010} FEEDSTREAM]! {}", self.roomid, error);
                     None
                 },
                 None => None,

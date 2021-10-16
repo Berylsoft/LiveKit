@@ -62,13 +62,13 @@ impl Stream for FeedStream {
 
         Poll::Ready(match heartbeat_error {
             Ok(error) => {
-                eprintln!("[{:010}]FEEDSTREAM HEARTBEAT! {}", self.roomid, error);
+                eprintln!("[{:010} FEEDSTREAM HEARTBEAT]! {}", self.roomid, error);
                 None
             },
             Err(TryRecvError::Empty) => match message {
                 Some(Ok(payload)) => Some(payload),
                 Some(Err(error)) => {
-                    eprintln!("[{:010}]FEEDSTREAM! {}", self.roomid, error);
+                    eprintln!("[{:010} FEEDSTREAM]! {}", self.roomid, error);
                     None
                 },
                 None => None,

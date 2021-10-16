@@ -47,6 +47,10 @@ impl Room {
         self.roomid
     }
 
+    pub fn id_pad_string(&self) -> String {
+        format!("[{:010}]", self.roomid)
+    }
+
     pub fn info(&self) -> RoomInfo {
         self.info.clone()
     }
@@ -88,9 +92,10 @@ impl Room {
 
     pub fn print_events_to_stdout(&self) -> impl Future<Output = ()> {
         let receiver = self.subscribe();
+        let roomid = self.id_pad_string();
         async move {
             loop {
-                println!("{:?}", receiver.recv().await.unwrap());
+                println!("{}{:?}", roomid, receiver.recv().await.unwrap());
             }
         }
     }
