@@ -20,12 +20,12 @@ pub struct Room {
 }
 
 impl Room {
-    pub async fn init(vroomid: u32, config: Config) -> Self {
-        let info = RoomInfo::call(vroomid).await.unwrap();
+    pub async fn init(sroomid: u32, config: Config) -> Self {
+        let info = RoomInfo::call(sroomid).await.unwrap();
         let roomid = info.room_id;
         let user_info = UserInfo::call(roomid).await.unwrap();
         let (sender, receiver) = channel();
-        let storage = open_storage(format!("{}/{}-{}", config.storage_root, roomid, STORAGE_VERSION)).unwrap();
+        let storage = open_storage(format!("{}/{}-{}", config.common.storage_root, roomid, STORAGE_VERSION)).unwrap();
         spawn(client(roomid, sender, storage));
 
         Room {
@@ -39,6 +39,10 @@ impl Room {
 
     pub fn id(&self) -> u32 {
         self.roomid
+    }
+
+    pub fn config(&self) -> Config {
+        self.config.clone()
     }
 
     pub fn id_pad_string(&self) -> String {
@@ -61,9 +65,8 @@ impl Room {
         self.user_info = UserInfo::call(self.roomid).await.unwrap();
     }
 
-    pub fn record_file_name(&self, file_template: Option<String>) -> String {
-        // config.record.file_template.clone()
-        let template = format!("{}.flv", file_template.unwrap_or_else(|| STREAMREC_DEFAULT_FILE_TEMPLATE.to_string()));
+    pub fn streamrec_file_name(&self) -> String {
+        let template = format!("{}.flv", self.config.streamrec.clone().unwrap().file_template.clone().unwrap_or_else(|| STREAMREC_DEFAULT_FILE_TEMPLATE.to_string()));
         let time = chrono::Local::now();
 
         template
@@ -95,11 +98,10 @@ impl Room {
     }
 
     pub fn download_stream_flv(&self) -> impl Future<Output = ()> {
-        let record_config = self.config.record.clone().unwrap();
         crate::stream::flv::download(self.id(), format!(
             "{}/{}",
-            record_config.file_root,
-            self.record_file_name(record_config.file_template.clone()),
+            self.config.streamrec.clone().unwrap().file_root,
+            self.streamrec_file_name(),
         ))
     }
 }

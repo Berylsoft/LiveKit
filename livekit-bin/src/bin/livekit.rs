@@ -16,12 +16,14 @@ async fn main() {
     let config = read_to_string(Args::from_args().config_path).await.unwrap();
     let groups: Vec<Group> = serde_json::from_str(config.as_str()).unwrap();
 
-    for group in groups {
-        for room in group.rooms {
+    for Group { config, rooms } in groups {
+        for room in rooms {
             if room.operational {
-                let room = Room::init(room.vroomid, group.config.clone()).await;
+                let room = Room::init(room.sroomid, config.clone()).await;
                 spawn(room.print_events_to_stdout());
-                spawn(room.download_stream_flv());
+                if let Some(_) = room.config().streamrec {
+                    spawn(room.download_stream_flv());
+                }
             }
         }
     }

@@ -22,37 +22,42 @@ pub struct Group {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
-pub enum RecordMode {
+pub enum StreamrecMode {
     FlvRaw,
     FlvReformed,
     HlsRawSlices,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
-pub enum FragmentMode {
+pub enum StreamrecFragmentMode {
     ByTime(u32), // min
     BySize(u32), // MB
 }
 
 #[derive(Serialize, Deserialize, Clone)]
-pub struct RecordConfig {
-    pub mode: RecordMode,
+pub struct StreamrecConfig {
+    pub mode: StreamrecMode,
     pub quality: Option<Vec<i32>>,
     pub file_root: String,
     pub file_template: Option<String>,
-    pub fragment: Option<FragmentMode>,
+    pub fragment: Option<StreamrecFragmentMode>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct CommonConfig {
+    pub storage_root: String,
+    pub access_token: Option<String>,
+    pub api_proxy: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Config {
-    pub storage_root: String,
-    pub access_token: Option<String>,
-    pub api_proxy: Option<String>,
-    pub record: Option<RecordConfig>,
+    pub common: CommonConfig,
+    pub streamrec: Option<StreamrecConfig>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct RoomConfig {
-    pub vroomid: u32,
+    pub sroomid: u32,
     pub operational: bool,
 }
