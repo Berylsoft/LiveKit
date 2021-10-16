@@ -18,9 +18,9 @@ async fn main() {
 
     for group in general_config.groups {
         for room in group.rooms {
-            let room = Room::init(&room, &group.config).await;
+            let room = Room::init(room, group.config.clone()).await;
             spawn(room.print_events_to_stdout());
-            spawn(room.stream_flv_test().await);
+            spawn(room.download_stream_flv());
         }
     }
 
