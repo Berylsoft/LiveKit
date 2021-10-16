@@ -4,7 +4,7 @@ use async_recursion::async_recursion;
 use async_channel::{Sender, SendError};
 use rocksdb::DB;
 use crate::{
-    config::FEED_RETRY_INTERVAL_SEC,
+    config::FEED_RETRY_INTERVAL_MILLISEC,
     api::room::HostsInfo,
     util::Timestamp,
     feed::{package::Package, stream::FeedStream},
@@ -52,7 +52,7 @@ pub async fn client(roomid: u32, sender: Sender<Event>, storage: DB) {
             Package::decode(&message).send_as_events(&sender).await.unwrap();
         }).await;
         sender.send(Event::Close).await.unwrap();
-        sleep(Duration::from_secs(FEED_RETRY_INTERVAL_SEC)).await;
+        sleep(Duration::from_millis(FEED_RETRY_INTERVAL_MILLISEC)).await;
     }
 }
 
@@ -67,7 +67,7 @@ pub async fn client_rec(roomid: u32, storage: DB) {
             eprintln!("[{:010}]recv {}", roomid, message.len());
         }).await;
         eprintln!("[{:010}]close", roomid);
-        sleep(Duration::from_secs(FEED_RETRY_INTERVAL_SEC)).await;
+        sleep(Duration::from_millis(FEED_RETRY_INTERVAL_MILLISEC)).await;
     }
 }
 

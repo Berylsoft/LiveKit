@@ -1,7 +1,7 @@
 use structopt::StructOpt;
 use tokio::{spawn, signal, fs::read_to_string};
 use livekit::{
-    config::General as GeneralConfig,
+    config::Group,
     room::Room,
 };
 
@@ -14,13 +14,15 @@ struct Args {
 #[tokio::main]
 async fn main() {
     let config = read_to_string(Args::from_args().config_path).await.unwrap();
-    let general_config: GeneralConfig = serde_json::from_str(config.as_str()).unwrap();
+    let groups: Vec<Group> = serde_json::from_str(config.as_str()).unwrap();
 
-    for group in general_config.groups {
+    for group in groups {
         for room in group.rooms {
-            let room = Room::init(room, group.config.clone()).await;
-            spawn(room.print_events_to_stdout());
-            spawn(room.download_stream_flv());
+            if room.operational {
+                let room = Room::init(room.vroomid, group.config.clone()).await;
+                spawn(room.print_events_to_stdout());
+                spawn(room.download_stream_flv());
+            }
         }
     }
 

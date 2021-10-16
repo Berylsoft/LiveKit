@@ -4,8 +4,8 @@ use futures::Future;
 use async_channel::{unbounded as channel, Receiver};
 use crate::{
     config::{
-        STORAGE_VERSION, STREAM_DEFAULT_FILE_TEMPLATE,
-        RoomConfig, GroupConfig,
+        STORAGE_VERSION, STREAMREC_DEFAULT_FILE_TEMPLATE,
+        Config,
     },
     api::room::{RoomInfo, UserInfo},
     feed::client::{Event, open_storage, client},
@@ -16,24 +16,16 @@ pub struct Room {
     info: RoomInfo,
     user_info: UserInfo,
     receiver: Receiver<Event>,
-    group_config: GroupConfig,
+    config: Config,
 }
 
 impl Room {
-    pub async fn init(room_config: RoomConfig, group_config: GroupConfig) -> Self {
-        let info = RoomInfo::call(room_config.roomid).await.unwrap();
+    pub async fn init(vroomid: u32, config: Config) -> Self {
+        let info = RoomInfo::call(vroomid).await.unwrap();
         let roomid = info.room_id;
         let user_info = UserInfo::call(roomid).await.unwrap();
-        let storage_name = format!(
-            "{}-{}",
-            match &room_config.alias {
-                None => roomid.to_string(),
-                Some(alias) => alias.clone(),
-            },
-            STORAGE_VERSION,
-        );
         let (sender, receiver) = channel();
-        let storage = open_storage(format!("{}/{}", group_config.storage_root, storage_name)).unwrap();
+        let storage = open_storage(format!("{}/{}-{}", config.storage_root, roomid, STORAGE_VERSION)).unwrap();
         spawn(client(roomid, sender, storage));
 
         Room {
@@ -41,7 +33,7 @@ impl Room {
             info,
             user_info,
             receiver,
-            group_config,
+            config,
         }
     }
 
@@ -70,8 +62,8 @@ impl Room {
     }
 
     pub fn record_file_name(&self, file_template: Option<String>) -> String {
-        // group_config.record.file_template.clone()
-        let template = format!("{}.flv", file_template.unwrap_or_else(|| STREAM_DEFAULT_FILE_TEMPLATE.to_string()));
+        // config.record.file_template.clone()
+        let template = format!("{}.flv", file_template.unwrap_or_else(|| STREAMREC_DEFAULT_FILE_TEMPLATE.to_string()));
         let time = chrono::Local::now();
 
         template
@@ -103,10 +95,11 @@ impl Room {
     }
 
     pub fn download_stream_flv(&self) -> impl Future<Output = ()> {
+        let record_config = self.config.record.clone().unwrap();
         crate::stream::flv::download(self.id(), format!(
             "{}/{}",
-            self.group_config.record.file_root,
-            self.record_file_name(self.group_config.record.file_template.clone()),
+            record_config.file_root,
+            self.record_file_name(record_config.file_template.clone()),
         ))
     }
 }

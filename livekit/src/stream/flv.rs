@@ -23,7 +23,7 @@ pub async fn get_stream(url: String) -> Option<impl Stream<Item = Result<bytes::
         match resp.status().as_u16() {
             200 => return Some(resp.bytes_stream()),
             404 => return None,
-            301 | 302 | 307 | 308 => url = resp.headers().get("location").unwrap().to_str().unwrap().to_string(),
+            301 | 302 | 307 | 308 => url = resp.headers().get("Location").unwrap().to_str().unwrap().to_string(),
             status => panic!("{}", status),
         }
     }
