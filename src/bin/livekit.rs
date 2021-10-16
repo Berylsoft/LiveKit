@@ -2,7 +2,6 @@ use structopt::StructOpt;
 use tokio::{spawn, signal, fs::read_to_string};
 use livekit::{
     config::General as GeneralConfig,
-    feed,
     room::Room,
 };
 
@@ -20,13 +19,7 @@ async fn main() {
     for group in general_config.groups {
         for room in group.rooms {
             let room = Room::init(&room, &group.config).await;
-            let mut receiver = feed::client::init(room.id(), room.storage_path());
-
-            spawn(async move {
-                loop {
-                    println!("{:?}", receiver.recv().await.unwrap());
-                }
-            });
+            spawn(room.print_events_to_stdout());
         }
     }
 

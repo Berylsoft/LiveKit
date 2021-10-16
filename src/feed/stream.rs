@@ -51,25 +51,24 @@ impl Stream for FeedStream {
     type Item = Vec<u8>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        // It works but I don't know why
         let message = ready!(Pin::new(&mut self.ws).poll_next(cx));
         let heartbeat_error = self.error.try_recv();
 
         Poll::Ready(match heartbeat_error {
             Ok(error) => {
-                eprintln!("[{}]FEEDSTREAM HEARTBEAT! {}", self.roomid, error);
+                eprintln!("[{:010}]FEEDSTREAM HEARTBEAT! {}", self.roomid, error);
                 None
             },
             Err(TryRecvError::Empty) => match message {
                 Some(Ok(Message::Binary(payload))) => Some(payload),
                 Some(Ok(Message::Ping(payload))) => {
                     assert!(payload.is_empty());
-                    eprintln!("[{}]FEEDSTREAM RECEIVED ENPTY PING", self.roomid);
+                    eprintln!("[{:010}]FEEDSTREAM RECEIVED ENPTY PING", self.roomid);
                     return Poll::Pending
                 },
                 Some(Ok(_)) => unreachable!(),
                 Some(Err(error)) => {
-                    eprintln!("[{}]FEEDSTREAM! {}", self.roomid, error);
+                    eprintln!("[{:010}]FEEDSTREAM! {}", self.roomid, error);
                     None
                 },
                 None => None,

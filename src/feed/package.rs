@@ -58,7 +58,8 @@ pub enum Package {
 }
 
 impl Package {
-    pub fn decode(raw: &[u8]) -> Self {
+    pub fn decode<T: AsRef<[u8]>>(raw: T) -> Self {
+        let raw = raw.as_ref();
         let (head, payload) = raw.split_at(HEAD_LENGTH_SIZE);
 
         let unknown = || Package::Unknown(raw.to_vec());
@@ -109,7 +110,8 @@ impl Package {
         )
     }
 
-    fn unpack(pack: Vec<u8>) -> Self {
+    fn unpack<T: AsRef<[u8]>>(pack: T) -> Self {
+        let pack = pack.as_ref();
         let pack_length = pack.len();
         let mut unpacked = Vec::new();
         let mut offset = 0;

@@ -1,17 +1,21 @@
 use rand::{Rng, thread_rng as rng};
+use tokio::spawn;
+use futures::Future;
+use async_channel::{unbounded as channel, Receiver};
 use crate::{
     config::{
         STORAGE_VERSION, STREAM_DEFAULT_FILE_TEMPLATE,
         RoomConfig, GroupConfig,
     },
     api::room::{RoomInfo, UserInfo},
+    feed::client::{Event, open_storage, client},
 };
 
 pub struct Room {
     roomid: u32,
-    storage_path: String,
     info: RoomInfo,
     user_info: UserInfo,
+    receiver: Receiver<Event>,
 }
 
 impl Room {
@@ -27,22 +31,20 @@ impl Room {
             },
             STORAGE_VERSION,
         );
-        let storage_path = format!("{}/{}", group_config.storage_root, storage_name);
+        let (sender, receiver) = channel();
+        let storage = open_storage(format!("{}/{}", group_config.storage_root, storage_name)).unwrap();
+        spawn(client(roomid, sender, storage));
 
         Room {
             roomid,
-            storage_path,
             info,
             user_info,
+            receiver,
         }
     }
 
     pub fn id(&self) -> u32 {
         self.roomid
-    }
-
-    pub fn storage_path(&self) -> String {
-        self.storage_path.clone()
     }
 
     pub fn info(&self) -> RoomInfo {
@@ -77,5 +79,19 @@ impl Room {
             .replace("{name}", self.user_info.info.uname.to_string().as_str())
             .replace("{parea}", self.info.parent_area_name.as_str())
             .replace("{area}", self.info.area_name.as_str())
+    }
+
+    #[inline]
+    pub fn subscribe(&self) -> Receiver<Event> {
+        self.receiver.clone()
+    }
+
+    pub fn print_events_to_stdout(&self) -> impl Future<Output = ()> {
+        let receiver = self.subscribe();
+        async move {
+            loop {
+                println!("{:?}", receiver.recv().await.unwrap());
+            }
+        }
     }
 }

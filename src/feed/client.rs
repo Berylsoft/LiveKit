@@ -1,8 +1,10 @@
-use tokio::{spawn, sync::broadcast::{channel, Sender, Receiver, error::SendError}, time::{sleep, Duration}};
-use futures::{future, StreamExt};
+use tokio::time::{sleep, Duration};
+use futures::StreamExt;
+use async_recursion::async_recursion;
+use async_channel::{Sender, SendError};
 use rocksdb::DB;
 use crate::{
-    config::{FEED_RETRY_INTERVAL_SEC, EVENT_CHANNEL_BUFFER_SIZE},
+    config::FEED_RETRY_INTERVAL_SEC,
     api::room::HostsInfo,
     util::Timestamp,
     feed::{package::Package, stream::FeedStream},
@@ -10,6 +12,7 @@ use crate::{
 
 #[derive(Clone, Debug)]
 pub enum Event {
+    Init,
     Open,
     Close,
     Popularity(u32),
@@ -17,18 +20,19 @@ pub enum Event {
 }
 
 impl Package {
-    fn send_as_events(self, sender: &Sender<Event>) -> Result<(), SendError<Event>> {
+    #[async_recursion]
+    async fn send_as_events(self, sender: &Sender<Event>) -> Result<(), SendError<Event>> {
         match self {
             Package::Json(payload) => {
-                sender.send(Event::Message(payload))?;
+                sender.send(Event::Message(payload)).await?;
             },
             Package::Multi(payloads) => {
                 for payload in payloads {
-                    payload.send_as_events(sender)?
+                    payload.send_as_events(sender).await?
                 }
             },
             Package::HeartbeatResponse(payload) => {
-                sender.send(Event::Popularity(payload))?;
+                sender.send(Event::Popularity(payload)).await?;
             },
             Package::InitResponse(_) => {},
             _ => unreachable!(),
@@ -41,13 +45,13 @@ pub async fn client(roomid: u32, sender: Sender<Event>, storage: DB) {
     loop {
         let hosts_info = HostsInfo::call(roomid).await.unwrap();
         let stream = FeedStream::connect(roomid, hosts_info).await.unwrap();
-        sender.send(Event::Open).unwrap();
-        stream.for_each(|message| {
+        sender.send(Event::Open).await.unwrap();
+        stream.for_each(|message| async {
+            let message = message;
             storage.put(Timestamp::now().to_bytes(), &message).unwrap();
-            Package::decode(&message).send_as_events(&sender).unwrap();
-            future::ready(())
+            Package::decode(&message).send_as_events(&sender).await.unwrap();
         }).await;
-        sender.send(Event::Close).unwrap();
+        sender.send(Event::Close).await.unwrap();
         sleep(Duration::from_secs(FEED_RETRY_INTERVAL_SEC)).await;
     }
 }
@@ -56,13 +60,13 @@ pub async fn client_rec(roomid: u32, storage: DB) {
     loop {
         let hosts_info = HostsInfo::call(roomid).await.unwrap();
         let stream = FeedStream::connect(roomid, hosts_info).await.unwrap();
-        eprintln!("[{}]open", roomid);
-        stream.for_each(|message| {
+        eprintln!("[{:010}]open", roomid);
+        stream.for_each(|message| async {
+            let message = message;
             storage.put(Timestamp::now().to_bytes(), &message).unwrap();
-            eprintln!("[{}]recv {}", roomid, message.len());
-            future::ready(())
+            eprintln!("[{:010}]recv {}", roomid, message.len());
         }).await;
-        eprintln!("[{}]close", roomid);
+        eprintln!("[{:010}]close", roomid);
         sleep(Duration::from_secs(FEED_RETRY_INTERVAL_SEC)).await;
     }
 }
@@ -70,11 +74,4 @@ pub async fn client_rec(roomid: u32, storage: DB) {
 pub fn open_storage(path: String) -> Result<DB, rocksdb::Error> {
     // reserved independent function to contain tuning configurations later
     DB::open_default(path)
-}
-
-pub fn init(roomid: u32, storage_path: String) -> Receiver<Event> {
-    let (sender, receiver) = channel(EVENT_CHANNEL_BUFFER_SIZE);
-    let storage = open_storage(storage_path).unwrap();
-    spawn(client(roomid, sender, storage));
-    receiver
 }
