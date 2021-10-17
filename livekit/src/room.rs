@@ -5,8 +5,9 @@ use async_channel::{unbounded as channel, Receiver};
 use crate::{
     config::{
         STORAGE_VERSION, STREAMREC_DEFAULT_FILE_TEMPLATE,
-        Config,
+        Config, RecordMode,
     },
+    util::http::HttpClient,
     api::room::{RoomInfo, UserInfo},
     feed::client::{Event, open_storage, client},
 };
@@ -17,13 +18,15 @@ pub struct Room {
     user_info: UserInfo,
     receiver: Receiver<Event>,
     config: Config,
+    http_client: HttpClient,
 }
 
 impl Room {
     pub async fn init(sroomid: u32, config: Config) -> Self {
-        let info = RoomInfo::call(sroomid).await.unwrap();
+        let http_client = HttpClient::new(&config.common).await;
+        let info = RoomInfo::call(&http_client, sroomid).await.unwrap();
         let roomid = info.room_id;
-        let user_info = UserInfo::call(roomid).await.unwrap();
+        let user_info = UserInfo::call(&http_client, roomid).await.unwrap();
         let (sender, receiver) = channel();
         let storage = open_storage(format!("{}/{}-{}", config.common.storage_root, roomid, STORAGE_VERSION)).unwrap();
         spawn(client(roomid, sender, storage));
@@ -34,6 +37,7 @@ impl Room {
             user_info,
             receiver,
             config,
+            http_client,
         }
     }
 
@@ -53,20 +57,25 @@ impl Room {
         self.info.clone()
     }
 
-    pub async fn update_info(&mut self) {
-        self.info = RoomInfo::call(self.roomid).await.unwrap();
-    }
-
     pub fn user_info(&self) -> UserInfo {
         self.user_info.clone()
     }
 
-    pub async fn update_user_info(&mut self) {
-        self.user_info = UserInfo::call(self.roomid).await.unwrap();
+    pub async fn update_info(&mut self) {
+        self.info = RoomInfo::call(&self.http_client, self.roomid).await.unwrap();
+        self.user_info = UserInfo::call(&self.http_client, self.roomid).await.unwrap();
     }
 
-    pub fn streamrec_file_name(&self) -> String {
-        let template = format!("{}.flv", self.config.streamrec.clone().unwrap().file_template.clone().unwrap_or_else(|| STREAMREC_DEFAULT_FILE_TEMPLATE.to_string()));
+    pub fn record_file_path(&self) -> String {
+        let config = self.config.record.as_ref().unwrap();
+        let template = format!(
+            "{}/{}.flv",
+            config.file_root,
+            match config.file_template.as_ref() {
+                None => STREAMREC_DEFAULT_FILE_TEMPLATE,
+                Some(template) => template.as_str(),
+            },
+        );
         let time = chrono::Local::now();
 
         template
@@ -97,11 +106,14 @@ impl Room {
         }
     }
 
-    pub fn download_stream_flv(&self) -> impl Future<Output = ()> {
-        crate::stream::flv::download(self.id(), format!(
-            "{}/{}",
-            self.config.streamrec.clone().unwrap().file_root,
-            self.streamrec_file_name(),
-        ))
+    pub fn record(&self) -> Option<impl Future<Output = ()>> {
+        use crate::stream::{flv};
+        match self.config.record.as_ref() {
+            None => None,
+            Some(config) => Some(match config.mode {
+                RecordMode::FlvRaw => flv::download(self.http_client.clone(), self.id(), self.record_file_path()),
+                _ => unimplemented!(),
+            })
+        }
     }
 }

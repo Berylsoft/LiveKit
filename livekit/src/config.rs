@@ -1,6 +1,6 @@
 use serde::{Serialize, Deserialize};
 
-pub const VERSION: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"), "-alpha-ms2");
+pub const VERSION: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"), "-alpha");
 pub const STORAGE_VERSION: &str = "alpha2";
 
 pub const FEED_HEARTBEAT_RATE_SEC: u64 = 30;
@@ -15,6 +15,10 @@ pub const ROOM_INFO_UPDATE_INTERVAL_SEC: u64 = 600;
 
 pub const STREAMREC_DEFAULT_FILE_TEMPLATE: &str = "{roomid}-{date}-{time}{ms}-{title}";
 
+pub const REFERER: &str = "https://live.bilibili.com/";
+pub const API_HOST: &str = "https://api.live.bilibili.com";
+pub const WEB_USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.81 Safari/537.36";
+
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Group {
     pub config: Config,
@@ -22,25 +26,25 @@ pub struct Group {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
-pub enum StreamrecMode {
+pub enum RecordMode {
     FlvRaw,
     FlvReformed,
     HlsRawSlices,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
-pub enum StreamrecFragmentMode {
+pub enum RecordFragmentMode {
     ByTime(u32), // min
     BySize(u32), // MB
 }
 
 #[derive(Serialize, Deserialize, Clone)]
-pub struct StreamrecConfig {
-    pub mode: StreamrecMode,
+pub struct RecordConfig {
+    pub mode: RecordMode,
     pub quality: Option<Vec<i32>>,
     pub file_root: String,
     pub file_template: Option<String>,
-    pub fragment: Option<StreamrecFragmentMode>,
+    pub fragment: Option<RecordFragmentMode>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -53,7 +57,7 @@ pub struct CommonConfig {
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Config {
     pub common: CommonConfig,
-    pub streamrec: Option<StreamrecConfig>,
+    pub record: Option<RecordConfig>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]

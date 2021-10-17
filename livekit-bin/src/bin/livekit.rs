@@ -21,8 +21,8 @@ async fn main() {
             if room.operational {
                 let room = Room::init(room.sroomid, config.clone()).await;
                 spawn(room.print_events_to_stdout());
-                if let Some(_) = room.config().streamrec {
-                    spawn(room.download_stream_flv());
+                if let Some(record) = room.record() {
+                    spawn(record);
                 }
             }
         }
