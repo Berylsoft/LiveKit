@@ -1,4 +1,3 @@
-use std::sync::Arc;
 use tokio::time::{sleep, Duration};
 use futures::StreamExt;
 use async_recursion::async_recursion;
@@ -42,7 +41,7 @@ impl Package {
     }
 }
 
-pub async fn client(roomid: u32, http_client: Arc<HttpClient>, sender: Sender<Event>, storage: DB) {
+pub async fn client(roomid: u32, http_client: HttpClient, sender: Sender<Event>, storage: DB) {
     loop {
         let hosts_info = HostsInfo::call(&http_client, roomid).await.unwrap();
         let stream = FeedStream::connect(roomid, hosts_info).await.unwrap();
@@ -57,7 +56,7 @@ pub async fn client(roomid: u32, http_client: Arc<HttpClient>, sender: Sender<Ev
     }
 }
 
-pub async fn client_rec(roomid: u32, http_client: Arc<HttpClient>, storage: DB) {
+pub async fn client_rec(roomid: u32, http_client: HttpClient, storage: DB) {
     loop {
         let hosts_info = HostsInfo::call(&http_client, roomid).await.unwrap();
         let stream = FeedStream::connect(roomid, hosts_info).await.unwrap();

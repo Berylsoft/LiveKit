@@ -76,7 +76,7 @@ pub mod http {
         pub async fn new_bare() -> Self {
             Self {
                 host: API_HOST.to_string(),
-                client: Client::builder().build().unwrap(),
+                client: Client::new(),
             }
         }
 

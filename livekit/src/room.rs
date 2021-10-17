@@ -1,4 +1,3 @@
-use std::sync::Arc;
 use rand::{Rng, thread_rng as rng};
 use tokio::spawn;
 use futures::Future;
@@ -19,11 +18,11 @@ pub struct Room {
     user_info: UserInfo,
     receiver: Receiver<Event>,
     config: Config,
-    http_client: Arc<HttpClient>,
+    http_client: HttpClient,
 }
 
 impl Room {
-    pub async fn init(sroomid: u32, config: Config, http_client: Arc<HttpClient>, http_client2: Arc<HttpClient>) -> Self {
+    pub async fn init(sroomid: u32, config: Config, http_client: HttpClient, http_client2: HttpClient) -> Self {
         let info = RoomInfo::call(&http_client, sroomid).await.unwrap();
         let roomid = info.room_id;
         let user_info = UserInfo::call(&http_client, roomid).await.unwrap();
