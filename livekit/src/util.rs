@@ -97,5 +97,9 @@ pub mod http {
                 _ => Err(resp.message),
             }
         }
+
+        pub fn clone_raw(&self) -> Client {
+            self.client.clone()
+        }
     }
 }

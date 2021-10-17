@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use tokio::{fs::File, io::AsyncWriteExt};
 use futures::{Stream, StreamExt};
 use crate::{
@@ -20,7 +21,7 @@ pub async fn get_stream(client: &HttpClient, url: String) -> Option<impl Stream<
     }
 }
 
-pub async fn download(client: HttpClient, roomid: u32, path: String) {
+pub async fn download(client: Arc<HttpClient>, roomid: u32, path: String) {
     let stream_type = StreamType { protocol: "http_stream", format: "flv", codec: "avc" };
     let stream_info = stream_type.select(PlayInfo::call(&client, roomid, 10000).await.unwrap()).unwrap();
     let mut stream = get_stream(&client, stream_info.to_url()).await.unwrap();

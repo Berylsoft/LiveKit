@@ -1,7 +1,5 @@
 use rand::{seq::IteratorRandom, thread_rng as rng};
-use crate::{
-    api::room::{PlayInfo, PlayUrlCodec, PlayUrlCodecUrlInfo},
-};
+use crate::api::room::{PlayInfo, PlayUrlCodec, PlayUrlCodecUrlInfo};
 
 pub type StreamInfo = PlayUrlCodec;
 pub type StreamSourceInfo = PlayUrlCodecUrlInfo;

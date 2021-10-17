@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use tokio::time::{sleep, Duration};
 use futures::StreamExt;
 use async_recursion::async_recursion;
@@ -6,7 +7,7 @@ use rocksdb::DB;
 use crate::{
     config::FEED_RETRY_INTERVAL_MILLISEC,
     api::room::HostsInfo,
-    util::Timestamp,
+    util::{Timestamp, http::HttpClient},
     feed::{package::Package, stream::FeedStream},
 };
 
@@ -41,9 +42,9 @@ impl Package {
     }
 }
 
-pub async fn client(roomid: u32, sender: Sender<Event>, storage: DB) {
+pub async fn client(roomid: u32, http_client: Arc<HttpClient>, sender: Sender<Event>, storage: DB) {
     loop {
-        let hosts_info = HostsInfo::call(roomid).await.unwrap();
+        let hosts_info = HostsInfo::call(&http_client, roomid).await.unwrap();
         let stream = FeedStream::connect(roomid, hosts_info).await.unwrap();
         sender.send(Event::Open).await.unwrap();
         stream.for_each(|message| async {
@@ -56,9 +57,9 @@ pub async fn client(roomid: u32, sender: Sender<Event>, storage: DB) {
     }
 }
 
-pub async fn client_rec(roomid: u32, storage: DB) {
+pub async fn client_rec(roomid: u32, http_client: Arc<HttpClient>, storage: DB) {
     loop {
-        let hosts_info = HostsInfo::call(roomid).await.unwrap();
+        let hosts_info = HostsInfo::call(&http_client, roomid).await.unwrap();
         let stream = FeedStream::connect(roomid, hosts_info).await.unwrap();
         eprintln!("[{:010}]open", roomid);
         stream.for_each(|message| async {

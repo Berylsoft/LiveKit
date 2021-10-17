@@ -18,8 +18,7 @@ pub struct HostInfo {
 // TODO (consider) macro
 impl HostsInfo {
     #[inline]
-    pub async fn call(roomid: u32) -> Result<Self, String> {
-        let client = HttpClient::new_bare().await;
+    pub async fn call(client: &HttpClient, roomid: u32) -> Result<Self, String> {
         client.call(format!(
             "/xlive/web-room/v1/index/getDanmuInfo?id={}&type=0",
             roomid
