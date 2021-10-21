@@ -1,8 +1,8 @@
-use std::{convert::TryInto, io::Cursor};
-use binread::{BinRead, BinReaderExt};
+use std::convert::TryInto;
+use binread::BinRead;
 use binwrite::BinWrite;
 use crate::{
-    util::{compress::{de_brotli, inflate}, vec},
+    util::{compress::{de_brotli, inflate}, vec, binrw::BytesBinRW},
     feed::schema::InitRequest,
 };
 
@@ -24,17 +24,6 @@ pub struct Head {
 }
 
 impl Head {
-    pub fn decode(raw: &[u8]) -> Option<Self> {
-        let mut reader = Cursor::new(raw);
-        reader.read_be().ok()?
-    }
-
-    pub fn encode(&self) -> Vec<u8> {
-        let mut bytes = vec![];
-        self.write(&mut bytes).unwrap();
-        bytes
-    }
-
     pub fn new(msg_type: u32, payload_length: u32) -> Self {
         Head {
             length: HEAD_LENGTH_32 + payload_length,
@@ -45,6 +34,8 @@ impl Head {
         }
     }
 }
+
+impl BytesBinRW for Head {}
 
 #[derive(Debug)]
 pub enum Package {

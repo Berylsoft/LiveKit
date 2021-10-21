@@ -28,8 +28,12 @@ pub struct Group {
 #[derive(Serialize, Deserialize, Clone)]
 pub enum RecordMode {
     FlvRaw,
+    FlvRawWithProperEnd,
     FlvReformed,
+    FlvReformedIndexed,
     HlsRawSlices,
+    HlsRawConcated,
+    HlsReformed, // may or cannot
 }
 
 #[derive(Serialize, Deserialize, Clone)]

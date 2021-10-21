@@ -35,6 +35,25 @@ pub mod vec {
     }
 }
 
+pub mod binrw {
+    use std::io::Cursor;
+    use binread::{BinRead, BinReaderExt};
+    use binwrite::BinWrite;
+    
+    pub trait BytesBinRW: BinRead + BinWrite {
+        fn decode(raw: &[u8]) -> Option<Self> {
+            let mut reader = Cursor::new(raw);
+            reader.read_be().ok()?
+        }
+    
+        fn encode(&self) -> Vec<u8> {
+            let mut bytes = vec![];
+            self.write(&mut bytes).unwrap();
+            bytes
+        }
+    }
+}
+
 pub mod http {
     use serde::{Deserialize, de::DeserializeOwned};
     use reqwest::{Client, StatusCode, header, Response};
