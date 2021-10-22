@@ -1,8 +1,7 @@
 use std::convert::TryInto;
-use binread::BinRead;
-use binwrite::BinWrite;
+use bytes_codec::{bytes_codec, BytesCodecExt};
 use crate::{
-    util::{compress::{de_brotli, inflate}, vec, binrw::BytesBinRW},
+    util::{compress::{de_brotli, inflate}, vec},
     feed::schema::InitRequest,
 };
 
@@ -11,10 +10,8 @@ pub const HEAD_LENGTH_32: u32 = 16;
 pub const HEAD_LENGTH_SIZE: usize = 16;
 pub type HeadBuf = [u8; HEAD_LENGTH_SIZE];
 
-#[derive(BinRead, BinWrite)]
-#[binread(big)]
-#[binread(assert(head_length == HEAD_LENGTH, "unexpected head length: {}", head_length))]
-#[binwrite(big)]
+#[bytes_codec]
+// #[binread(assert(head_length == HEAD_LENGTH, "unexpected head length: {}", head_length))]
 pub struct Head {
     pub length: u32,
     pub head_length: u16,
@@ -25,7 +22,7 @@ pub struct Head {
 
 impl Head {
     pub fn new(msg_type: u32, payload_length: u32) -> Self {
-        Head {
+        Self {
             length: HEAD_LENGTH_32 + payload_length,
             head_length: HEAD_LENGTH,
             proto_ver: 1,
@@ -34,8 +31,6 @@ impl Head {
         }
     }
 }
-
-impl BytesBinRW for Head {}
 
 #[derive(Debug)]
 pub enum Package {
@@ -57,7 +52,7 @@ impl Package {
         let string_payload = || String::from_utf8(payload.to_vec()).unwrap();
         let u32_payload = || u32::from_be_bytes(payload[0..4].try_into().unwrap());
 
-        match Head::decode(head) {
+        match Head::decode(head).ok() {
             Some(head) => match head.proto_ver {
                 0 => Package::Json(string_payload()),
                 3 => Package::unpack(de_brotli(payload).unwrap()),
@@ -77,9 +72,9 @@ impl Package {
 
     pub fn encode(self) -> Vec<u8> {
         match self {
-            Package::HeartbeatRequest() => Head::new(2, 0).encode(),
+            Package::HeartbeatRequest() => Head::new(2, 0).encode().unwrap(),
             Package::InitRequest(payload) => vec::concat(
-                Head::new(7, payload.len().try_into().unwrap()).encode(),
+                Head::new(7, payload.len().try_into().unwrap()).encode().unwrap(),
                 payload.into_bytes(),
             ),
             _ => unreachable!(),
