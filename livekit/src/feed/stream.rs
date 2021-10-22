@@ -54,26 +54,39 @@ impl Stream for FeedStream {
         let message = ready!(Pin::new(&mut self.ws).poll_next(cx));
         let heartbeat_error = self.error.try_recv();
 
-        Poll::Ready(match heartbeat_error {
+        match heartbeat_error {
             Ok(error) => {
-                eprintln!("[{:010} FEEDSTREAM HEARTBEAT]! {}", self.roomid, error);
-                None
+                log::warn!("[{:010} FEEDSTREAM HEARTBEAT]! {}", self.roomid, error);
+                Poll::Ready(None)
             },
-            Err(TryRecvError::Empty) => match message {
-                Some(Ok(Message::Binary(payload))) => Some(payload),
-                Some(Ok(Message::Ping(payload))) => {
-                    assert!(payload.is_empty());
-                    eprintln!("[{:010} FEEDSTREAM]RECEIVED ENPTY PING", self.roomid);
-                    return Poll::Pending
-                },
-                Some(Ok(_)) => unreachable!(),
-                Some(Err(error)) => {
-                    eprintln!("[{:010} FEEDSTREAM]! {}", self.roomid, error);
-                    None
-                },
-                None => None,
+            Err(TryRecvError::Empty) => {
+                match message {
+                    Some(Ok(Message::Binary(payload))) => {
+                        Poll::Ready(Some(payload))
+                    },
+                    Some(Ok(Message::Ping(payload))) => {
+                        if !payload.is_empty() {
+                            log::error!("[{:010} FEEDSTREAM]!! recv non-empty ping {:?}", self.roomid, payload);
+                        }
+                        Poll::Pending
+                    },
+                    Some(Ok(message)) => {
+                        log::error!("[{:010} FEEDSTREAM]!! recv unexpected message type {:?}", self.roomid, message);
+                        Poll::Pending
+                    },
+                    Some(Err(error)) => {
+                        log::warn!("[{:010} FEEDSTREAM]! {}", self.roomid, error);
+                        Poll::Ready(None)
+                    },
+                    None => {
+                        log::warn!("[{:010} FEEDSTREAM]! close normally", self.roomid);
+                        Poll::Ready(None)
+                    },
+                }
             },
-            Err(TryRecvError::Disconnected) => unreachable!(),
-        })
+            Err(TryRecvError::Disconnected) => {
+                unreachable!()
+            },
+        }
     }
 }

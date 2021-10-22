@@ -15,6 +15,7 @@ name = "livekit"
 rand = "0.8"
 chrono = "0.4"
 bytes = "1.1"
+log = "0.4"
 # compress
 inflate = "0.4"
 brotli-decompressor = "2.3"

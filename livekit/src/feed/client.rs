@@ -60,13 +60,13 @@ pub async fn client_rec(roomid: u32, http_client: HttpClient, storage: DB) {
     loop {
         let hosts_info = HostsInfo::call(&http_client, roomid).await.unwrap();
         let stream = FeedStream::connect(roomid, hosts_info).await.unwrap();
-        eprintln!("[{:010}]open", roomid);
+        log::info!("[{:010}] open", roomid);
         stream.for_each(|message| async {
             let message = message;
             storage.put(Timestamp::now().to_bytes(), &message).unwrap();
-            eprintln!("[{:010}]recv {}", roomid, message.len());
+            // log::info!("[{:010}] recv {}", roomid, message.len());
         }).await;
-        eprintln!("[{:010}]close", roomid);
+        log::info!("[{:010}] close", roomid);
         sleep(Duration::from_millis(FEED_RETRY_INTERVAL_MILLISEC)).await;
     }
 }
