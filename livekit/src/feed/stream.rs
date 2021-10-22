@@ -3,8 +3,8 @@ use tokio::{
     spawn,
     time::{self, Duration},
     sync::mpsc::{self, error::TryRecvError},
-    io::{Error as IoError, AsyncWriteExt, ReadBuf},
-    net::{TcpStream, tcp::OwnedReadHalf as TcpSocket},
+    // io::{Error as IoError, AsyncWriteExt, ReadBuf},
+    // net::{TcpStream, tcp::OwnedReadHalf as TcpSocket},
 };
 use futures::{Stream, StreamExt, SinkExt, ready};
 use rand::{seq::SliceRandom, thread_rng as rng};
@@ -33,9 +33,11 @@ impl FeedStream<WebSocket, WsError> {
         let host = &hosts_info.host_list.choose(&mut rng()).unwrap();
         let (ws, _) = connect_async(format!("wss://{}:{}/sub", host.host, host.wss_port)).await?;
         let (mut sender, receiver) = ws.split();
+        log::debug!("[{: >10}] (ws) connected", roomid);
 
         let init = Message::Binary(Package::create_init_request(roomid, hosts_info.token).encode());
         sender.send(init).await?;
+        log::debug!("[{: >10}] (ws) sent: init", roomid);
 
         spawn(async move {
             let heartbeat = Message::Binary(Package::HeartbeatRequest().encode());
@@ -47,6 +49,7 @@ impl FeedStream<WebSocket, WsError> {
                         break
                     }
                 }
+                log::debug!("[{: >10}] (ws) sent: hb by hb-thread", roomid);
             }
         });
 
@@ -67,30 +70,32 @@ impl Stream for FeedStream<WebSocket, WsError> {
 
         match heartbeat_error {
             Ok(error) => {
-                log::warn!("[{:010} FEED WS HB]! {}", self.roomid, error);
+                log::warn!("[{: >10}] (ws) close: caused by hb-thread {}", self.roomid, error);
                 Poll::Ready(None)
             },
             Err(TryRecvError::Empty) => {
                 match message {
                     Some(Ok(Message::Binary(payload))) => {
+                        log::debug!("[{: >10}] (ws) recv: message {}", self.roomid, payload.len());
                         Poll::Ready(Some(payload))
                     },
                     Some(Ok(Message::Ping(payload))) => {
                         if !payload.is_empty() {
-                            log::error!("[{:010} FEED WS]!! recv non-empty ping {:?}", self.roomid, payload);
+                            log::error!("[{: >10}] (ws) recv: non-empty ping {:?}", self.roomid, payload);
                         }
+                        log::debug!("[{: >10}] (ws) recv: empty ping", self.roomid);
                         Poll::Pending
                     },
                     Some(Ok(message)) => {
-                        log::error!("[{:010} FEED WS]!! recv unexpected message type {:?}", self.roomid, message);
+                        log::error!("[{: >10}] (ws) recv: unexpected message type {:?}", self.roomid, message);
                         Poll::Pending
                     },
                     Some(Err(error)) => {
-                        log::warn!("[{:010} FEED WS]! {}", self.roomid, error);
+                        log::warn!("[{: >10}] (ws) close: caused by {:?}", self.roomid, error);
                         Poll::Ready(None)
                     },
                     None => {
-                        log::warn!("[{:010} FEED WS]! close normally", self.roomid);
+                        log::warn!("[{: >10}] (ws) close: normally", self.roomid);
                         Poll::Ready(None)
                     },
                 }
@@ -102,6 +107,8 @@ impl Stream for FeedStream<WebSocket, WsError> {
     }
 }
 
+// currently not available
+/*
 impl FeedStream<TcpSocket, IoError> {
     pub async fn connect_tcp(roomid: u32, hosts_info: HostsInfo) -> Result<Self, IoError> {
         let (error_sender, error_receiver) = mpsc::channel::<IoError>(2);
@@ -151,7 +158,8 @@ impl Stream for FeedStream<TcpSocket, IoError> {
             },
             Err(TryRecvError::Empty) => {
                 match message {
-                    Ok(_) => {
+                    Ok(len) => {
+                        assert_eq!(len, bytes.len());
                         Poll::Ready(Some(bytes))
                     },
                     Err(error) => {
@@ -166,3 +174,4 @@ impl Stream for FeedStream<TcpSocket, IoError> {
         }
     }
 }
+*/

@@ -1,3 +1,4 @@
+use env_logger::fmt::{Target, WriteStyle};
 use structopt::StructOpt;
 use tokio::{spawn, signal, time::{sleep, Duration}};
 use livekit::{
@@ -16,6 +17,7 @@ struct Args {
 
 #[tokio::main]
 async fn main() {
+    env_logger::builder().target(Target::Stdout).write_style(WriteStyle::Never).format_timestamp_micros().init();
     let Args { storage_root, roomid_list } = Args::from_args();
     let http_client = HttpClient::new_bare().await;
     for roomid in roomid_list.split(",").map(|roomid| roomid.parse::<u32>().unwrap()) {
