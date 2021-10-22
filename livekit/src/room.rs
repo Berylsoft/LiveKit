@@ -82,7 +82,7 @@ impl Room {
             .replace("{random}", rng().gen_range(0..100).to_string().as_str())
             .replace("{roomid}", self.roomid.to_string().as_str())
             .replace("{title}", self.info.title.as_str())
-            .replace("{name}", self.user_info.info.uname.to_string().as_str())
+            .replace("{name}", self.user_info.info.uname.as_str())
             .replace("{parea}", self.info.parent_area_name.as_str())
             .replace("{area}", self.info.area_name.as_str())
     }

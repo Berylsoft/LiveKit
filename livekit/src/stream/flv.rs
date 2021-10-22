@@ -14,7 +14,7 @@ pub async fn get_stream(client: &HttpClient, url: String) -> Option<impl Stream<
         match resp.status().as_u16() {
             200 => return Some(resp.bytes_stream()),
             404 => return None,
-            301 | 302 | 307 | 308 => url = resp.headers().get("Location").unwrap().to_str().unwrap().to_string(),
+            301 | 302 | 307 | 308 => url = resp.headers().get("Location").unwrap().to_str().unwrap().to_owned(),
             status => panic!("{}", status),
         }
     }

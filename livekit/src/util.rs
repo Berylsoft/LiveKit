@@ -64,7 +64,7 @@ pub mod http {
                 headers.insert(header::COOKIE, cookie);
             }
             let host = match &common_config.api_proxy {
-                None => API_HOST.to_string(),
+                None => API_HOST.to_owned(),
                 Some(host) => host.clone(),
             };
             Self {
@@ -75,7 +75,7 @@ pub mod http {
 
         pub async fn new_bare() -> Self {
             Self {
-                host: API_HOST.to_string(),
+                host: API_HOST.to_owned(),
                 client: Client::new(),
             }
         }
