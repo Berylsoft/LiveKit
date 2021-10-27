@@ -1,5 +1,6 @@
 use std::convert::TryInto;
-use bytes_codec::{bytes_codec, BytesCodecExt};
+use binrw::{BinRead, BinWrite};
+use bytes_codec::{BytesDecodeExt, BytesEncodeExt};
 use crate::{
     util::{compress::{de_brotli, inflate}, vec},
     feed::schema::InitRequest,
@@ -10,8 +11,8 @@ pub const HEAD_LENGTH_32: u32 = 16;
 pub const HEAD_LENGTH_SIZE: usize = 16;
 pub type HeadBuf = [u8; HEAD_LENGTH_SIZE];
 
-#[bytes_codec]
-// #[binread(assert(head_length == HEAD_LENGTH, "unexpected head length: {}", head_length))]
+#[derive(BinRead, BinWrite)]
+#[br(assert(head_length == HEAD_LENGTH, "unexpected head length: {}", head_length))]
 pub struct Head {
     pub length: u32,
     pub head_length: u16,

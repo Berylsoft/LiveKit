@@ -26,7 +26,7 @@ pub async fn download(client: HttpClient, roomid: u32, path: String) {
     let mut stream = get_stream(&client, stream_info.to_url()).await.unwrap();
     let mut file = File::create(path).await.unwrap();
     loop {
-        for data in stream.next().await {
+        while let Some(data) = stream.next().await {
             file.write(data.unwrap().as_ref()).await.unwrap();
         }
     }

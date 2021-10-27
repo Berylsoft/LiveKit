@@ -95,8 +95,8 @@ impl Room {
         let receiver = self.subscribe();
         let roomid = self.id();
         async move {
-            loop {
-                println!("[{: >10}] {:?}", roomid, receiver.recv().await.unwrap());
+            while let Ok(message) = receiver.recv().await {
+                println!("[{: >10}] {:?}", roomid, message);
             }
         }
     }

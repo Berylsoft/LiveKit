@@ -44,13 +44,12 @@ impl Package {
 pub async fn client(roomid: u32, http_client: HttpClient, sender: Sender<Event>, storage: DB) {
     loop {
         let hosts_info = HostsInfo::call(&http_client, roomid).await.unwrap();
-        let stream = FeedStream::connect_ws(roomid, hosts_info).await.unwrap();
+        let mut stream = FeedStream::connect_ws(roomid, hosts_info).await.unwrap();
         sender.send(Event::Open).await.unwrap();
-        stream.for_each(|message| async {
-            let message = message;
+        while let Some(message) = stream.next().await {
             storage.put(Timestamp::now().to_bytes(), &message).unwrap();
             Package::decode(&message).send_as_events(&sender).await.unwrap();
-        }).await;
+        }
         sender.send(Event::Close).await.unwrap();
         sleep(Duration::from_millis(FEED_RETRY_INTERVAL_MILLISEC)).await;
     }
@@ -59,12 +58,11 @@ pub async fn client(roomid: u32, http_client: HttpClient, sender: Sender<Event>,
 pub async fn client_rec(roomid: u32, http_client: HttpClient, storage: DB) {
     loop {
         let hosts_info = HostsInfo::call(&http_client, roomid).await.unwrap();
-        let stream = FeedStream::connect_ws(roomid, hosts_info).await.unwrap();
+        let mut stream = FeedStream::connect_ws(roomid, hosts_info).await.unwrap();
         log::info!("[{: >10}] open", roomid);
-        stream.for_each(|message| async {
-            let message = message;
-            storage.put(Timestamp::now().to_bytes(), &message).unwrap();
-        }).await;
+        while let Some(message) = stream.next().await {
+            storage.put(Timestamp::now().to_bytes(), message).unwrap();
+        }
         log::info!("[{: >10}] close", roomid);
         sleep(Duration::from_millis(FEED_RETRY_INTERVAL_MILLISEC)).await;
     }
