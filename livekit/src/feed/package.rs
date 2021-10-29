@@ -50,7 +50,7 @@ impl Package {
         let (head, payload) = raw.split_at(HEAD_LENGTH_SIZE);
 
         let unknown = || Package::Unknown(raw.to_vec());
-        let string_payload = || String::from_utf8(payload.to_vec()).unwrap();
+        let string_payload = || String::from_utf8(payload.to_owned()).unwrap();
         let u32_payload = || u32::from_be_bytes(payload[0..4].try_into().unwrap());
 
         match Head::decode(head).ok() {
@@ -74,10 +74,13 @@ impl Package {
     pub fn encode(self) -> Vec<u8> {
         match self {
             Package::HeartbeatRequest() => Head::new(2, 0).encode().unwrap(),
-            Package::InitRequest(payload) => vec::concat(
-                Head::new(7, payload.len().try_into().unwrap()).encode().unwrap(),
-                payload.into_bytes(),
-            ),
+            Package::InitRequest(payload) => {
+                let payload = payload.into_bytes();
+                vec::concat(
+                    Head::new(7, payload.len().try_into().unwrap()).encode().unwrap(),
+                    payload,
+                )
+            },
             _ => unreachable!(),
         }
     }

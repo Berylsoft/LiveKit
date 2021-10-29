@@ -3,8 +3,8 @@ use tokio::{
     spawn,
     time::{self, Duration},
     sync::mpsc::{self, error::TryRecvError},
-    // io::{Error as IoError, AsyncWriteExt, ReadBuf},
-    // net::{TcpStream, tcp::OwnedReadHalf as TcpSocket},
+    io::{Error as IoError, AsyncRead, AsyncWriteExt, ReadBuf},
+    net::{TcpStream, tcp::OwnedReadHalf as TcpSocket},
 };
 use futures::{Stream, StreamExt, SinkExt, ready};
 use rand::{seq::SliceRandom, thread_rng as rng};
@@ -13,7 +13,7 @@ use tokio_tungstenite::{
     tungstenite::{protocol::Message, Error as WsError}
 };
 use crate::{
-    config::FEED_HEARTBEAT_RATE_SEC,
+    config::{FEED_HEARTBEAT_RATE_SEC, FEED_TCP_BUFFER_SIZE},
     api::room::HostsInfo,
     feed::package::Package,
 };
@@ -49,7 +49,7 @@ impl FeedStream<WebSocket, WsError> {
                         break
                     }
                 }
-                log::debug!("[{: >10}] (ws) sent: hb by hb-thread", roomid);
+                log::debug!("[{: >10}] (ws) sent: (heartbeat-thread) heartbeat", roomid);
             }
         });
 
@@ -70,7 +70,7 @@ impl Stream for FeedStream<WebSocket, WsError> {
 
         match heartbeat_error {
             Ok(error) => {
-                log::warn!("[{: >10}] (ws) close: caused by hb-thread {}", self.roomid, error);
+                log::warn!("[{: >10}] (ws) close: (heartbeat-thread) caused by {:?}", self.roomid, error);
                 Poll::Ready(None)
             },
             Err(TryRecvError::Empty) => {
@@ -107,8 +107,6 @@ impl Stream for FeedStream<WebSocket, WsError> {
     }
 }
 
-// currently not available
-/*
 impl FeedStream<TcpSocket, IoError> {
     pub async fn connect_tcp(roomid: u32, hosts_info: HostsInfo) -> Result<Self, IoError> {
         let (error_sender, error_receiver) = mpsc::channel::<IoError>(2);
@@ -116,9 +114,11 @@ impl FeedStream<TcpSocket, IoError> {
         let host = &hosts_info.host_list.choose(&mut rng()).unwrap();
         let tcp = TcpStream::connect((host.host.as_str(), host.port)).await?;
         let (receiver, mut sender) = tcp.into_split();
+        log::debug!("[{: >10}] (tcp) connected", roomid);
 
         let init = Package::create_init_request(roomid, hosts_info.token).encode();
         sender.write_all(init.as_slice()).await?;
+        log::debug!("[{: >10}] (tcp) sent: init", roomid);
 
         spawn(async move {
             let heartbeat = Package::HeartbeatRequest().encode();
@@ -130,6 +130,7 @@ impl FeedStream<TcpSocket, IoError> {
                         break
                     }
                 }
+                log::debug!("[{: >10}] (tcp) sent: (heartbeat-thread) heartbeat", roomid);
             }
         });
 
@@ -145,25 +146,26 @@ impl Stream for FeedStream<TcpSocket, IoError> {
     type Item = Vec<u8>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        let mut bytes = Vec::new();
+        let mut bytes = [0; FEED_TCP_BUFFER_SIZE];
         let mut readbuf = ReadBuf::new(&mut bytes);
 
-        let message = ready!(Pin::new(&mut self.socket).poll_peek(cx, &mut readbuf));
+        let message = ready!(Pin::new(&mut self.socket).poll_read(cx, &mut readbuf));
         let heartbeat_error = self.error.try_recv();
 
         match heartbeat_error {
             Ok(error) => {
-                log::warn!("[{:010} FEED TCP HB]! {}", self.roomid, error);
+                log::warn!("[{: >10}] (tcp) close: (heartbeat-thread) caused by {:?}", self.roomid, error);
                 Poll::Ready(None)
             },
             Err(TryRecvError::Empty) => {
                 match message {
-                    Ok(len) => {
-                        assert_eq!(len, bytes.len());
-                        Poll::Ready(Some(bytes))
+                    Ok(()) => {
+                        let payload = readbuf.filled().to_vec();
+                        log::debug!("[{: >10}] (tcp) recv: message {}", self.roomid, payload.len());
+                        Poll::Ready(Some(payload))
                     },
                     Err(error) => {
-                        log::warn!("[{:010} FEED TCP]! {}", self.roomid, error);
+                        log::warn!("[{: >10}] (tcp) close: caused by {:?}", self.roomid, error);
                         Poll::Ready(None)
                     },
                 }
@@ -174,4 +176,3 @@ impl Stream for FeedStream<TcpSocket, IoError> {
         }
     }
 }
-*/
