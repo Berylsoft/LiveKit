@@ -4,7 +4,7 @@ use futures::Future;
 use async_channel::{unbounded as channel, Receiver};
 use crate::{
     config::{
-        STORAGE_VERSION, STREAMREC_DEFAULT_FILE_TEMPLATE,
+        STORAGE_VERSION, STREAM_DEFAULT_FILE_TEMPLATE,
         Config, RecordMode,
     },
     util::http::HttpClient,
@@ -67,7 +67,7 @@ impl Room {
             "{}/{}.flv",
             config.file_root,
             match config.file_template.as_ref() {
-                None => STREAMREC_DEFAULT_FILE_TEMPLATE,
+                None => STREAM_DEFAULT_FILE_TEMPLATE,
                 Some(template) => template.as_str(),
             },
         );
