@@ -1,7 +1,7 @@
 use serde::{Serialize, Deserialize};
 
 pub const VERSION: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"), "-alpha");
-pub const STORAGE_VERSION: &str = "alpha2";
+pub const STORAGE_VERSION: &str = "beta1";
 
 pub const FEED_HEARTBEAT_RATE_SEC: u64 = 30;
 pub const FEED_INIT_INTERVAL_MILLISEC: u64 = 100;
