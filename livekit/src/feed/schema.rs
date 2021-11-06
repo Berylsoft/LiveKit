@@ -1,12 +1,14 @@
 use serde::{Serialize, Deserialize};
+use serde_json::{Value as JsonValue, Result as JsonResult};
+use crate::util::json::to;
 
 #[derive(Serialize)]
 pub struct InitRequest {
     pub uid: u32,
     pub roomid: u32,
-    pub protover: u8, // unknown number
+    pub protover: u8,
     pub platform: String,
-    pub r#type: u8, // unknown number
+    pub r#type: u8,
     pub key: String,
 }
 
@@ -15,97 +17,40 @@ pub struct InitResponse {
     pub code: i32,
 }
 
-// UnknownCommonNumber
-type UCN = i32;
-// UnknownEnumNumber
-type UEN = u8;
-// UnknownJsonString
-type UJS = String;
+#[derive(Serialize)]
+pub struct Danmaku {
+    pub time: i64,
+    pub color: u32,
+    pub text: u32,
+    pub uid: u32,
+    pub uname: String,
+    pub ul: u8,
+    pub medal_level: u8,
+    pub medal_name: String,
+    pub medal_uid: u32,
+    pub medal_roomid: u32,
+    pub medal_uname: String,
+}
 
-pub struct Danmaku (
-    DanmakuInfo,
-    /// [text] danmaku text
-    String,
-    DanmakuUser,
-    DanmakuMedal,
-    DanmakuUserLevel,
-);
+impl Danmaku {
+    pub fn new(raw: &JsonValue) -> JsonResult<Self> {
+        let info = &raw[0];
+        let user = &raw[2];
+        let medal = &raw[3];
+        let ul = &raw[4];
 
-pub struct DanmakuInfo (
-    /// 0
-    UCN,
-    /// 1[mode]
-    UEN,
-    /// 2[size]
-    UCN,
-    /// 3[color] (0-16777215)
-    UCN,
-    /// 4 (ts-ms)
-    u64,
-    /// 5[dmid] (ts-s)
-    u32,
-    /// 6
-    UCN,
-    /// 7
-    String,
-    /// 8
-    UCN,
-    /// 9[type]
-    UCN,
-    /// 10
-    UCN,
-    /// 11
-    String,
-    /// 12 special danmaku type (Text | Emoji | Voice)
-    UCN,
-    /// 13[emoticonOptions]
-    UJS,
-    /// 14[voiceConfig]
-    UJS,
-    // /// 15[modeInfo]
-    // ()
-);
-
-pub struct DanmakuUser (
-    /// [uid] sender uid
-    u32,
-    /// [nickname] sender uname
-    String,
-    UCN,
-    UCN,
-    UCN,
-    /// [rank]
-    UCN,
-    UCN,
-    /// ?[uname_color]
-    String,
-);
-
-pub struct DanmakuMedal (
-    /// medal level
-    u8,
-    /// medal name
-    String,
-    /// medal owner name
-    String,
-    /// medal owner roomid
-    u32,
-    UCN,
-    String,
-    UCN,
-    UCN,
-    UCN,
-    UCN,
-    UCN,
-    UCN,
-    /// medal owner uid
-    u32,
-);
-
-pub struct DanmakuUserLevel (
-    /// current level
-    u8,
-    u8,
-    u32,
-    String,
-);
+        Ok(Danmaku {
+            time: to(&info[5])?,
+            color: to(&info[3])?,
+            text: to(&raw[1])?,
+            uid: to(&user[0])?,
+            uname: to(&user[1])?,
+            ul: to(&ul[0])?,
+            medal_level: to(&medal[0])?,
+            medal_name: to(&medal[1])?,
+            medal_uid: to(&medal[2])?,
+            medal_roomid: to(&medal[3])?,
+            medal_uname: to(&medal[12])?,
+        })
+    }
+}

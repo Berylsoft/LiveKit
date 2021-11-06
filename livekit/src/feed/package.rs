@@ -53,8 +53,8 @@ impl Package {
         let string_payload = || String::from_utf8(payload.to_owned()).unwrap();
         let u32_payload = || u32::from_be_bytes(payload[0..4].try_into().unwrap());
 
-        match Head::decode(head).ok() {
-            Some(head) => match head.proto_ver {
+        match Head::decode(head) {
+            Ok(head) => match head.proto_ver {
                 0 => Package::Json(string_payload()),
                 3 => Package::unpack(de_brotli(payload).unwrap()),
                 1 => match head.msg_type {
@@ -67,7 +67,7 @@ impl Package {
                 2 => Package::unpack(inflate(payload).unwrap()),
                 _ => unknown(),
             },
-            None => unknown(),
+            Err(_) => unknown(),
         }
     }
 

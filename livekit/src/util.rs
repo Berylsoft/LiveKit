@@ -103,3 +103,16 @@ pub mod http {
         }
     }
 }
+
+pub mod json {
+    use serde::de::DeserializeOwned;
+    use serde_json::{Value, Error};
+
+    // same as `serde_json::from_value`, but takes reference
+    pub fn to<T>(value: &Value) -> Result<T, Error>
+    where
+        T: DeserializeOwned,
+    {
+        T::deserialize(value)
+    }
+}
