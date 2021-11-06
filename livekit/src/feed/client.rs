@@ -7,16 +7,25 @@ use crate::{
     config::FEED_RETRY_INTERVAL_MILLISEC,
     api::room::HostsInfo,
     util::{Timestamp, http::HttpClient},
-    feed::{package::Package, stream::FeedStream},
+    feed::{package::Package, stream::FeedStream, schema::*},
 };
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub enum Event {
     Init,
     Open,
     Close,
     Popularity(u32),
-    Message(String),
+    Unknown(String),
+    Danmaku(Danmaku),
+}
+
+pub fn dispatcher(payload: &str) -> Option<Event> {
+    let raw: serde_json::Value = serde_json::from_str(payload).ok()?;
+    match raw["cmd"].as_str()? {
+        "DANMU_MSG" => Some(Event::Danmaku(Danmaku::new(&raw["info"]).ok()?)),
+        _ => None,
+    }
 }
 
 impl Package {
@@ -24,7 +33,7 @@ impl Package {
     async fn send_as_events(self, sender: &Sender<Event>) -> Result<(), SendError<Event>> {
         match self {
             Package::Json(payload) => {
-                sender.send(Event::Message(payload)).await?;
+                sender.send(dispatcher(payload.as_str()).unwrap_or_else(|| Event::Unknown(payload))).await?;
             },
             Package::Multi(payloads) => {
                 for payload in payloads {

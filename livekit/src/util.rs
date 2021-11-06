@@ -106,13 +106,44 @@ pub mod http {
 
 pub mod json {
     use serde::de::DeserializeOwned;
-    use serde_json::{Value, Error};
+    use serde_json::{Value, Result};
 
     // same as `serde_json::from_value`, but takes reference
-    pub fn to<T>(value: &Value) -> Result<T, Error>
+    pub fn to<T>(value: &Value) -> Result<T>
     where
         T: DeserializeOwned,
     {
         T::deserialize(value)
+    }
+
+    pub fn numbool(value: &Value) -> Result<bool> {
+        let num: u8 = to(value)?;
+        if num == 0 {
+            Ok(false)
+        } else if num == 1 {
+            Ok(true)
+        } else {
+            panic!()
+        }
+    }
+
+    pub fn inline_json<T>(value: &Value) -> Result<T>
+    where
+        T: DeserializeOwned,
+    {
+        let json: String = to(value)?;
+        Ok(serde_json::from_str(json.as_str())?)
+    }
+
+    pub fn inline_json_opt<T>(value: &Value) -> Result<Option<T>>
+    where
+        T: DeserializeOwned,
+    {
+        let json: String = to(value)?;
+        if json == "{}" {
+            Ok(None)
+        } else {
+            Ok(Some(serde_json::from_str(json.as_str())?))
+        }
     }
 }

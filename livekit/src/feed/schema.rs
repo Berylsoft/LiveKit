@@ -1,8 +1,8 @@
 use serde::{Serialize, Deserialize};
 use serde_json::{Value as JsonValue, Result as JsonResult};
-use crate::util::json::to;
+use crate::util::json::{to, numbool, inline_json_opt};
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 pub struct InitRequest {
     pub uid: u32,
     pub roomid: u32,
@@ -12,45 +12,106 @@ pub struct InitRequest {
     pub key: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Serialize)]
 pub struct InitResponse {
     pub code: i32,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 pub struct Danmaku {
+    pub info: DanmakuInfo,
+    pub user: DanmakuUser,
+    pub medal: Option<DanmakuMedal>,
+    pub emoji: Option<DanmakuEmoji>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct DanmakuInfo {
     pub time: i64,
+    // pub time2: i64,
     pub color: u32,
-    pub text: u32,
+    pub text: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct DanmakuUser {
     pub uid: u32,
     pub uname: String,
-    pub ul: u8,
-    pub medal_level: u8,
-    pub medal_name: String,
-    pub medal_uid: u32,
-    pub medal_roomid: u32,
-    pub medal_uname: String,
+    pub live_user_level: u8,
+    pub admin: bool,
+    pub laoye_monthly: bool,
+    pub laoye_annual: bool,
+}
+
+#[derive(Debug, Serialize)]
+pub struct DanmakuMedal {
+    pub on: bool,
+    pub level: u8,
+    pub name: String,
+    pub guard: u8,
+    pub t_uid: u32,
+    pub t_roomid: u32,
+    pub t_uname: String,
+    pub color: u32,
+    pub color_border: u32,
+    pub color_start: u32,
+    pub color_end: u32,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DanmakuEmoji {
+    pub height: i32,
+    pub in_player_area: i32,
+    pub is_dynamic: i32,
+    pub url: String,
+    pub width: i32,
+}
+
+impl DanmakuMedal {
+    fn new(raw: &JsonValue) -> JsonResult<Option<Self>> {
+        let medal: Vec<JsonValue> = to(&raw)?;
+        if medal.len() == 0 {
+            Ok(None)
+        } else {
+            Ok(Some(DanmakuMedal {
+                on: numbool(&medal[11])?,
+                level: to(&medal[0])?,
+                name: to(&medal[1])?,
+                guard: to(&medal[10])?,
+                t_uid: to(&medal[12])?,
+                t_roomid: to(&medal[3])?,
+                t_uname: to(&medal[2])?,
+                color: to(&medal[4])?,
+                color_border: to(&medal[7])?,
+                color_start: to(&medal[8])?,
+                color_end: to(&medal[9])?,
+            }))
+        }
+    }
 }
 
 impl Danmaku {
     pub fn new(raw: &JsonValue) -> JsonResult<Self> {
         let info = &raw[0];
         let user = &raw[2];
-        let medal = &raw[3];
-        let ul = &raw[4];
 
         Ok(Danmaku {
-            time: to(&info[5])?,
-            color: to(&info[3])?,
-            text: to(&raw[1])?,
-            uid: to(&user[0])?,
-            uname: to(&user[1])?,
-            ul: to(&ul[0])?,
-            medal_level: to(&medal[0])?,
-            medal_name: to(&medal[1])?,
-            medal_uid: to(&medal[2])?,
-            medal_roomid: to(&medal[3])?,
-            medal_uname: to(&medal[12])?,
+            info: DanmakuInfo {
+                time: to(&info[4])?,
+                // time2: to(&info[5])?,
+                color: to(&info[3])?,
+                text: to(&raw[1])?,
+            },
+            user: DanmakuUser {
+                uid: to(&user[0])?,
+                uname: to(&user[1])?,
+                live_user_level: to(&raw[4][0])?,
+                admin: numbool(&user[2])?,
+                laoye_monthly: numbool(&user[3])?,
+                laoye_annual: numbool(&user[4])?,
+            },
+            medal: DanmakuMedal::new(&raw[3])?,
+            emoji: inline_json_opt(&info[13])?,
         })
     }
 }
