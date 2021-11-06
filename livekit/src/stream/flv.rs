@@ -22,7 +22,14 @@ pub async fn get_stream(client: &HttpClient, url: String) -> Option<impl Stream<
 
 pub async fn download(client: HttpClient, roomid: u32, path: String) {
     let stream_type = StreamType { protocol: "http_stream", format: "flv", codec: "avc" };
-    let stream_info = stream_type.select(PlayInfo::call(&client, roomid, 10000).await.unwrap()).unwrap();
+    let stream_info = {
+        let stream_info = stream_type.select(PlayInfo::call(&client, roomid, 10000).await.unwrap()).unwrap();
+        if stream_info.have_4k() {
+            stream_type.select(PlayInfo::call(&client, roomid, 20000).await.unwrap()).unwrap()
+        } else {
+            stream_info
+        }
+    };
     let mut stream = get_stream(&client, stream_info.to_url()).await.unwrap();
     let mut file = File::create(path).await.unwrap();
     loop {

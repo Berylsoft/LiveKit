@@ -41,4 +41,8 @@ impl StreamInfo {
         let source = source.iter().filter(|source| !source.host.contains(".mcdn.")).choose(&mut rng()).unwrap();
         format!("{}{}{}", source.host, self.base_url, source.extra)
     }
+
+    pub fn have_4k(&self) -> bool {
+        self.accept_qn.contains(&20000)
+    }
 }
