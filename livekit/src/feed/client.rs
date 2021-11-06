@@ -16,6 +16,7 @@ pub enum Event {
     Open,
     Close,
     Popularity(u32),
+    _Unknown,
     Unknown(String),
     Danmaku(Danmaku),
 }
@@ -33,7 +34,7 @@ impl Package {
     async fn send_as_events(self, sender: &Sender<Event>) -> Result<(), SendError<Event>> {
         match self {
             Package::Json(payload) => {
-                sender.send(dispatcher(payload.as_str()).unwrap_or_else(|| Event::Unknown(payload))).await?;
+                sender.send(dispatcher(payload.as_str()).unwrap_or_else(|| Event::_Unknown)).await?;
             },
             Package::Multi(payloads) => {
                 for payload in payloads {

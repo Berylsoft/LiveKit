@@ -23,14 +23,16 @@ pub struct Danmaku {
     pub user: DanmakuUser,
     pub medal: Option<DanmakuMedal>,
     pub emoji: Option<DanmakuEmoji>,
+    pub title: DanmakuTitle,
 }
 
 #[derive(Debug, Serialize)]
 pub struct DanmakuInfo {
     pub time: i64,
-    // pub time2: i64,
-    pub color: u32,
     pub text: String,
+    pub color: u32,
+    pub size: u32,
+    pub rand: i64,
 }
 
 #[derive(Debug, Serialize)]
@@ -67,6 +69,9 @@ pub struct DanmakuEmoji {
     pub width: i32,
 }
 
+#[derive(Debug, Serialize)]
+pub struct DanmakuTitle(String, String);
+
 impl DanmakuMedal {
     fn new(raw: &JsonValue) -> JsonResult<Option<Self>> {
         let medal: Vec<JsonValue> = to(&raw)?;
@@ -94,13 +99,15 @@ impl Danmaku {
     pub fn new(raw: &JsonValue) -> JsonResult<Self> {
         let info = &raw[0];
         let user = &raw[2];
+        let title = &raw[5];
 
         Ok(Danmaku {
             info: DanmakuInfo {
                 time: to(&info[4])?,
-                // time2: to(&info[5])?,
-                color: to(&info[3])?,
                 text: to(&raw[1])?,
+                color: to(&info[3])?,
+                size: to(&info[2])?,
+                rand: to(&info[5])?,
             },
             user: DanmakuUser {
                 uid: to(&user[0])?,
@@ -112,6 +119,7 @@ impl Danmaku {
             },
             medal: DanmakuMedal::new(&raw[3])?,
             emoji: inline_json_opt(&info[13])?,
+            title: DanmakuTitle(to(&title[0])?, to(&title[1])?),
         })
     }
 }
