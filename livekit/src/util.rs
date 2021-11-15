@@ -146,4 +146,24 @@ pub mod json {
             Ok(Some(serde_json::from_str(json.as_str())?))
         }
     }
+
+    pub fn string_opt(value: &Value) -> Result<Option<String>> {
+        let string: String = to(value)?;
+        if string.len() == 0 {
+            Ok(None)
+        } else {
+            Ok(Some(string))
+        }
+    }
+
+    // todo num_opt
+    pub fn u32_opt(value: &Value) -> Result<Option<u32>>
+    {
+        let num: u32 = to(value)?;
+        if num == 0 {
+            Ok(None)
+        } else {
+            Ok(Some(num))
+        }
+    }
 }

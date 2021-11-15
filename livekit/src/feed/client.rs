@@ -34,7 +34,7 @@ impl Package {
     async fn send_as_events(self, sender: &Sender<Event>) -> Result<(), SendError<Event>> {
         match self {
             Package::Json(payload) => {
-                sender.send(dispatcher(payload.as_str()).unwrap_or_else(|| Event::_Unknown)).await?;
+                sender.send(dispatcher(payload.as_str()).unwrap_or_else(|| Event::Unknown(payload))).await?;
             },
             Package::Multi(payloads) => {
                 for payload in payloads {

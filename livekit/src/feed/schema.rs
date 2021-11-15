@@ -1,6 +1,6 @@
 use serde::{Serialize, Deserialize};
 use serde_json::{Value as JsonValue, Result as JsonResult};
-use crate::util::json::{to, numbool, inline_json_opt};
+use crate::util::json::*;
 
 #[derive(Debug, Serialize)]
 pub struct InitRequest {
@@ -21,7 +21,7 @@ pub struct InitResponse {
 pub struct Danmaku {
     pub info: DanmakuInfo,
     pub user: DanmakuUser,
-    pub medal: Option<DanmakuMedal>,
+    pub medal: Option<Medal>,
     pub emoji: Option<DanmakuEmoji>,
     pub title: DanmakuTitle,
 }
@@ -46,18 +46,19 @@ pub struct DanmakuUser {
 }
 
 #[derive(Debug, Serialize)]
-pub struct DanmakuMedal {
+pub struct Medal {
     pub on: bool,
     pub level: u8,
     pub name: String,
     pub guard: u8,
-    pub t_uid: u32,
     pub t_roomid: u32,
-    pub t_uname: String,
+    pub t_uid: Option<u32>,
+    pub t_uname: Option<String>,
     pub color: u32,
     pub color_border: u32,
     pub color_start: u32,
     pub color_end: u32,
+    // pub score: u32, (interact)
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -72,26 +73,42 @@ pub struct DanmakuEmoji {
 #[derive(Debug, Serialize)]
 pub struct DanmakuTitle(String, String);
 
-impl DanmakuMedal {
-    fn new(raw: &JsonValue) -> JsonResult<Option<Self>> {
+impl Medal {
+    fn new_danmaku(raw: &JsonValue) -> JsonResult<Option<Self>> {
         let medal: Vec<JsonValue> = to(&raw)?;
         if medal.len() == 0 {
             Ok(None)
         } else {
-            Ok(Some(DanmakuMedal {
+            Ok(Some(Medal {
                 on: numbool(&medal[11])?,
                 level: to(&medal[0])?,
                 name: to(&medal[1])?,
                 guard: to(&medal[10])?,
-                t_uid: to(&medal[12])?,
                 t_roomid: to(&medal[3])?,
-                t_uname: to(&medal[2])?,
+                t_uid: Some(to(&medal[12])?),
+                t_uname: Some(to(&medal[2])?),
                 color: to(&medal[4])?,
                 color_border: to(&medal[7])?,
                 color_start: to(&medal[8])?,
                 color_end: to(&medal[9])?,
             }))
         }
+    }
+
+    fn new_common(medal: &JsonValue) -> JsonResult<Self> {
+        Ok(Medal {
+            on: numbool(&medal["is_lighted"])?,
+            level: to(&medal["medal_level"])?,
+            name: to(&medal["medal_name"])?,
+            guard: to(&medal["guard_level"])?,
+            t_roomid: to(&medal["anchor_roomid"])?,
+            t_uid: u32_opt(&medal["target_id"])?,
+            t_uname: None,
+            color: to(&medal["medal_color"])?,
+            color_border: to(&medal["medal_color_border"])?,
+            color_start: to(&medal["medal_color_start"])?,
+            color_end: to(&medal["medal_color_end"])?,
+        })
     }
 }
 
@@ -117,7 +134,7 @@ impl Danmaku {
                 laoye_monthly: numbool(&user[3])?,
                 laoye_annual: numbool(&user[4])?,
             },
-            medal: DanmakuMedal::new(&raw[3])?,
+            medal: Medal::new_danmaku(&raw[3])?,
             emoji: inline_json_opt(&info[13])?,
             title: DanmakuTitle(to(&title[0])?, to(&title[1])?),
         })
