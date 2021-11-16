@@ -18,7 +18,7 @@ pub const STREAM_DEFAULT_FILE_TEMPLATE: &str = "{roomid}-{date}-{time}{ms}-{titl
 
 pub const REFERER: &str = "https://live.bilibili.com/";
 pub const API_HOST: &str = "https://api.live.bilibili.com";
-pub const WEB_USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.81 Safari/537.36";
+pub const WEB_USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/95.0.4638.69 Safari/537.36";
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Group {
