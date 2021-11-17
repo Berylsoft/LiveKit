@@ -9,10 +9,10 @@ use tokio::{spawn, signal, time::{sleep, Duration}};
 use livekit::{
     config::FEED_INIT_INTERVAL_MILLISEC,
     util::http::HttpClient,
-    feed::client::client_rec,
+    feed::{client::client_rec, storage::open_storage},
 };
 
-pub fn log_config(path: String) -> Config {
+pub fn log_config(path: String, debug: bool) -> Config {
     Config::builder()
         .appender(
             Appender::builder().build(
@@ -28,7 +28,7 @@ pub fn log_config(path: String) -> Config {
         .build(
             Root::builder()
                 .appender("logfile")
-                .build(LevelFilter::Debug),
+                .build(if debug { LevelFilter::Debug } else { LevelFilter::Info }),
         )
         .unwrap()
 }
@@ -41,15 +41,17 @@ struct Args {
     storage_root: String,
     #[structopt(short = "l", long)]
     log_path: Option<String>,
+    #[structopt(long)]
+    log_debug: bool,
 }
 
 #[tokio::main]
 async fn main() {
-    let Args { roomid_list, storage_root, log_path } = Args::from_args();
+    let Args { roomid_list, storage_root, log_path, log_debug } = Args::from_args();
     if let Some(log_path) = log_path {
-        log4rs::init_config(log_config(log_path)).unwrap();
+        log4rs::init_config(log_config(log_path, log_debug)).unwrap();
     }
-    let db = sled::open(storage_root).unwrap();
+    let db = open_storage(storage_root).unwrap();
     let http_client = HttpClient::new_bare().await;
     for roomid in roomid_list.split(",").map(|roomid| roomid.parse::<u32>().unwrap()) {
         let storage = db.open_tree(roomid.to_string()).unwrap();

@@ -4,7 +4,7 @@ use async_recursion::async_recursion;
 use async_channel::{Sender, SendError};
 use sled::Tree;
 use crate::{
-    config::FEED_RETRY_INTERVAL_MILLISEC,
+    config::{FEED_RETRY_INTERVAL_MILLISEC, FEED_INIT_RETRY_INTERVAL_SEC},
     api::room::HostsInfo,
     util::{Timestamp, http::HttpClient},
     feed::{package::Package, stream::FeedStream, schema::*},
@@ -65,13 +65,32 @@ pub async fn client(roomid: u32, http_client: HttpClient, sender: Sender<Event>,
     }
 }
 
+macro_rules! unwrap_or_continue {
+    ($res:expr, $or:expr) => {
+        match $res {
+            Ok(val) => val,
+            Err(err) => {
+                $or(err);
+                sleep(Duration::from_secs(FEED_INIT_RETRY_INTERVAL_SEC)).await;
+                continue;
+            }
+        }
+    };
+}
+
 pub async fn client_rec(roomid: u32, http_client: HttpClient, storage: Tree) {
     loop {
-        let hosts_info = HostsInfo::call(&http_client, roomid).await.unwrap();
-        let mut stream = FeedStream::connect_ws(roomid, hosts_info).await.unwrap();
+        let hosts_info = unwrap_or_continue!(
+            HostsInfo::call(&http_client, roomid).await,
+            |err| log::warn!("[{: >10}] get hosts error {:?}", roomid, err)
+        );
+        let mut stream = unwrap_or_continue!(
+            FeedStream::connect_ws(roomid, hosts_info).await,
+            |err| log::warn!("[{: >10}] error during connecting {:?}", roomid, err)
+        );
         log::info!("[{: >10}] open", roomid);
         while let Some(message) = stream.next().await {
-            storage.insert(Timestamp::now().to_bytes(), message).unwrap();
+            storage.insert(Timestamp::now().to_bytes(), message.as_slice()).unwrap();
         }
         log::info!("[{: >10}] close", roomid);
         sleep(Duration::from_millis(FEED_RETRY_INTERVAL_MILLISEC)).await;
