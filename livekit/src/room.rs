@@ -2,14 +2,15 @@ use rand::{Rng, thread_rng as rng};
 use tokio::spawn;
 use futures::Future;
 use async_channel::{unbounded as channel, Receiver};
+use sled::Db;
 use crate::{
     config::{
-        STORAGE_VERSION, STREAM_DEFAULT_FILE_TEMPLATE,
+        STREAM_DEFAULT_FILE_TEMPLATE,
         Config, RecordMode,
     },
     util::http::HttpClient,
     api::room::{RoomInfo, UserInfo},
-    feed::client::{Event, open_storage, client},
+    feed::client::{Event, client},
 };
 
 pub struct Room {
@@ -22,12 +23,12 @@ pub struct Room {
 }
 
 impl Room {
-    pub async fn init(sroomid: u32, config: Config, http_client: HttpClient, http_client2: HttpClient) -> Self {
+    pub async fn init(sroomid: u32, config: Config, db: &Db, http_client: HttpClient, http_client2: HttpClient) -> Self {
         let info = RoomInfo::call(&http_client, sroomid).await.unwrap();
         let roomid = info.room_id;
         let user_info = UserInfo::call(&http_client, roomid).await.unwrap();
         let (sender, receiver) = channel();
-        let storage = open_storage(format!("{}/{}-{}", config.common.storage_root, roomid, STORAGE_VERSION)).unwrap();
+        let storage = db.open_tree(roomid.to_string()).unwrap();
         spawn(client(roomid, http_client2, sender, storage));
 
         Room {

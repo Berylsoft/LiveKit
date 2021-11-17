@@ -7,9 +7,9 @@ use log4rs::{
 use structopt::StructOpt;
 use tokio::{spawn, signal, time::{sleep, Duration}};
 use livekit::{
-    config::{STORAGE_VERSION, FEED_INIT_INTERVAL_MILLISEC},
+    config::FEED_INIT_INTERVAL_MILLISEC,
     util::http::HttpClient,
-    feed::client::{open_storage, client_rec},
+    feed::client::client_rec,
 };
 
 pub fn log_config(path: String) -> Config {
@@ -49,9 +49,10 @@ async fn main() {
     if let Some(log_path) = log_path {
         log4rs::init_config(log_config(log_path)).unwrap();
     }
+    let db = sled::open(storage_root).unwrap();
     let http_client = HttpClient::new_bare().await;
     for roomid in roomid_list.split(",").map(|roomid| roomid.parse::<u32>().unwrap()) {
-        let storage = open_storage(format!("{}/{}-{}", storage_root, roomid, STORAGE_VERSION)).unwrap();
+        let storage = db.open_tree(roomid.to_string()).unwrap();
         spawn(client_rec(roomid, http_client.clone(), storage));
         sleep(Duration::from_millis(FEED_INIT_INTERVAL_MILLISEC)).await;
     }

@@ -15,10 +15,11 @@ async fn main() {
 
     let http_client2 = HttpClient::new_bare().await;
     for Group { config, rooms } in groups {
+        let db = sled::open(&config.common.storage_root).unwrap();
         let http_client = HttpClient::new(&config.common).await;
         for room in rooms {
             if room.operational {
-                let room = Room::init(room.sroomid, config.clone(), http_client.clone(), http_client2.clone()).await;
+                let room = Room::init(room.sroomid, config.clone(), &db, http_client.clone(), http_client2.clone()).await;
                 spawn(room.print_events_to_stdout());
                 if let Some(record) = room.record() {
                     spawn(record);

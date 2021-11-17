@@ -2,7 +2,7 @@ use tokio::time::{sleep, Duration};
 use futures::StreamExt;
 use async_recursion::async_recursion;
 use async_channel::{Sender, SendError};
-use rocksdb::DB;
+use sled::Tree;
 use crate::{
     config::FEED_RETRY_INTERVAL_MILLISEC,
     api::room::HostsInfo,
@@ -51,13 +51,13 @@ impl Package {
     }
 }
 
-pub async fn client(roomid: u32, http_client: HttpClient, sender: Sender<Event>, storage: DB) {
+pub async fn client(roomid: u32, http_client: HttpClient, sender: Sender<Event>, storage: Tree) {
     loop {
         let hosts_info = HostsInfo::call(&http_client, roomid).await.unwrap();
         let mut stream = FeedStream::connect_ws(roomid, hosts_info).await.unwrap();
         sender.send(Event::Open).await.unwrap();
         while let Some(message) = stream.next().await {
-            storage.put(Timestamp::now().to_bytes(), &message).unwrap();
+            storage.insert(Timestamp::now().to_bytes(), message.as_slice()).unwrap();
             Package::decode(&message).send_as_events(&sender).await.unwrap();
         }
         sender.send(Event::Close).await.unwrap();
@@ -65,20 +65,15 @@ pub async fn client(roomid: u32, http_client: HttpClient, sender: Sender<Event>,
     }
 }
 
-pub async fn client_rec(roomid: u32, http_client: HttpClient, storage: DB) {
+pub async fn client_rec(roomid: u32, http_client: HttpClient, storage: Tree) {
     loop {
         let hosts_info = HostsInfo::call(&http_client, roomid).await.unwrap();
         let mut stream = FeedStream::connect_ws(roomid, hosts_info).await.unwrap();
         log::info!("[{: >10}] open", roomid);
         while let Some(message) = stream.next().await {
-            storage.put(Timestamp::now().to_bytes(), message).unwrap();
+            storage.insert(Timestamp::now().to_bytes(), message).unwrap();
         }
         log::info!("[{: >10}] close", roomid);
         sleep(Duration::from_millis(FEED_RETRY_INTERVAL_MILLISEC)).await;
     }
-}
-
-pub fn open_storage(path: String) -> Result<DB, rocksdb::Error> {
-    // reserved independent function to contain tuning configurations later
-    DB::open_default(path)
 }
