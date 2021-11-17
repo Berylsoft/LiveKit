@@ -38,7 +38,7 @@ struct Args {
     #[structopt(short = "r", long)]
     roomid_list: String,
     #[structopt(short = "s", long)]
-    storage_root: String,
+    storage_path: String,
     #[structopt(short = "l", long)]
     log_path: Option<String>,
     #[structopt(long)]
@@ -47,11 +47,11 @@ struct Args {
 
 #[tokio::main]
 async fn main() {
-    let Args { roomid_list, storage_root, log_path, log_debug } = Args::from_args();
+    let Args { roomid_list, storage_path, log_path, log_debug } = Args::from_args();
     if let Some(log_path) = log_path {
         log4rs::init_config(log_config(log_path, log_debug)).unwrap();
     }
-    let db = open_storage(storage_root).unwrap();
+    let db = open_storage(storage_path).unwrap();
     let http_client = HttpClient::new_bare().await;
     for roomid in roomid_list.split(",").map(|roomid| roomid.parse::<u32>().unwrap()) {
         let storage = db.open_tree(roomid.to_string()).unwrap();

@@ -52,7 +52,7 @@ pub struct RecordConfig {
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct CommonConfig {
-    pub storage_root: String,
+    pub storage_path: String,
     pub access_token: Option<String>,
     pub api_proxy: Option<String>,
 }

@@ -20,7 +20,7 @@ async fn main() {
 
     let http_client2 = HttpClient::new_bare().await;
     for Group { config, rooms } in groups {
-        let db = open_storage(&config.common.storage_root).unwrap();
+        let db = open_storage(&config.common.storage_path).unwrap();
         let http_client = HttpClient::new(&config.common).await;
         for room in rooms {
             if room.operational {
