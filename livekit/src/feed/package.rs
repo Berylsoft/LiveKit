@@ -134,8 +134,8 @@ mod tests {
         let raw = HEAD_INIT_REQUEST;
 
         let head = Head::decode(&raw).unwrap();
-        assert_eq!(raw.to_vec(), head.encode());
-        assert_eq!(raw.to_vec(), Head::new(7, 0xf9 - HEAD_LENGTH_32).encode());
+        assert_eq!(raw.to_vec(), head.encode().unwrap());
+        assert_eq!(raw.to_vec(), Head::new(7, 0xf9 - HEAD_LENGTH_32).encode().unwrap());
 
         assert_eq!(head.length, 0xf9);
         assert_eq!(head.head_length, HEAD_LENGTH);

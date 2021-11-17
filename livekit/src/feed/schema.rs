@@ -73,6 +73,16 @@ pub struct DanmakuEmoji {
 #[derive(Debug, Serialize)]
 pub struct DanmakuTitle(String, String);
 
+#[derive(Debug, Serialize)]
+pub struct Interact {
+    medal: Medal,
+}
+
+#[derive(Debug, Serialize)]
+pub struct Gift {
+    medal: Medal,
+}
+
 impl Medal {
     fn new_danmaku(raw: &JsonValue) -> JsonResult<Option<Self>> {
         let medal: Vec<JsonValue> = to(&raw)?;
@@ -137,6 +147,22 @@ impl Danmaku {
             medal: Medal::new_danmaku(&raw[3])?,
             emoji: inline_json_opt(&info[13])?,
             title: DanmakuTitle(to(&title[0])?, to(&title[1])?),
+        })
+    }
+}
+
+impl Interact {
+    pub fn new(raw: &JsonValue) -> JsonResult<Self> {
+        Ok(Interact {
+            medal: Medal::new_common(&raw["fans_medal"])?
+        })
+    }
+}
+
+impl Gift {
+    pub fn new(raw: &JsonValue) -> JsonResult<Self> {
+        Ok(Gift {
+            medal: Medal::new_common(&raw["medal_info"])?
         })
     }
 }
