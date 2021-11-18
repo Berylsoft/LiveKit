@@ -1,5 +1,5 @@
 use serde::Deserialize;
-use crate::util::http::HttpClient;
+use crate::util::http::{HttpClient, RestApiResult};
 
 #[derive(Deserialize)]
 pub struct HostsInfo {
@@ -18,7 +18,7 @@ pub struct HostInfo {
 // TODO (consider) macro
 impl HostsInfo {
     #[inline]
-    pub async fn call(client: &HttpClient, roomid: u32) -> Result<Self, String> {
+    pub async fn call(client: &HttpClient, roomid: u32) -> RestApiResult<Self> {
         client.call(format!(
             "/xlive/web-room/v1/index/getDanmuInfo?id={}&type=0",
             roomid
@@ -49,7 +49,7 @@ pub struct RoomInfo {
 
 impl RoomInfo {
     #[inline]
-    pub async fn call(client: &HttpClient, roomid: u32) -> Result<Self, String> {
+    pub async fn call(client: &HttpClient, roomid: u32) -> RestApiResult<Self> {
         client.call(format!(
             "/room/v1/Room/get_info?id={}",
             roomid
@@ -132,7 +132,7 @@ pub struct PlayInfo {
 
 impl PlayInfo {
     #[inline]
-    pub async fn call(client: &HttpClient, roomid: u32, qn: Quality) -> Result<Self, String> {
+    pub async fn call(client: &HttpClient, roomid: u32, qn: Quality) -> RestApiResult<Self> {
         client.call(format!(
             "/xlive/web-room/v2/index/getRoomPlayInfo?room_id={}&protocol=0,1&format=0,1,2&codec=0,1&qn={}&platform=web&ptype=8",
             roomid,
@@ -164,7 +164,7 @@ pub struct UserInfo {
 
 impl UserInfo {
     #[inline]
-    pub async fn call(client: &HttpClient, roomid: u32) -> Result<Self, String> {
+    pub async fn call(client: &HttpClient, roomid: u32) -> RestApiResult<Self> {
         client.call(format!(
             "/live_user/v1/UserInfo/get_anchor_in_room?roomid={}",
             roomid,

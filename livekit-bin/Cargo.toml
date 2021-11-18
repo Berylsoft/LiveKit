@@ -12,7 +12,6 @@ description = "A range of scalable and portable utilities for Bilibili Live's ho
 tokio = { version = "1.12", features = ["full"] }
 serde_json = "1.0"
 log = "0.4"
-log4rs = "1.0"
+log4rs = { version = "1.0", features = ["all_components"] }
 structopt = "0.3"
-sled = "0.34.7"
 livekit = { path = "../livekit" }

@@ -10,7 +10,7 @@ pub async fn get_stream(client: &HttpClient, url: String) -> Option<impl Stream<
     let mut url = url;
     loop {
         println!("{}", url.clone());
-        let resp = client.get(url).await;
+        let resp = client.get(url).await.unwrap();
         match resp.status().as_u16() {
             200 => return Some(resp.bytes_stream()),
             404 => return None,
