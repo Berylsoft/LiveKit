@@ -58,7 +58,7 @@ pub async fn client(roomid: u32, http_client: HttpClient, sender: Sender<Event>,
         sender.send(Event::Open).await.unwrap();
         while let Some(message) = stream.next().await {
             storage.insert(Timestamp::now().to_bytes(), message.as_slice()).unwrap();
-            Package::decode(&message).send_as_events(&sender).await.unwrap();
+            Package::decode(&message).unwrap().send_as_events(&sender).await.unwrap();
         }
         sender.send(Event::Close).await.unwrap();
         sleep(Duration::from_millis(FEED_RETRY_INTERVAL_MILLISEC)).await;

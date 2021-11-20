@@ -2,7 +2,7 @@ use std::convert::TryInto;
 use binrw::{BinRead, BinWrite};
 use bytes_codec::{BytesDecodeExt, BytesEncodeExt};
 use crate::{
-    util::{compress::{de_brotli, inflate}, vec},
+    util::vec,
     feed::schema::InitRequest,
 };
 
@@ -45,44 +45,49 @@ pub enum Package {
 }
 
 impl Package {
-    pub fn decode<T: AsRef<[u8]>>(raw: T) -> Self {
+    pub fn decode<T: AsRef<[u8]>>(raw: T) -> anyhow::Result<Self> {
         let raw = raw.as_ref();
         let (head, payload) = raw.split_at(HEAD_LENGTH_SIZE);
 
         let unknown = || Package::Unknown(raw.to_vec());
-        let string_payload = || String::from_utf8(payload.to_owned()).unwrap();
-        let u32_payload = || u32::from_be_bytes(payload[0..4].try_into().unwrap());
+        let string_payload = || Ok::<_, anyhow::Error>(String::from_utf8(payload.to_owned())?);
+        let u32_payload = || Ok::<_, anyhow::Error>(u32::from_be_bytes(payload[0..4].try_into()?));
+        let brotli_payload = || {
+            let mut decoded = Vec::new();
+            brotli_decompressor::BrotliDecompress(&mut std::io::Cursor::new(payload), &mut std::io::Cursor::new(&mut decoded))?;
+            Ok::<_, anyhow::Error>(decoded)
+        };
 
-        match Head::decode(head) {
+        Ok(match Head::decode(head) {
             Ok(head) => match head.proto_ver {
-                0 => Package::Json(string_payload()),
-                3 => Package::unpack(de_brotli(payload).unwrap()),
+                0 => Package::Json(string_payload()?),
+                3 => Package::unpack(brotli_payload()?)?,
                 1 => match head.msg_type {
-                    3 => Package::HeartbeatResponse(u32_payload()),
-                    8 => Package::InitResponse(string_payload()),
+                    3 => Package::HeartbeatResponse(u32_payload()?),
+                    8 => Package::InitResponse(string_payload()?),
                     2 => Package::HeartbeatRequest(),
-                    7 => Package::InitRequest(string_payload()),
+                    7 => Package::InitRequest(string_payload()?),
                     _ => unknown(),
                 },
-                2 => Package::unpack(inflate(payload).unwrap()),
+                // 2 => Package::unpack(inflate_payload()?)?,
                 _ => unknown(),
             },
             Err(_) => unknown(),
-        }
+        })
     }
 
-    pub fn encode(self) -> Vec<u8> {
-        match self {
-            Package::HeartbeatRequest() => Head::new(2, 0).encode().unwrap(),
+    pub fn encode(self) -> anyhow::Result<Vec<u8>> {
+        Ok(match self {
+            Package::HeartbeatRequest() => Head::new(2, 0).encode()?,
             Package::InitRequest(payload) => {
                 let payload = payload.into_bytes();
                 vec::concat(
-                    Head::new(7, payload.len().try_into().unwrap()).encode().unwrap(),
+                    Head::new(7, payload.len().try_into()?).encode()?,
                     payload,
                 )
             },
             _ => unreachable!(),
-        }
+        })
     }
 
     pub fn create_init_request(roomid: u32, key: String) -> Self {
@@ -100,18 +105,18 @@ impl Package {
         )
     }
 
-    fn unpack<T: AsRef<[u8]>>(pack: T) -> Self {
+    fn unpack<T: AsRef<[u8]>>(pack: T) -> anyhow::Result<Self> {
         let pack = pack.as_ref();
         let pack_length = pack.len();
         let mut unpacked = Vec::new();
         let mut offset = 0;
         while offset < pack_length {
-            let length_buf = pack[offset..offset + 4].try_into().unwrap();
-            let length: usize = u32::from_be_bytes(length_buf).try_into().unwrap();
-            unpacked.push(Package::decode(&pack[offset..offset + length]));
+            let length_buf = pack[offset..offset + 4].try_into()?;
+            let length: usize = u32::from_be_bytes(length_buf).try_into()?;
+            unpacked.push(Package::decode(&pack[offset..offset + length])?);
             offset += length;
         }
-        Package::Multi(unpacked)
+        Ok(Package::Multi(unpacked))
     }
 }
 
@@ -150,7 +155,7 @@ mod tests {
 
     #[test]
     fn test_package_decode() {
-        let package = Package::decode(&PACKAGE_RAW.to_vec());
+        let package = Package::decode(&PACKAGE_RAW.to_vec()).unwrap();
         match package {
             Package::Multi(unpacked) => match &unpacked[0] {
                 Package::Json(payload) => assert_eq!(payload, PACKAGE_PAYLOAD),
@@ -167,7 +172,7 @@ mod tests {
             Package::InitRequest(payload) => assert!(payload.starts_with(PACKAGE_INIT_BEGINNING)),
             _ => panic!(),
         }
-        let init = init.encode();
+        let init = init.encode().unwrap();
         assert_eq!(init.len(), 94);
     }
 }

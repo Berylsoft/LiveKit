@@ -35,12 +35,12 @@ impl FeedStream<WebSocket, WsError> {
         let (mut sender, receiver) = ws.split();
         log::debug!("[{: >10}] (ws) connected", roomid);
 
-        let init = Message::Binary(Package::create_init_request(roomid, hosts_info.token).encode());
+        let init = Message::Binary(Package::create_init_request(roomid, hosts_info.token).encode().unwrap());
         sender.send(init).await?;
         log::debug!("[{: >10}] (ws) sent: init", roomid);
 
         spawn(async move {
-            let heartbeat = Message::Binary(Package::HeartbeatRequest().encode());
+            let heartbeat = Message::Binary(Package::HeartbeatRequest().encode().unwrap());
             let mut interval = time::interval(Duration::from_secs(FEED_HEARTBEAT_RATE_SEC));
             loop {
                 interval.tick().await;
@@ -116,12 +116,12 @@ impl FeedStream<TcpSocket, IoError> {
         let (receiver, mut sender) = tcp.into_split();
         log::debug!("[{: >10}] (tcp) connected", roomid);
 
-        let init = Package::create_init_request(roomid, hosts_info.token).encode();
+        let init = Package::create_init_request(roomid, hosts_info.token).encode().unwrap();
         sender.write_all(init.as_slice()).await?;
         log::debug!("[{: >10}] (tcp) sent: init", roomid);
 
         spawn(async move {
-            let heartbeat = Package::HeartbeatRequest().encode();
+            let heartbeat = Package::HeartbeatRequest().encode().unwrap();
             let mut interval = time::interval(Duration::from_secs(FEED_HEARTBEAT_RATE_SEC));
             loop {
                 interval.tick().await;
