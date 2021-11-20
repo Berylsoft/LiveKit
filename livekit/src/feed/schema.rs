@@ -88,7 +88,7 @@ impl Event {
                         laoye_annual: numbool(&user[4])?,
                     },
                     medal: Medal::new_danmaku(&raw[3])?,
-                    emoji: inline_json_opt(&info[13])?,
+                    emoji: may_inline_json_opt(&info[13])?,
                     title: DanmakuTitle(to(&title[0])?, to(&title[1])?),
                 }
             },
@@ -281,5 +281,11 @@ mod tests {
     fn unknown_cmd() {
         let event = Event::new_inner("{\"cmd\":\"RUST_YYDS\"}").unwrap();
         assert!(matches!(event, Event::Unknown { raw: _ }));
+    }
+
+    #[test]
+    fn test() {
+        println!("{:?}", Event::new_inner("{\"cmd\":\"DANMU_MSG\",\"info\":[[0,1,25,5816798,1637435549015,-1476290639,0,\"e9029e7c\",0,0,0,\"\",1,{\"bulge_display\":1,\"emoticon_unique\":\"room_947866_18\",\"height\":162,\"in_player_area\":1,\"is_dynamic\":1,\"url\":\"http://i0.hdslb.com/bfs/live/bbed541df7ed9678945c89ee292b21c515bd5998.png\",\"width\":162},\"{}\",{\"mode\":0,\"extra\":\"{\\\"send_from_me\\\":false,\\\"content\\\":\\\"room_947866_18\\\",\\\"mode\\\":0,\\\"font_size\\\":25,\\\"color\\\":5816798,\\\"user_hash\\\":\\\"3909262972\\\",\\\"direction\\\":0,\\\"pk_direction\\\":0}\"}],\"awsl\",[499392950,\"凛冬之辰\",0,0,0,10000,1,\"\"],[16,\"小呦西\",\"扶桑大红花丶\",947866,12478086,\"\",0,12478086,12478086,12478086,0,1,3985676],[14,0,6406234,\"\\u003e50000\",0],[\"\",\"\"],0,0,null,{\"ts\":1637435549,\"ct\":\"FF72EC20\"},0,0,null,null,0,63]}"));
+        panic!();
     }
 }

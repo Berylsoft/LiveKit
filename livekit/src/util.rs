@@ -137,6 +137,8 @@ pub mod json {
         }
     }
 
+    /*
+
     pub fn inline_json<T>(value: &Value) -> Result<T>
     where
         T: DeserializeOwned,
@@ -154,6 +156,19 @@ pub mod json {
             Ok(None)
         } else {
             Ok(Some(serde_json::from_str(json.as_str())?))
+        }
+    }
+
+    */
+
+    pub fn may_inline_json_opt<T>(value: &Value) -> Result<Option<T>>
+    where
+        T: DeserializeOwned,
+    {
+        match value.as_str() {
+            None => Ok(Some(to(value)?)),
+            Some("{}") => Ok(None),
+            Some(json) => Ok(Some(serde_json::from_str(json)?))
         }
     }
 
