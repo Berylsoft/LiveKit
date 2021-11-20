@@ -80,10 +80,11 @@ impl Stream for FeedStream<WebSocket, WsError> {
                         Poll::Ready(Some(payload))
                     },
                     Some(Ok(Message::Ping(payload))) => {
-                        if !payload.is_empty() {
+                        if payload.is_empty() {
+                            log::debug!("[{: >10}] (ws) recv: empty ping", self.roomid);
+                        } else {
                             log::error!("[{: >10}] (ws) recv: non-empty ping {:?}", self.roomid, payload);
                         }
-                        log::debug!("[{: >10}] (ws) recv: empty ping", self.roomid);
                         Poll::Pending
                     },
                     Some(Ok(message)) => {
