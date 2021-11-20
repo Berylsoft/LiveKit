@@ -19,7 +19,8 @@ pub struct InitResponse {
 
 #[derive(Debug, Serialize)]
 pub enum Event {
-    Unknown(String),
+    Unknown { raw: String },
+    ParseError { raw: String, error: String },
 
     Danmaku {
         info: DanmakuInfo,
@@ -34,20 +35,21 @@ pub enum Event {
         time: i64, // sec
         uid: u32,
         uname: String,
-        medal: Medal,
+        medal: Option<Medal>,
     },
 
     Gift {
-        medal: Medal,
+        time: i64, // sec
+        uid: u32,
+        uname: String,
+        uface: String,
+        id: i32,
+        name: String,
+        count: u32,
+        medal: Option<Medal>,
     },
 
-    RoomInfoChange {
-        parent_area_name: String,
-        area_name: String,
-        title: String,
-        area_id: u16,
-        parent_area_id: u8,
-    },
+    RoomInfoChange(RoomInfoDiff),
 
     LiveStart,
 
@@ -56,7 +58,7 @@ pub enum Event {
 
 impl Event {
     fn new_inner(raw: &str) -> JsonResult<Event> {
-        let unknown = || Event::Unknown(raw.to_owned());
+        let unknown = || Event::Unknown { raw: "raw".to_owned() };
 
         let raw: JsonValue = serde_json::from_str(raw)?;
         let command: String = to(&raw["cmd"])?;
@@ -107,13 +109,20 @@ impl Event {
                 let raw = &raw["data"];
 
                 Event::Gift {
+                    time: to(&raw["timestamp"])?,
+                    uid: to(&raw["uid"])?,
+                    uname: to(&raw["uname"])?,
+                    uface: to(&raw["face"])?,
+                    id: to(&raw["giftId"])?,
+                    name: to(&raw["giftName"])?,
+                    count: to(&raw["num"])?,
                     medal: Medal::new_common(&raw["medal_info"])?
                 }
             },
 
-            // "ROOM_CHANGE" => {
-            //     Event::RoomInfoChange
-            // }
+            "ROOM_CHANGE" => {
+                Event::RoomInfoChange(to(&raw["data"])?)
+            }
 
             "LIVE" => {
                 Event::LiveStart
@@ -130,8 +139,8 @@ impl Event {
     pub fn new(raw: String) -> Event {
         match Event::new_inner(raw.as_str()) {
             Ok(event) => event,
-            Err(_) => {
-                Event::Unknown(raw)
+            Err(err) => {
+                Event::ParseError { raw, error: format!("{:?}", err) }
             }
         }
     }
@@ -145,7 +154,7 @@ pub struct Medal {
     pub level: u8,
     pub name: String,
     pub guard: u8,
-    pub t_roomid: u32,
+    pub t_roomid: Option<u32>,
     pub t_uid: Option<u32>,
     pub t_uname: Option<String>,
     pub color: u32,
@@ -177,20 +186,25 @@ impl Medal {
         }
     }
 
-    fn new_common(medal: &JsonValue) -> JsonResult<Self> {
-        Ok(Medal {
-            on: numbool(&medal["is_lighted"])?,
-            level: to(&medal["medal_level"])?,
-            name: to(&medal["medal_name"])?,
-            guard: to(&medal["guard_level"])?,
-            t_roomid: to(&medal["anchor_roomid"])?,
-            t_uid: u32_opt(&medal["target_id"])?,
-            t_uname: None,
-            color: to(&medal["medal_color"])?,
-            color_border: to(&medal["medal_color_border"])?,
-            color_start: to(&medal["medal_color_start"])?,
-            color_end: to(&medal["medal_color_end"])?,
-        })
+    fn new_common(medal: &JsonValue) -> JsonResult<Option<Self>> {
+        let name: String = to(&medal["medal_name"])?;
+        if name.len() == 0 {
+            Ok(None)
+        } else {
+            Ok(Some(Medal {
+                on: numbool(&medal["is_lighted"])?,
+                level: to(&medal["medal_level"])?,
+                name: to(&medal["medal_name"])?,
+                guard: to(&medal["guard_level"])?,
+                t_roomid: u32_opt(&medal["anchor_roomid"])?,
+                t_uid: u32_opt(&medal["target_id"])?,
+                t_uname: None,
+                color: to(&medal["medal_color"])?,
+                color_border: to(&medal["medal_color_border"])?,
+                color_start: to(&medal["medal_color_start"])?,
+                color_end: to(&medal["medal_color_end"])?,
+            }))
+        }
     }
 }
 
@@ -248,6 +262,17 @@ impl InteractKind {
     }
 }
 
+// RoomInfoChange
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RoomInfoDiff {
+    parent_area_name: String,
+    area_name: String,
+    title: String,
+    area_id: u16,
+    parent_area_id: u8,
+}
+
 #[cfg(test)]
 mod tests {
     use super::Event;
@@ -255,6 +280,6 @@ mod tests {
     #[test]
     fn unknown_cmd() {
         let event = Event::new_inner("{\"cmd\":\"RUST_YYDS\"}").unwrap();
-        assert!(matches!(event, Event::Unknown(_)));
+        assert!(matches!(event, Event::Unknown { raw: _ }));
     }
 }
