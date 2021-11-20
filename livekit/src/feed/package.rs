@@ -44,18 +44,57 @@ pub enum Package {
     Multi(Vec<Package>),
 }
 
+#[derive(Debug)]
+pub enum PackageCodecError {
+    IoError(std::io::Error),
+    StringCodecError(std::string::FromUtf8Error),
+    BytesSilceError(std::array::TryFromSliceError),
+    NumberConvertError(std::num::TryFromIntError),
+    BytesCodecError(binrw::Error),
+}
+
+impl From<std::io::Error> for PackageCodecError {
+    fn from(err: std::io::Error) -> PackageCodecError {
+        PackageCodecError::IoError(err)
+    }
+}
+
+impl From<std::string::FromUtf8Error> for PackageCodecError {
+    fn from(err: std::string::FromUtf8Error) -> PackageCodecError {
+        PackageCodecError::StringCodecError(err)
+    }
+}
+
+impl From<std::num::TryFromIntError> for PackageCodecError {
+    fn from(err: std::num::TryFromIntError) -> PackageCodecError {
+        PackageCodecError::NumberConvertError(err)
+    }
+}
+
+impl From<std::array::TryFromSliceError> for PackageCodecError {
+    fn from(err: std::array::TryFromSliceError) -> PackageCodecError {
+        PackageCodecError::BytesSilceError(err)
+    }
+}
+
+impl From<binrw::Error> for PackageCodecError {
+    fn from(err: binrw::Error) -> PackageCodecError {
+        PackageCodecError::BytesCodecError(err)
+    }
+}
+
 impl Package {
-    pub fn decode<T: AsRef<[u8]>>(raw: T) -> anyhow::Result<Self> {
+    pub fn decode<T: AsRef<[u8]>>(raw: T) -> Result<Self, PackageCodecError> {
         let raw = raw.as_ref();
         let (head, payload) = raw.split_at(HEAD_LENGTH_SIZE);
 
         let unknown = || Package::Unknown(raw.to_vec());
-        let string_payload = || Ok::<_, anyhow::Error>(String::from_utf8(payload.to_owned())?);
-        let u32_payload = || Ok::<_, anyhow::Error>(u32::from_be_bytes(payload[0..4].try_into()?));
+        let string_payload = || Ok::<_, PackageCodecError>(String::from_utf8(payload.to_owned())?);
+        let u32_payload = || Ok::<_, PackageCodecError>(u32::from_be_bytes(payload[0..4].try_into()?));
         let brotli_payload = || {
             let mut decoded = Vec::new();
             brotli_decompressor::BrotliDecompress(&mut std::io::Cursor::new(payload), &mut std::io::Cursor::new(&mut decoded))?;
-            Ok::<_, anyhow::Error>(decoded)
+            Ok::<_, PackageCodecError>(decoded)
         };
 
         Ok(match Head::decode(head) {
@@ -76,7 +115,7 @@ impl Package {
         })
     }
 
-    pub fn encode(self) -> anyhow::Result<Vec<u8>> {
+    pub fn encode(self) -> Result<Vec<u8>, PackageCodecError> {
         Ok(match self {
             Package::HeartbeatRequest() => Head::new(2, 0).encode()?,
             Package::InitRequest(payload) => {
@@ -105,7 +144,7 @@ impl Package {
         )
     }
 
-    fn unpack<T: AsRef<[u8]>>(pack: T) -> anyhow::Result<Self> {
+    fn unpack<T: AsRef<[u8]>>(pack: T) -> Result<Self, PackageCodecError> {
         let pack = pack.as_ref();
         let pack_length = pack.len();
         let mut unpacked = Vec::new();
