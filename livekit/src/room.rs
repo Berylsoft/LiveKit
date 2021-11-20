@@ -10,14 +10,14 @@ use crate::{
     },
     util::http::HttpClient,
     api::room::{RoomInfo, UserInfo},
-    feed::client::{Event, client},
+    feed::client::{WrappedEvent, client},
 };
 
 pub struct Room {
     roomid: u32,
     info: RoomInfo,
     user_info: UserInfo,
-    receiver: Receiver<Event>,
+    receiver: Receiver<WrappedEvent>,
     config: Config,
     http_client: HttpClient,
 }
@@ -88,7 +88,7 @@ impl Room {
             .replace("{area}", self.info.area_name.as_str())
     }
 
-    pub fn subscribe(&self) -> Receiver<Event> {
+    pub fn subscribe(&self) -> Receiver<WrappedEvent> {
         self.receiver.clone()
     }
 

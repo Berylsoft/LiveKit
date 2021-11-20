@@ -18,32 +18,126 @@ pub struct InitResponse {
 }
 
 #[derive(Debug, Serialize)]
-pub struct Danmaku {
-    pub info: DanmakuInfo,
-    pub user: DanmakuUser,
-    pub medal: Option<Medal>,
-    pub emoji: Option<DanmakuEmoji>,
-    pub title: DanmakuTitle,
+pub enum Event {
+    Unknown(String),
+
+    Danmaku {
+        info: DanmakuInfo,
+        user: DanmakuUser,
+        medal: Option<Medal>,
+        emoji: Option<DanmakuEmoji>,
+        title: DanmakuTitle,
+    },
+
+    Interact {
+        kind: InteractKind,
+        time: i64, // sec
+        uid: u32,
+        uname: String,
+        medal: Medal,
+    },
+
+    Gift {
+        medal: Medal,
+    },
+
+    RoomInfoChange {
+        parent_area_name: String,
+        area_name: String,
+        title: String,
+        area_id: u16,
+        parent_area_id: u8,
+    },
+
+    LiveStart,
+
+    LiveEnd,
 }
 
-#[derive(Debug, Serialize)]
-pub struct DanmakuInfo {
-    pub time: i64,
-    pub text: String,
-    pub color: u32,
-    pub size: u32,
-    pub rand: i64,
+impl Event {
+    fn new_inner(raw: &str) -> JsonResult<Event> {
+        let unknown = || Event::Unknown(raw.to_owned());
+
+        let raw: JsonValue = serde_json::from_str(raw)?;
+        let command: String = to(&raw["cmd"])?;
+
+        Ok(match command.as_str() {
+            "DANMU_MSG" => {
+                let raw = &raw["info"];
+
+                let info = &raw[0];
+                let user = &raw[2];
+                let title = &raw[5];
+
+                Event::Danmaku {
+                    info: DanmakuInfo {
+                        time: to(&info[4])?,
+                        text: to(&raw[1])?,
+                        color: to(&info[3])?,
+                        size: to(&info[2])?,
+                        rand: to(&info[5])?,
+                    },
+                    user: DanmakuUser {
+                        uid: to(&user[0])?,
+                        uname: to(&user[1])?,
+                        live_user_level: to(&raw[4][0])?,
+                        admin: numbool(&user[2])?,
+                        laoye_monthly: numbool(&user[3])?,
+                        laoye_annual: numbool(&user[4])?,
+                    },
+                    medal: Medal::new_danmaku(&raw[3])?,
+                    emoji: inline_json_opt(&info[13])?,
+                    title: DanmakuTitle(to(&title[0])?, to(&title[1])?),
+                }
+            },
+
+            "INTERACT_WORD" => {
+                let raw = &raw["data"];
+
+                Event::Interact {
+                    kind: InteractKind::new(&raw["msg_type"])?,
+                    time: to(&raw["timestamp"])?,
+                    uid: to(&raw["uid"])?,
+                    uname: to(&raw["uname"])?,
+                    medal: Medal::new_common(&raw["fans_medal"])?,
+                }
+            },
+
+            "SEND_GIFT" => {
+                let raw = &raw["data"];
+
+                Event::Gift {
+                    medal: Medal::new_common(&raw["medal_info"])?
+                }
+            },
+
+            // "ROOM_CHANGE" => {
+            //     Event::RoomInfoChange
+            // }
+
+            "LIVE" => {
+                Event::LiveStart
+            }
+
+            "PREPARING" => {
+                Event::LiveEnd
+            }
+
+            _ => unknown(),
+        })
+    }
+
+    pub fn new(raw: String) -> Event {
+        match Event::new_inner(raw.as_str()) {
+            Ok(event) => event,
+            Err(_) => {
+                Event::Unknown(raw)
+            }
+        }
+    }
 }
 
-#[derive(Debug, Serialize)]
-pub struct DanmakuUser {
-    pub uid: u32,
-    pub uname: String,
-    pub live_user_level: u8,
-    pub admin: bool,
-    pub laoye_monthly: bool,
-    pub laoye_annual: bool,
-}
+// common
 
 #[derive(Debug, Serialize)]
 pub struct Medal {
@@ -60,66 +154,6 @@ pub struct Medal {
     pub color_end: u32,
     // pub score: u32, (interact)
 }
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct DanmakuEmoji {
-    pub height: i32,
-    pub in_player_area: i32,
-    pub is_dynamic: i32,
-    pub url: String,
-    pub width: i32,
-}
-
-#[derive(Debug, Serialize)]
-pub struct DanmakuTitle(String, String);
-
-#[derive(Debug, Serialize)]
-pub enum InteractKind {
-    Enter,
-    Follow,
-    Share,
-}
-
-impl InteractKind {
-    fn new(value: &JsonValue) -> JsonResult<InteractKind> {
-        let num: u32 = to(value)?;
-        Ok(match num {
-            1 => InteractKind::Enter,
-            2 => InteractKind::Follow,
-            3 => InteractKind::Share,
-            _ => unreachable!(),
-        })
-    }
-}
-
-#[derive(Debug, Serialize)]
-pub struct Interact {
-    pub kind: InteractKind,
-    pub time: i64, // sec
-    pub uid: u32,
-    pub uname: String,
-    pub medal: Medal,
-}
-
-#[derive(Debug, Serialize)]
-pub struct Gift {
-    pub medal: Medal,
-}
-
-#[derive(Debug, Serialize)]
-pub struct RoomInfoChange {
-    pub parent_area_name: String,
-    pub area_name: String,
-    pub title: String,
-    pub area_id: u16,
-    pub parent_area_id: u8,
-}
-
-#[derive(Debug, Serialize)]
-pub struct LiveStart {}
-
-#[derive(Debug, Serialize)]
-pub struct LiveEnd {}
 
 impl Medal {
     fn new_danmaku(raw: &JsonValue) -> JsonResult<Option<Self>> {
@@ -160,51 +194,67 @@ impl Medal {
     }
 }
 
-impl Danmaku {
-    pub fn new(raw: &JsonValue) -> JsonResult<Self> {
-        let info = &raw[0];
-        let user = &raw[2];
-        let title = &raw[5];
+// Danmaku
 
-        Ok(Danmaku {
-            info: DanmakuInfo {
-                time: to(&info[4])?,
-                text: to(&raw[1])?,
-                color: to(&info[3])?,
-                size: to(&info[2])?,
-                rand: to(&info[5])?,
-            },
-            user: DanmakuUser {
-                uid: to(&user[0])?,
-                uname: to(&user[1])?,
-                live_user_level: to(&raw[4][0])?,
-                admin: numbool(&user[2])?,
-                laoye_monthly: numbool(&user[3])?,
-                laoye_annual: numbool(&user[4])?,
-            },
-            medal: Medal::new_danmaku(&raw[3])?,
-            emoji: inline_json_opt(&info[13])?,
-            title: DanmakuTitle(to(&title[0])?, to(&title[1])?),
+#[derive(Debug, Serialize)]
+pub struct DanmakuInfo {
+    pub time: i64,
+    pub text: String,
+    pub color: u32,
+    pub size: u32,
+    pub rand: i64,
+}
+
+#[derive(Debug, Serialize)]
+pub struct DanmakuUser {
+    pub uid: u32,
+    pub uname: String,
+    pub live_user_level: u8,
+    pub admin: bool,
+    pub laoye_monthly: bool,
+    pub laoye_annual: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DanmakuEmoji {
+    pub height: i32,
+    pub in_player_area: i32,
+    pub is_dynamic: i32,
+    pub url: String,
+    pub width: i32,
+}
+
+#[derive(Debug, Serialize)]
+pub struct DanmakuTitle(String, String);
+
+// Interact
+
+#[derive(Debug, Serialize)]
+pub enum InteractKind {
+    Enter,
+    Follow,
+    Share,
+}
+
+impl InteractKind {
+    fn new(value: &JsonValue) -> JsonResult<InteractKind> {
+        let num: u32 = to(value)?;
+        Ok(match num {
+            1 => InteractKind::Enter,
+            2 => InteractKind::Follow,
+            3 => InteractKind::Share,
+            _ => unreachable!(),
         })
     }
 }
 
-impl Interact {
-    pub fn new(raw: &JsonValue) -> JsonResult<Self> {
-        Ok(Interact {
-            kind: InteractKind::new(&raw["msg_type"])?,
-            time: to(&raw["timestamp"])?,
-            uid: to(&raw["uid"])?,
-            uname: to(&raw["uname"])?,
-            medal: Medal::new_common(&raw["fans_medal"])?,
-        })
-    }
-}
+#[cfg(test)]
+mod tests {
+    use super::Event;
 
-impl Gift {
-    pub fn new(raw: &JsonValue) -> JsonResult<Self> {
-        Ok(Gift {
-            medal: Medal::new_common(&raw["medal_info"])?
-        })
+    #[test]
+    fn unknown_cmd() {
+        let event = Event::new_inner("{\"cmd\":\"RUST_YYDS\"}").unwrap();
+        assert!(matches!(event, Event::Unknown(_)));
     }
 }
