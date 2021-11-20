@@ -74,14 +74,52 @@ pub struct DanmakuEmoji {
 pub struct DanmakuTitle(String, String);
 
 #[derive(Debug, Serialize)]
+pub enum InteractKind {
+    Enter,
+    Follow,
+    Share,
+}
+
+impl InteractKind {
+    fn new(value: &JsonValue) -> JsonResult<InteractKind> {
+        let num: u32 = to(value)?;
+        Ok(match num {
+            1 => InteractKind::Enter,
+            2 => InteractKind::Follow,
+            3 => InteractKind::Share,
+            _ => unreachable!(),
+        })
+    }
+}
+
+#[derive(Debug, Serialize)]
 pub struct Interact {
-    medal: Medal,
+    pub kind: InteractKind,
+    pub time: i64, // sec
+    pub uid: u32,
+    pub uname: String,
+    pub medal: Medal,
 }
 
 #[derive(Debug, Serialize)]
 pub struct Gift {
-    medal: Medal,
+    pub medal: Medal,
 }
+
+#[derive(Debug, Serialize)]
+pub struct RoomInfoChange {
+    pub parent_area_name: String,
+    pub area_name: String,
+    pub title: String,
+    pub area_id: u16,
+    pub parent_area_id: u8,
+}
+
+#[derive(Debug, Serialize)]
+pub struct LiveStart {}
+
+#[derive(Debug, Serialize)]
+pub struct LiveEnd {}
 
 impl Medal {
     fn new_danmaku(raw: &JsonValue) -> JsonResult<Option<Self>> {
@@ -154,7 +192,11 @@ impl Danmaku {
 impl Interact {
     pub fn new(raw: &JsonValue) -> JsonResult<Self> {
         Ok(Interact {
-            medal: Medal::new_common(&raw["fans_medal"])?
+            kind: InteractKind::new(&raw["msg_type"])?,
+            time: to(&raw["timestamp"])?,
+            uid: to(&raw["uid"])?,
+            uname: to(&raw["uname"])?,
+            medal: Medal::new_common(&raw["fans_medal"])?,
         })
     }
 }
