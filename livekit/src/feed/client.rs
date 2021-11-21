@@ -1,13 +1,12 @@
 use tokio::time::{sleep, Duration};
 use futures::StreamExt;
-use async_recursion::async_recursion;
-use async_channel::{Sender, SendError};
+use async_channel::Sender;
 use sled::Tree;
 use crate::{
     config::{FEED_RETRY_INTERVAL_MILLISEC, FEED_INIT_RETRY_INTERVAL_SEC},
     api::room::HostsInfo,
     util::{Timestamp, http::HttpClient},
-    feed::{package::Package, stream::FeedStream, schema::Event},
+    feed::{stream::FeedStream, package::Package, schema::Event},
 };
 
 #[derive(Debug)]
@@ -15,30 +14,7 @@ pub enum WrappedEvent {
     Init,
     Open,
     Close,
-    Popularity(u32),
     Event(Event),
-}
-
-impl Package {
-    #[async_recursion]
-    async fn send_as_events(self, sender: &Sender<WrappedEvent>) -> Result<(), SendError<WrappedEvent>> {
-        match self {
-            Package::Json(payload) => {
-                sender.send(WrappedEvent::Event(Event::new(payload))).await?;
-            },
-            Package::Multi(payloads) => {
-                for payload in payloads {
-                    payload.send_as_events(sender).await?
-                }
-            },
-            Package::HeartbeatResponse(payload) => {
-                sender.send(WrappedEvent::Popularity(payload)).await?;
-            },
-            Package::InitResponse(_) => {},
-            _ => unreachable!(),
-        }
-        Ok(())
-    }
 }
 
 pub async fn client(roomid: u32, http_client: HttpClient, sender: Sender<WrappedEvent>, storage: Tree) {
@@ -48,7 +24,9 @@ pub async fn client(roomid: u32, http_client: HttpClient, sender: Sender<Wrapped
         sender.send(WrappedEvent::Open).await.unwrap();
         while let Some(message) = stream.next().await {
             storage.insert(Timestamp::now().to_bytes(), message.as_slice()).unwrap();
-            Package::decode(&message).unwrap().send_as_events(&sender).await.unwrap();
+            for package in Package::decode(message).flatten() {
+                sender.send(WrappedEvent::Event(Event::from_package(package))).await.unwrap();
+            }
         }
         sender.send(WrappedEvent::Close).await.unwrap();
         sleep(Duration::from_millis(FEED_RETRY_INTERVAL_MILLISEC)).await;

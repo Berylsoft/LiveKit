@@ -11,7 +11,7 @@ pub const HEAD_LENGTH_32: u32 = 16;
 pub const HEAD_LENGTH_SIZE: usize = 16;
 pub type HeadBuf = [u8; HEAD_LENGTH_SIZE];
 
-#[derive(BinRead, BinWrite)]
+#[derive(Debug, BinRead, BinWrite)]
 #[br(assert(head_length == HEAD_LENGTH, "unexpected head length: {}", head_length))]
 pub struct Head {
     pub length: u32,
@@ -35,7 +35,7 @@ impl Head {
 
 #[derive(Debug)]
 pub enum Package {
-    Unknown(Vec<u8>),
+    CodecError(Vec<u8>, PackageCodecError),
     InitRequest(String),
     InitResponse(String),
     HeartbeatRequest(),
@@ -45,12 +45,22 @@ pub enum Package {
 }
 
 #[derive(Debug)]
+pub enum FlatPackage {
+    CodecError(Vec<u8>, PackageCodecError),
+    InitResponse(String),
+    HeartbeatResponse(u32),
+    Json(String),
+}
+
+#[derive(Debug)]
 pub enum PackageCodecError {
     IoError(std::io::Error),
     StringCodecError(std::string::FromUtf8Error),
     BytesSilceError(std::array::TryFromSliceError),
     NumberConvertError(std::num::TryFromIntError),
     BytesCodecError(binrw::Error),
+    UnknownType(Head),
+    NotEncodable,
 }
 
 impl From<std::io::Error> for PackageCodecError {
@@ -84,34 +94,60 @@ impl From<binrw::Error> for PackageCodecError {
 }
 
 impl Package {
-    pub fn decode<T: AsRef<[u8]>>(raw: T) -> Result<Self, PackageCodecError> {
+    pub fn decode<T: AsRef<[u8]>>(raw: T) -> Self {
         let raw = raw.as_ref();
+        match Package::try_decode(raw) {
+            Ok(package) => package,
+            Err(error) => Package::CodecError(raw.to_vec(), error)
+        }
+    }
+
+    pub fn try_decode(raw: &[u8]) -> Result<Self, PackageCodecError> {
         let (head, payload) = raw.split_at(HEAD_LENGTH_SIZE);
+        let head = Head::decode(head)?;
 
-        let unknown = || Package::Unknown(raw.to_vec());
-        let string_payload = || Ok::<_, PackageCodecError>(String::from_utf8(payload.to_owned())?);
-        let u32_payload = || Ok::<_, PackageCodecError>(u32::from_be_bytes(payload[0..4].try_into()?));
-        let brotli_payload = || {
-            let mut decoded = Vec::new();
-            brotli_decompressor::BrotliDecompress(&mut std::io::Cursor::new(payload), &mut std::io::Cursor::new(&mut decoded))?;
-            Ok::<_, PackageCodecError>(decoded)
-        };
+        // region
 
-        Ok(match Head::decode(head) {
-            Ok(head) => match head.proto_ver {
-                0 => Package::Json(string_payload()?),
-                3 => Package::unpack(brotli_payload()?)?,
-                1 => match head.msg_type {
-                    3 => Package::HeartbeatResponse(u32_payload()?),
-                    8 => Package::InitResponse(string_payload()?),
-                    2 => Package::HeartbeatRequest(),
-                    7 => Package::InitRequest(string_payload()?),
-                    _ => unknown(),
-                },
-                // 2 => Package::unpack(inflate_payload()?)?,
-                _ => unknown(),
+        macro_rules! unknown_type {
+            () => {
+                return Err(PackageCodecError::UnknownType(head))
+            };
+        }
+
+        macro_rules! string {
+            () => {
+                String::from_utf8(payload.to_owned())?
+            };
+        }
+
+        macro_rules! u32 {
+            () => {
+                u32::from_be_bytes(payload[0..4].try_into()?)
+            };
+        }
+
+        macro_rules! br {
+            () => {{
+                let mut decoded = Vec::new();
+                brotli_decompressor::BrotliDecompress(&mut std::io::Cursor::new(payload), &mut std::io::Cursor::new(&mut decoded))?;
+                decoded
+            }};
+        }
+
+        // endregion
+
+        Ok(match head.proto_ver {
+            0 => Package::Json(string!()),
+            3 => Package::unpack(br!())?,
+            1 => match head.msg_type {
+                3 => Package::HeartbeatResponse(u32!()),
+                8 => Package::InitResponse(string!()),
+                2 => Package::HeartbeatRequest(),
+                7 => Package::InitRequest(string!()),
+                _ => unknown_type!(),
             },
-            Err(_) => unknown(),
+            // 2 => Package::unpack(inflate!())?,
+            _ => unknown_type!(),
         })
     }
 
@@ -125,18 +161,18 @@ impl Package {
                     payload,
                 )
             },
-            _ => unreachable!(),
+            _ => return Err(PackageCodecError::NotEncodable),
         })
     }
 
-    pub fn create_init_request(roomid: u32, key: String) -> Self {
+    pub fn create_init_request(roomid: u32, platform: String, key: String) -> Self {
         Package::InitRequest(
             serde_json::to_string(
                 &InitRequest {
                     uid: 0,
                     roomid,
                     protover: 3,
-                    platform: "web".to_owned(),
+                    platform,
                     r#type: 2,
                     key,
                 }
@@ -152,10 +188,27 @@ impl Package {
         while offset < pack_length {
             let length_buf = pack[offset..offset + 4].try_into()?;
             let length: usize = u32::from_be_bytes(length_buf).try_into()?;
-            unpacked.push(Package::decode(&pack[offset..offset + length])?);
+            unpacked.push(Package::try_decode(&pack[offset..offset + length])?);
             offset += length;
         }
         Ok(Package::Multi(unpacked))
+    }
+
+    // TODO improve
+    pub fn flatten(self) -> Vec<FlatPackage> {
+        match self {
+            Package::Json(a) => vec![FlatPackage::Json(a)],
+            Package::Multi(packages) => packages.into_iter().map(|package| {
+                match package {
+                    Package::Json(a) => FlatPackage::Json(a),
+                    _ => unreachable!(),
+                }
+            }).collect(),
+            Package::HeartbeatResponse(a) => vec![FlatPackage::HeartbeatResponse(a)],
+            Package::InitResponse(a) => vec![FlatPackage::InitResponse(a)],
+            Package::CodecError(a, b) => vec![FlatPackage::CodecError(a, b)],
+            Package::InitRequest(_) | Package::HeartbeatRequest() => unreachable!(),
+        }
     }
 }
 
@@ -194,7 +247,7 @@ mod tests {
 
     #[test]
     fn test_package_decode() {
-        let package = Package::decode(&PACKAGE_RAW.to_vec()).unwrap();
+        let package = Package::decode(&PACKAGE_RAW.to_vec());
         match package {
             Package::Multi(unpacked) => match &unpacked[0] {
                 Package::Json(payload) => assert_eq!(payload, PACKAGE_PAYLOAD),
@@ -206,7 +259,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_init_request() {
-        let init = Package::create_init_request(TEST_ROOMID, "key".to_owned());
+        let init = Package::create_init_request(TEST_ROOMID, "web".to_owned(), "key".to_owned());
         match &init {
             Package::InitRequest(payload) => assert!(payload.starts_with(PACKAGE_INIT_BEGINNING)),
             _ => panic!(),

@@ -35,7 +35,7 @@ impl FeedStream<WebSocket, WsError> {
         let (mut sender, receiver) = ws.split();
         log::debug!("[{: >10}] (ws) connected", roomid);
 
-        let init = Message::Binary(Package::create_init_request(roomid, hosts_info.token).encode().unwrap());
+        let init = Message::Binary(Package::create_init_request(roomid, "web".to_owned(), hosts_info.token).encode().unwrap());
         sender.send(init).await?;
         log::debug!("[{: >10}] (ws) sent: init", roomid);
 
@@ -117,7 +117,7 @@ impl FeedStream<TcpSocket, IoError> {
         let (receiver, mut sender) = tcp.into_split();
         log::debug!("[{: >10}] (tcp) connected", roomid);
 
-        let init = Package::create_init_request(roomid, hosts_info.token).encode().unwrap();
+        let init = Package::create_init_request(roomid, "web".to_owned(), hosts_info.token).encode().unwrap();
         sender.write_all(init.as_slice()).await?;
         log::debug!("[{: >10}] (tcp) sent: init", roomid);
 

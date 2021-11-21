@@ -1,6 +1,6 @@
 use serde::{Serialize, Deserialize};
 use serde_json::{Value as JsonValue, Result as JsonResult};
-use crate::util::json::*;
+use crate::{util::json::*, feed::package::FlatPackage};
 
 #[derive(Debug, Serialize)]
 pub struct InitRequest {
@@ -12,7 +12,7 @@ pub struct InitRequest {
     pub key: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Deserialize)]
 pub struct InitResponse {
     pub code: i32,
 }
@@ -21,6 +21,10 @@ pub struct InitResponse {
 pub enum Event {
     Unknown { raw: String },
     ParseError { raw: String, error: String },
+    CodecError { raw: String, error: String },
+
+    Popularity(u32),
+    InitResponse(i32),
 
     Danmaku {
         info: DanmakuInfo,
@@ -57,7 +61,9 @@ pub enum Event {
 }
 
 impl Event {
-    fn new_inner(raw: &str) -> JsonResult<Event> {
+    fn parse<T: AsRef<str>>(raw: T) -> JsonResult<Event> {
+        let raw = raw.as_ref();
+
         let unknown = || Event::Unknown { raw: "raw".to_owned() };
 
         let raw: JsonValue = serde_json::from_str(raw)?;
@@ -136,12 +142,35 @@ impl Event {
         })
     }
 
-    pub fn new(raw: String) -> Event {
-        match Event::new_inner(raw.as_str()) {
-            Ok(event) => event,
-            Err(err) => {
-                Event::ParseError { raw, error: format!("{:?}", err) }
-            }
+    pub fn from_package(package: FlatPackage) -> Event {
+        match package {
+            FlatPackage::Json(payload) => {
+                match Event::parse(payload.as_str()) {
+                    Ok(event) => event,
+                    Err(err) => Event::ParseError {
+                        raw: payload,
+                        error: format!("{:?}", err),
+                    },
+                }
+            },
+            FlatPackage::HeartbeatResponse(payload) => {
+                Event::Popularity(payload)
+            },
+            FlatPackage::InitResponse(payload) => {
+                match serde_json::from_str::<InitResponse>(payload.as_str()) {
+                    Ok(payload) => Event::InitResponse(payload.code),
+                    Err(err) => Event::ParseError {
+                        raw: payload,
+                        error: format!("{:?}", err),
+                    },
+                }
+            },
+            FlatPackage::CodecError(raw, err) => {
+                Event::CodecError {
+                    raw: hex::encode(raw),
+                    error: format!("{:?}", err),
+                }
+            },
         }
     }
 }
@@ -279,13 +308,7 @@ mod tests {
 
     #[test]
     fn unknown_cmd() {
-        let event = Event::new_inner("{\"cmd\":\"RUST_YYDS\"}").unwrap();
+        let event = Event::parse("{\"cmd\":\"RUST_YYDS\"}").unwrap();
         assert!(matches!(event, Event::Unknown { raw: _ }));
-    }
-
-    #[test]
-    fn test() {
-        println!("{:?}", Event::new_inner("{\"cmd\":\"DANMU_MSG\",\"info\":[[0,1,25,5816798,1637435549015,-1476290639,0,\"e9029e7c\",0,0,0,\"\",1,{\"bulge_display\":1,\"emoticon_unique\":\"room_947866_18\",\"height\":162,\"in_player_area\":1,\"is_dynamic\":1,\"url\":\"http://i0.hdslb.com/bfs/live/bbed541df7ed9678945c89ee292b21c515bd5998.png\",\"width\":162},\"{}\",{\"mode\":0,\"extra\":\"{\\\"send_from_me\\\":false,\\\"content\\\":\\\"room_947866_18\\\",\\\"mode\\\":0,\\\"font_size\\\":25,\\\"color\\\":5816798,\\\"user_hash\\\":\\\"3909262972\\\",\\\"direction\\\":0,\\\"pk_direction\\\":0}\"}],\"awsl\",[499392950,\"凛冬之辰\",0,0,0,10000,1,\"\"],[16,\"小呦西\",\"扶桑大红花丶\",947866,12478086,\"\",0,12478086,12478086,12478086,0,1,3985676],[14,0,6406234,\"\\u003e50000\",0],[\"\",\"\"],0,0,null,{\"ts\":1637435549,\"ct\":\"FF72EC20\"},0,0,null,null,0,63]}"));
-        panic!();
     }
 }
