@@ -22,13 +22,15 @@ pub enum Event {
     Unknown { raw: String },
     ParseError { raw: String, error: String },
     CodecError { raw: String, error: String },
+    Unimplemented,
+    Ignored,
 
     Popularity(u32),
     InitResponse(i32),
 
     Danmaku {
         info: DanmakuInfo,
-        user: DanmakuUser,
+        user: User,
         medal: Option<Medal>,
         emoji: Option<DanmakuEmoji>,
         title: DanmakuTitle,
@@ -53,6 +55,24 @@ pub enum Event {
         medal: Option<Medal>,
     },
 
+    GuardBuy {
+        time: i64, // sec
+        uid: u32,
+        uname: String,
+        count: u32,
+        guard_level: u8,
+        price: u32,
+    },
+
+    SuperChat {
+        time: i64, // sec
+        text: String,
+        price: u32,
+        duration: u32,
+        user: User,
+        uface: String,
+    },
+
     RoomInfoChange(RoomInfoDiff),
 
     LiveStart,
@@ -64,7 +84,7 @@ impl Event {
     fn parse<T: AsRef<str>>(raw: T) -> JsonResult<Event> {
         let raw = raw.as_ref();
 
-        let unknown = || Event::Unknown { raw: "raw".to_owned() };
+        let unknown = || Event::Unknown { raw: raw.to_owned() };
 
         let raw: JsonValue = serde_json::from_str(raw)?;
         let command: String = to(&raw["cmd"])?;
@@ -85,7 +105,7 @@ impl Event {
                         size: to(&info[2])?,
                         rand: to(&info[5])?,
                     },
-                    user: DanmakuUser {
+                    user: User {
                         uid: to(&user[0])?,
                         uname: to(&user[1])?,
                         live_user_level: to(&raw[4][0])?,
@@ -93,9 +113,9 @@ impl Event {
                         laoye_monthly: numbool(&user[3])?,
                         laoye_annual: numbool(&user[4])?,
                     },
-                    medal: Medal::new_danmaku(&raw[3])?,
+                    medal: Medal::from_danmaku(&raw[3])?,
                     emoji: may_inline_json_opt(&info[13])?,
-                    title: DanmakuTitle(to(&title[0])?, to(&title[1])?),
+                    title: DanmakuTitle(string_opt(&title[0])?, string_opt(&title[1])?),
                 }
             },
 
@@ -107,7 +127,7 @@ impl Event {
                     time: to(&raw["timestamp"])?,
                     uid: to(&raw["uid"])?,
                     uname: to(&raw["uname"])?,
-                    medal: Medal::new_common(&raw["fans_medal"])?,
+                    medal: Medal::from_common(&raw["fans_medal"])?,
                 }
             },
 
@@ -122,21 +142,63 @@ impl Event {
                     id: to(&raw["giftId"])?,
                     name: to(&raw["giftName"])?,
                     count: to(&raw["num"])?,
-                    medal: Medal::new_common(&raw["medal_info"])?
+                    medal: Medal::from_common(&raw["medal_info"])?
                 }
             },
 
+            "SUPER_CHAT_MESSAGE" => {
+                let raw = &raw["data"];
+                let user = &raw["user_info"];
+
+                Event::SuperChat {
+                    time: to(&raw["ts"])?,
+                    text: to(&raw["message"])?,
+                    price: to(&raw["price"])?,
+                    duration: to(&raw["time"])?,
+                    user: User {
+                        uid: to(&raw["uid"])?,
+                        uname: to(&user["uname"])?,
+                        live_user_level: to(&user["user_level"])?,
+                        admin: numbool(&user["manager"])?,
+                        laoye_monthly: numbool(&user["is_vip"])?,
+                        laoye_annual: numbool(&user["is_svip"])?,
+                    },
+                    uface: to(&user["face"])?,
+                }
+            },
+
+            "GUARD_BUY" => {
+                let raw = &raw["data"];
+
+                Event::GuardBuy {
+                    time: to(&raw["start_time"])?,
+                    uid: to(&raw["uid"])?,
+                    uname: to(&raw["username"])?,
+                    count: to(&raw["num"])?,
+                    guard_level: to(&raw["guard_level"])?,
+                    price: to(&raw["price"])?,
+                }
+            }
+
             "ROOM_CHANGE" => {
                 Event::RoomInfoChange(to(&raw["data"])?)
-            }
+            },
 
             "LIVE" => {
                 Event::LiveStart
-            }
+            },
 
             "PREPARING" => {
                 Event::LiveEnd
-            }
+            },
+
+            "LIVE_INTERACTIVE_GAME" | "COMBO_SEND" | "ENTRY_EFFECT" | "SUPER_CHAT_MESSAGE_JPN" => {
+                Event::Unimplemented
+            },
+
+            "STOP_LIVE_ROOM_LIST" | "HOT_RANK_CHANGED" | "HOT_RANK_CHANGED_V2" | "WIDGET_BANNER" | "ONLINE_RANK_COUNT" => {
+                Event::Ignored
+            },
 
             _ => unknown(),
         })
@@ -182,7 +244,7 @@ pub struct Medal {
     pub on: bool,
     pub level: u8,
     pub name: String,
-    pub guard: u8,
+    pub guard_level: u8,
     pub t_roomid: Option<u32>,
     pub t_uid: Option<u32>,
     pub t_uname: Option<String>,
@@ -194,7 +256,7 @@ pub struct Medal {
 }
 
 impl Medal {
-    fn new_danmaku(raw: &JsonValue) -> JsonResult<Option<Self>> {
+    fn from_danmaku(raw: &JsonValue) -> JsonResult<Option<Self>> {
         let medal: Vec<JsonValue> = to(&raw)?;
         if medal.len() == 0 {
             Ok(None)
@@ -203,7 +265,7 @@ impl Medal {
                 on: numbool(&medal[11])?,
                 level: to(&medal[0])?,
                 name: to(&medal[1])?,
-                guard: to(&medal[10])?,
+                guard_level: to(&medal[10])?,
                 t_roomid: to(&medal[3])?,
                 t_uid: Some(to(&medal[12])?),
                 t_uname: Some(to(&medal[2])?),
@@ -215,7 +277,7 @@ impl Medal {
         }
     }
 
-    fn new_common(medal: &JsonValue) -> JsonResult<Option<Self>> {
+    fn from_common(medal: &JsonValue) -> JsonResult<Option<Self>> {
         let name: String = to(&medal["medal_name"])?;
         if name.len() == 0 {
             Ok(None)
@@ -224,17 +286,27 @@ impl Medal {
                 on: numbool(&medal["is_lighted"])?,
                 level: to(&medal["medal_level"])?,
                 name: to(&medal["medal_name"])?,
-                guard: to(&medal["guard_level"])?,
+                guard_level: to(&medal["guard_level"])?,
                 t_roomid: u32_opt(&medal["anchor_roomid"])?,
                 t_uid: u32_opt(&medal["target_id"])?,
                 t_uname: None,
-                color: to(&medal["medal_color"])?,
+                color: string_color_to_u32(&medal["medal_color"])?,
                 color_border: to(&medal["medal_color_border"])?,
                 color_start: to(&medal["medal_color_start"])?,
                 color_end: to(&medal["medal_color_end"])?,
             }))
         }
     }
+}
+
+#[derive(Debug, Serialize)]
+pub struct User {
+    pub uid: u32,
+    pub uname: String,
+    pub live_user_level: u8,
+    pub admin: bool,
+    pub laoye_monthly: bool,
+    pub laoye_annual: bool,
 }
 
 // Danmaku
@@ -248,16 +320,6 @@ pub struct DanmakuInfo {
     pub rand: i64,
 }
 
-#[derive(Debug, Serialize)]
-pub struct DanmakuUser {
-    pub uid: u32,
-    pub uname: String,
-    pub live_user_level: u8,
-    pub admin: bool,
-    pub laoye_monthly: bool,
-    pub laoye_annual: bool,
-}
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DanmakuEmoji {
     pub height: i32,
@@ -268,7 +330,7 @@ pub struct DanmakuEmoji {
 }
 
 #[derive(Debug, Serialize)]
-pub struct DanmakuTitle(String, String);
+pub struct DanmakuTitle(Option<String>, Option<String>);
 
 // Interact
 

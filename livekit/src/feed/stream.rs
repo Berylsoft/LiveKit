@@ -147,7 +147,7 @@ impl Stream for FeedStream<TcpSocket, IoError> {
     type Item = Vec<u8>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        let mut bytes = [0; FEED_TCP_BUFFER_SIZE];
+        let mut bytes = [0u8; FEED_TCP_BUFFER_SIZE];
         let mut readbuf = ReadBuf::new(&mut bytes);
 
         let message = ready!(Pin::new(&mut self.socket).poll_read(cx, &mut readbuf));

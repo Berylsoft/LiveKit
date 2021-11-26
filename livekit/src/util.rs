@@ -174,7 +174,7 @@ pub mod json {
 
     pub fn string_opt(value: &Value) -> Result<Option<String>> {
         let string: String = to(value)?;
-        if string.len() == 0 {
+        if string.is_empty() {
             Ok(None)
         } else {
             Ok(Some(string))
@@ -182,13 +182,34 @@ pub mod json {
     }
 
     // todo num_opt
-    pub fn u32_opt(value: &Value) -> Result<Option<u32>>
-    {
+    pub fn u32_opt(value: &Value) -> Result<Option<u32>> {
         let num: u32 = to(value)?;
         if num == 0 {
             Ok(None)
         } else {
             Ok(Some(num))
+        }
+    }
+
+    pub fn string_u32(value: &Value) -> Result<u32> {
+        let string: String = to(value)?;
+        Ok(string.parse::<u32>().unwrap())
+    }
+
+    pub fn string_color_to_u32(value: &Value) -> Result<u32> {
+        if value.is_string() {
+            let string: String = to(value)?;
+            let string = {
+                assert_eq!(string.len(), 7);
+                let mut c = string.chars();
+                assert_eq!(c.next(), Some('/'));
+                format!("00{}", c.as_str())
+            };
+            let mut buf = [0u8; 4];
+            hex::decode_to_slice(string, &mut buf).unwrap();
+            Ok(u32::from_be_bytes(buf))
+        } else {
+            Ok(to(value)?)
         }
     }
 }

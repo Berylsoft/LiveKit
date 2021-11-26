@@ -17,7 +17,6 @@ rand = "0.8"
 chrono = "0.4"
 bytes = "1.1"
 log = "0.4"
-anyhow = "1.0"
 # compress
 brotli-decompressor = "2.3"
 # bin
