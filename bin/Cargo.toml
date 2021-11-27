@@ -8,10 +8,21 @@ repository = "https://github.com/Berylsoft/LiveKit"
 description = "A range of scalable and portable utilities for Bilibili Live's hosts, post-production teams and viewers"
 # readme
 
+[[bin]]
+name = "livekit"
+path = "livekit.rs"
+
+[[bin]]
+name = "feedrec"
+path = "feedrec.rs"
+
 [dependencies]
 tokio = { version = "1.12", features = ["full"] }
 serde_json = "1.0"
 log = "0.4"
 log4rs = { version = "1.0", features = ["all_components"] }
 structopt = "0.3"
+# project
+livekit-api = { path = "../api" }
+livekit-feed = { path = "../feed" }
 livekit = { path = "../livekit" }

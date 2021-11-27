@@ -12,10 +12,10 @@ use tokio_tungstenite::{
     connect_async,
     tungstenite::{protocol::Message, Error as WsError}
 };
+use livekit_api::room::HostsInfo;
 use crate::{
     config::{FEED_HEARTBEAT_RATE_SEC, FEED_TCP_BUFFER_SIZE},
-    api::room::HostsInfo,
-    feed::package::Package,
+    package::Package,
 };
 
 type WebSocket = futures::stream::SplitStream<tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>>;

@@ -1,6 +1,6 @@
 use serde::{Serialize, Deserialize};
 use serde_json::{Value as JsonValue, Result as JsonResult};
-use crate::{util::json::*, feed::package::FlatPackage};
+use crate::{util::json::*, package::FlatPackage};
 
 #[derive(Debug, Serialize)]
 pub struct InitRequest {

@@ -3,14 +3,11 @@ use tokio::spawn;
 use futures::Future;
 use async_channel::{unbounded as channel, Receiver};
 use sled::Db;
-use crate::{
-    config::{
-        STREAM_DEFAULT_FILE_TEMPLATE,
-        Config, RecordMode,
-    },
-    util::http::HttpClient,
-    api::room::{RoomInfo, UserInfo},
-    feed::client::{WrappedEvent, client},
+use livekit_api::{client::HttpClient, room::{RoomInfo, UserInfo}};
+use livekit_feed::client::{WrappedEvent, client};
+use crate::config::{
+    STREAM_DEFAULT_FILE_TEMPLATE,
+    Config, RecordMode,
 };
 
 pub struct Room {

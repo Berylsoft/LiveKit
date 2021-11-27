@@ -1,5 +1,5 @@
 use serde::Deserialize;
-use crate::util::http::{HttpClient, RestApiResult};
+use crate::client::{HttpClient, RestApiResult};
 
 #[derive(Deserialize)]
 pub struct HostsInfo {

@@ -6,11 +6,8 @@ use log4rs::{
 };
 use structopt::StructOpt;
 use tokio::{spawn, signal, time::{sleep, Duration}};
-use livekit::{
-    config::FEED_INIT_INTERVAL_MILLISEC,
-    util::http::HttpClient,
-    feed::{client::client_rec, storage::open_storage},
-};
+use livekit_api::client::HttpClient;
+use livekit_feed::{config::FEED_INIT_INTERVAL_MILLISEC, client::client_rec, storage::open_storage};
 
 pub fn log_config(path: String, debug: bool) -> Config {
     Config::builder()

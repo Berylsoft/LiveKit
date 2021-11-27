@@ -1,7 +1,7 @@
 use rand::{seq::IteratorRandom, thread_rng as rng};
-use crate::api::room::{PlayInfo, PlayUrlCodec, PlayUrlCodecUrlInfo};
+use livekit_api::room::{PlayInfo, PlayUrlCodec, PlayUrlCodecUrlInfo};
 
-pub type StreamInfo = PlayUrlCodec;
+pub struct StreamInfo(PlayUrlCodec);
 pub type StreamSourceInfo = PlayUrlCodecUrlInfo;
 
 pub struct StreamType<'a> {
@@ -23,7 +23,7 @@ impl StreamType<'_> {
                             if self.codec == codec.codec_name {
                                 if codec.base_url != "" {
                                     matches!(codec.url_info, Some(_));
-                                    return Some(codec)
+                                    return Some(StreamInfo(codec))
                                 }
                             }
                         }
@@ -37,12 +37,12 @@ impl StreamType<'_> {
 
 impl StreamInfo {
     pub fn to_url(self) -> String {
-        let source = self.url_info.unwrap();
+        let source = self.0.url_info.unwrap();
         let source = source.iter().filter(|source| !source.host.contains(".mcdn.")).choose(&mut rng()).unwrap();
-        format!("{}{}{}", source.host, self.base_url, source.extra)
+        format!("{}{}{}", source.host, self.0.base_url, source.extra)
     }
 
     pub fn have_4k(&self) -> bool {
-        self.accept_qn.contains(&20000)
+        self.0.accept_qn.contains(&20000)
     }
 }

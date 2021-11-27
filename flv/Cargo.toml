@@ -8,4 +8,8 @@ repository = "https://github.com/Berylsoft/LiveKit"
 # description
 # readme
 
+[lib]
+name = "livekit_flv"
+path = "lib.rs"
+
 [dependencies]

@@ -1,6 +1,8 @@
 [workspace]
 members = [
+    "api",
+    "feed",
+    "flv",
     "livekit",
-    "livekit-bin",
-    "livekit-flv",
+    "bin",
 ]

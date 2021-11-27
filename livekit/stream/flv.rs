@@ -1,10 +1,7 @@
 use tokio::{fs::File, io::AsyncWriteExt};
 use futures::{Stream, StreamExt};
-use crate::{
-    util::http::HttpClient,
-    api::room::PlayInfo,
-    stream::url::StreamType,
-};
+use livekit_api::{client::HttpClient, room::PlayInfo};
+use crate::stream::url::StreamType;
 
 pub async fn get_stream(client: &HttpClient, url: String) -> Option<impl Stream<Item = Result<bytes::Bytes, reqwest::Error>>> {
     let mut url = url;
