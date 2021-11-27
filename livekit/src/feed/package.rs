@@ -1,10 +1,7 @@
 use std::convert::TryInto;
 use binrw::{BinRead, BinWrite};
 use bytes_codec::{BytesDecodeExt, BytesEncodeExt};
-use crate::{
-    util::vec,
-    feed::schema::InitRequest,
-};
+use crate::feed::schema::InitRequest;
 
 pub const HEAD_LENGTH: u16 = 16;
 pub const HEAD_LENGTH_32: u32 = 16;
@@ -156,10 +153,10 @@ impl Package {
             Package::HeartbeatRequest() => Head::new(2, 0).encode()?,
             Package::InitRequest(payload) => {
                 let payload = payload.into_bytes();
-                vec::concat(
+                [
                     Head::new(7, payload.len().try_into()?).encode()?,
                     payload,
-                )
+                ].concat()
             },
             _ => return Err(PackageCodecError::NotEncodable),
         })

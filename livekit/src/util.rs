@@ -15,13 +15,6 @@ impl Timestamp {
     }
 }
 
-pub mod vec {
-    pub fn concat<T>(mut a: Vec<T>, mut b: Vec<T>) -> Vec<T> {
-        a.append(&mut b);
-        a
-    }
-}
-
 pub mod http {
     use serde::{Deserialize, de::DeserializeOwned};
     use reqwest::{Client, StatusCode, header, Response};
