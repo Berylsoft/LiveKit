@@ -12,30 +12,35 @@ name = "livekit_feed"
 path = "lib.rs"
 
 [dependencies]
-hex = "0.4"
-rand = "0.8"
-chrono = "0.4"
-bytes = "1.1"
-log = "0.4"
+hex = { version = "0.4", optional = true }
+rand = { version = "0.8", optional = true }
+chrono = { version = "0.4", optional = true }
+log = { version = "0.4", optional = true }
 # compress
-brotli-decompressor = "2.3"
+brotli-decompressor = { version = "2.3", optional = true }
 # bin
-binrw = "0.8"
-bytes-codec = { git = "https://github.com/Berylsoft/bytes-codec" }
+binrw = { version = "0.8", optional = true }
+bytes-codec = { git = "https://github.com/Berylsoft/bytes-codec", optional = true }
 # serde
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 # async
-futures = "0.3"
+futures = { version = "0.3", optional = true }
 tokio = { version = "1.12", features = ["full"] }
-async-channel = "1.6"
+async-channel = { version = "1.6", optional = true }
 # net
-tokio-tungstenite = { version = "0.15", features = ["rustls-tls"] }
-reqwest = { version = "0.11", default-features = false, features = ["rustls-tls", "stream"] }
+tokio-tungstenite = { version = "0.15", features = ["rustls-tls"], optional = true }
 # storage
-sled = "0.34.7"
+sled = { version = "0.34.7", optional = true }
 # project
-livekit-api = { path = "../api", default-features = false, features = ["feed"] }
+livekit-api = { path = "../api", default-features = false, features = ["feed"], optional = true }
 
 [dev-dependencies]
 hex-literal = "0.3"
+
+[features]
+default = ["package", "stream", "schema"]
+package = ["chrono", "binrw", "bytes-codec", "brotli-decompressor"]
+stream = ["log", "rand", "futures", "tokio-tungstenite",  "livekit-api",  "package"]
+schema = ["hex"]
+client = ["async-channel", "sled", "package", "stream", "schema"]

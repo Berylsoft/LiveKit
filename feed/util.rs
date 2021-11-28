@@ -1,5 +1,6 @@
 pub struct Timestamp(i64); // u64?
 
+#[cfg(feature = "package")]
 impl Timestamp {
     pub fn now() -> Self {
         Timestamp(chrono::Utc::now().timestamp_millis())
@@ -15,6 +16,7 @@ impl Timestamp {
     }
 }
 
+#[cfg(feature = "schema")]
 pub mod json {
     use serde::de::DeserializeOwned;
     use serde_json::{Value, Result};

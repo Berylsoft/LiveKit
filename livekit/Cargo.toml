@@ -13,16 +13,10 @@ name = "livekit"
 path = "lib.rs"
 
 [dependencies]
-hex = "0.4"
 rand = "0.8"
 chrono = "0.4"
 bytes = "1.1"
 log = "0.4"
-# compress
-brotli-decompressor = "2.3"
-# bin
-binrw = "0.8"
-bytes-codec = { git = "https://github.com/Berylsoft/bytes-codec" }
 # serde
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -31,13 +25,10 @@ futures = "0.3"
 tokio = { version = "1.12", features = ["full"] }
 async-channel = "1.6"
 # net
-tokio-tungstenite = { version = "0.15", features = ["rustls-tls"] }
 reqwest = { version = "0.11", default-features = false, features = ["rustls-tls", "stream"] }
-# storage
-sled = "0.34.7"
 # project
 livekit-api = { path = "../api", default-features = false, features = ["info", "stream"] }
-livekit-feed = { path = "../feed" }
+livekit-feed = { path = "../feed", features = ["client"] }
 
 [dev-dependencies]
 hex-literal = "0.3"

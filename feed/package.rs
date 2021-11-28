@@ -1,7 +1,16 @@
 use std::convert::TryInto;
 use binrw::{BinRead, BinWrite};
 use bytes_codec::{BytesDecodeExt, BytesEncodeExt};
-use crate::schema::InitRequest;
+
+#[derive(Debug, serde::Serialize)]
+pub struct InitRequest {
+    pub uid: u32,
+    pub roomid: u32,
+    pub protover: u8,
+    pub platform: String,
+    pub r#type: u8,
+    pub key: String,
+}
 
 pub const HEAD_LENGTH: u16 = 16;
 pub const HEAD_LENGTH_32: u32 = 16;
@@ -47,47 +56,6 @@ pub enum FlatPackage {
     InitResponse(String),
     HeartbeatResponse(u32),
     Json(String),
-}
-
-#[derive(Debug)]
-pub enum PackageCodecError {
-    IoError(std::io::Error),
-    StringCodecError(std::string::FromUtf8Error),
-    BytesSilceError(std::array::TryFromSliceError),
-    NumberConvertError(std::num::TryFromIntError),
-    BytesCodecError(binrw::Error),
-    UnknownType(Head),
-    NotEncodable,
-}
-
-impl From<std::io::Error> for PackageCodecError {
-    fn from(err: std::io::Error) -> PackageCodecError {
-        PackageCodecError::IoError(err)
-    }
-}
-
-impl From<std::string::FromUtf8Error> for PackageCodecError {
-    fn from(err: std::string::FromUtf8Error) -> PackageCodecError {
-        PackageCodecError::StringCodecError(err)
-    }
-}
-
-impl From<std::num::TryFromIntError> for PackageCodecError {
-    fn from(err: std::num::TryFromIntError) -> PackageCodecError {
-        PackageCodecError::NumberConvertError(err)
-    }
-}
-
-impl From<std::array::TryFromSliceError> for PackageCodecError {
-    fn from(err: std::array::TryFromSliceError) -> PackageCodecError {
-        PackageCodecError::BytesSilceError(err)
-    }
-}
-
-impl From<binrw::Error> for PackageCodecError {
-    fn from(err: binrw::Error) -> PackageCodecError {
-        PackageCodecError::BytesCodecError(err)
-    }
 }
 
 impl Package {
@@ -206,6 +174,47 @@ impl Package {
             Package::CodecError(a, b) => vec![FlatPackage::CodecError(a, b)],
             Package::InitRequest(_) | Package::HeartbeatRequest() => unreachable!(),
         }
+    }
+}
+
+#[derive(Debug)]
+pub enum PackageCodecError {
+    IoError(std::io::Error),
+    StringCodecError(std::string::FromUtf8Error),
+    BytesSilceError(std::array::TryFromSliceError),
+    NumberConvertError(std::num::TryFromIntError),
+    BytesCodecError(binrw::Error),
+    UnknownType(Head),
+    NotEncodable,
+}
+
+impl From<std::io::Error> for PackageCodecError {
+    fn from(err: std::io::Error) -> PackageCodecError {
+        PackageCodecError::IoError(err)
+    }
+}
+
+impl From<std::string::FromUtf8Error> for PackageCodecError {
+    fn from(err: std::string::FromUtf8Error) -> PackageCodecError {
+        PackageCodecError::StringCodecError(err)
+    }
+}
+
+impl From<std::num::TryFromIntError> for PackageCodecError {
+    fn from(err: std::num::TryFromIntError) -> PackageCodecError {
+        PackageCodecError::NumberConvertError(err)
+    }
+}
+
+impl From<std::array::TryFromSliceError> for PackageCodecError {
+    fn from(err: std::array::TryFromSliceError) -> PackageCodecError {
+        PackageCodecError::BytesSilceError(err)
+    }
+}
+
+impl From<binrw::Error> for PackageCodecError {
+    fn from(err: binrw::Error) -> PackageCodecError {
+        PackageCodecError::BytesCodecError(err)
     }
 }
 

@@ -1,16 +1,8 @@
 use serde::{Serialize, Deserialize};
 use serde_json::{Value as JsonValue, Result as JsonResult};
-use crate::{util::json::*, package::FlatPackage};
-
-#[derive(Debug, Serialize)]
-pub struct InitRequest {
-    pub uid: u32,
-    pub roomid: u32,
-    pub protover: u8,
-    pub platform: String,
-    pub r#type: u8,
-    pub key: String,
-}
+use crate::util::json::*;
+#[cfg(feature = "package")]
+use crate::package::FlatPackage;
 
 #[derive(Debug, Deserialize)]
 pub struct InitResponse {
@@ -204,6 +196,7 @@ impl Event {
         })
     }
 
+    #[cfg(feature = "package")]
     pub fn from_package(package: FlatPackage) -> Event {
         match package {
             FlatPackage::Json(payload) => {

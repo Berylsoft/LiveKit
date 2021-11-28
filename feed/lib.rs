@@ -1,7 +1,12 @@
 pub mod config;
 pub mod util;
-pub mod schema;
+#[cfg(feature = "package")]
 pub mod package;
+#[cfg(feature = "stream")]
 pub mod stream;
-pub mod client;
+#[cfg(feature = "schema")]
+pub mod schema;
+#[cfg(feature = "client")]
 pub mod storage;
+#[cfg(feature = "client")]
+pub mod client;
