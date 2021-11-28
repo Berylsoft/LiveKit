@@ -12,7 +12,7 @@ use tokio_tungstenite::{
     connect_async,
     tungstenite::{protocol::Message, Error as WsError}
 };
-use livekit_api::room::HostsInfo;
+use livekit_api::feed::HostsInfo;
 use crate::{
     config::{FEED_HEARTBEAT_RATE_SEC, FEED_TCP_BUFFER_SIZE},
     package::Package,

@@ -81,7 +81,7 @@ pub enum Event {
 }
 
 impl Event {
-    fn parse<T: AsRef<str>>(raw: T) -> JsonResult<Event> {
+    pub fn parse<T: AsRef<str>>(raw: T) -> JsonResult<Event> {
         let raw = raw.as_ref();
 
         let unknown = || Event::Unknown { raw: raw.to_owned() };
@@ -196,7 +196,7 @@ impl Event {
                 Event::Unimplemented
             },
 
-            "STOP_LIVE_ROOM_LIST" | "HOT_RANK_CHANGED" | "HOT_RANK_CHANGED_V2" | "WIDGET_BANNER" | "ONLINE_RANK_COUNT" => {
+            "STOP_LIVE_ROOM_LIST" | "HOT_RANK_CHANGED" | "HOT_RANK_CHANGED_V2" | "WIDGET_BANNER" | "ONLINE_RANK_COUNT" | "ONLINE_RANK_V2" => {
                 Event::Ignored
             },
 

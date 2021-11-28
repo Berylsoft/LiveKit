@@ -2,7 +2,7 @@ use tokio::time::{sleep, Duration};
 use futures::StreamExt;
 use async_channel::Sender;
 use sled::Tree;
-use livekit_api::{client::HttpClient, room::HostsInfo};
+use livekit_api::{client::HttpClient, feed::HostsInfo};
 use crate::{
     config::{FEED_RETRY_INTERVAL_MILLISEC, FEED_INIT_RETRY_INTERVAL_SEC},
     util::Timestamp,

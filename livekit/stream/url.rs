@@ -1,5 +1,5 @@
 use rand::{seq::IteratorRandom, thread_rng as rng};
-use livekit_api::room::{PlayInfo, PlayUrlCodec, PlayUrlCodecUrlInfo};
+use livekit_api::stream::{PlayInfo, PlayUrlCodec, PlayUrlCodecUrlInfo};
 
 pub struct StreamInfo(PlayUrlCodec);
 pub type StreamSourceInfo = PlayUrlCodecUrlInfo;

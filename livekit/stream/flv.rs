@@ -1,6 +1,6 @@
 use tokio::{fs::File, io::AsyncWriteExt};
 use futures::{Stream, StreamExt};
-use livekit_api::{client::HttpClient, room::PlayInfo};
+use livekit_api::{client::HttpClient, stream::PlayInfo};
 use crate::stream::url::StreamType;
 
 pub async fn get_stream(client: &HttpClient, url: String) -> Option<impl Stream<Item = Result<bytes::Bytes, reqwest::Error>>> {

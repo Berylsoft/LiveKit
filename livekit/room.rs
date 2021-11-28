@@ -3,7 +3,7 @@ use tokio::spawn;
 use futures::Future;
 use async_channel::{unbounded as channel, Receiver};
 use sled::Db;
-use livekit_api::{client::HttpClient, room::{RoomInfo, UserInfo}};
+use livekit_api::{client::HttpClient, info::{RoomInfo, UserInfo}};
 use livekit_feed::client::{WrappedEvent, client};
 use crate::config::{
     STREAM_DEFAULT_FILE_TEMPLATE,
