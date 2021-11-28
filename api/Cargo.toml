@@ -5,6 +5,7 @@ edition = "2018"
 authors = ["stackinspector"]
 license = "Apache-2.0"
 repository = "https://github.com/Berylsoft/LiveKit"
+# description
 # readme
 
 [lib]
