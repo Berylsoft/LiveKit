@@ -3,7 +3,7 @@ use tokio::spawn;
 use futures::Future;
 use async_channel::{unbounded as channel, Receiver};
 use livekit_api::{client::HttpClient, info::{RoomInfo, UserInfo}};
-use livekit_feed::{storage::Db, client::{WrappedEvent, client}};
+use livekit_feed_client::{storage::sled::Db, schema::Event, client::client_sender};
 use crate::config::{
     STREAM_DEFAULT_FILE_TEMPLATE,
     Config, RecordMode,
@@ -13,7 +13,7 @@ pub struct Room {
     roomid: u32,
     info: RoomInfo,
     user_info: UserInfo,
-    receiver: Receiver<WrappedEvent>,
+    receiver: Receiver<Event>,
     config: Config,
     http_client: HttpClient,
 }
@@ -25,7 +25,7 @@ impl Room {
         let user_info = UserInfo::call(&http_client, roomid).await.unwrap();
         let (sender, receiver) = channel();
         let storage = db.open_tree(roomid.to_string()).unwrap();
-        spawn(client(roomid, http_client2, sender, storage));
+        spawn(client_sender(roomid, http_client2, storage, sender));
 
         Room {
             roomid,
@@ -84,7 +84,7 @@ impl Room {
             .replace("{area}", self.info.area_name.as_str())
     }
 
-    pub fn subscribe(&self) -> Receiver<WrappedEvent> {
+    pub fn subscribe(&self) -> Receiver<Event> {
         self.receiver.clone()
     }
 

@@ -1,8 +1,11 @@
+resolver = "2"
 [workspace]
 members = [
     "api",
     "feed",
+    "feed-client",
     "flv",
     "livekit",
-    "bin",
+    "bin/feedrec",
+    "bin/livekit",
 ]

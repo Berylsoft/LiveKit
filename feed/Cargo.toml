@@ -28,11 +28,8 @@ serde_json = "1.0"
 # async
 futures = { version = "0.3", optional = true }
 tokio = { version = "1.12", features = ["full"] }
-async-channel = { version = "1.6", optional = true }
 # net
 tokio-tungstenite = { version = "0.15", features = ["rustls-tls"], optional = true }
-# storage
-sled = { version = "0.34.7", optional = true }
 # project
 livekit-api = { path = "../api", default-features = false, features = ["feed"], optional = true }
 
@@ -44,4 +41,3 @@ default = ["package", "stream", "schema"]
 package = ["chrono", "binrw", "bytes-codec", "brotli-decompressor"]
 stream = ["log", "rand", "futures", "tokio-tungstenite",  "livekit-api",  "package"]
 schema = ["hex"]
-client = ["async-channel", "sled", "package", "stream", "schema"]

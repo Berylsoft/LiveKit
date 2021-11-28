@@ -1,0 +1,22 @@
+[package]
+name = "livekit-feedrec"
+version = "0.2.0"
+edition = "2018"
+authors = ["stackinspector"]
+license = "Apache-2.0"
+repository = "https://github.com/Berylsoft/LiveKit"
+# description
+# readme
+
+[[bin]]
+name = "feedrec"
+path = "main.rs"
+
+[dependencies]
+tokio = { version = "1.12", features = ["full"] }
+log = "0.4"
+log4rs = { version = "1.0", features = ["all_components"] }
+structopt = "0.3"
+# project
+livekit-api = { path = "../../api", default-features = false }
+livekit-feed-client = { path = "../../feed-client" }

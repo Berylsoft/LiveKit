@@ -10,11 +10,7 @@ repository = "https://github.com/Berylsoft/LiveKit"
 
 [[bin]]
 name = "livekit"
-path = "livekit.rs"
-
-[[bin]]
-name = "feedrec"
-path = "feedrec.rs"
+path = "main.rs"
 
 [dependencies]
 tokio = { version = "1.12", features = ["full"] }
@@ -23,6 +19,5 @@ log = "0.4"
 log4rs = { version = "1.0", features = ["all_components"] }
 structopt = "0.3"
 # project
-livekit-api = { path = "../api" }
-livekit-feed = { path = "../feed", features = ["client"] }
-livekit = { path = "../livekit" }
+livekit-api = { path = "../../api", default-features = false }
+livekit = { path = "../../livekit" }

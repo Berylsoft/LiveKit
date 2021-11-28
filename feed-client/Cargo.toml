@@ -1,0 +1,28 @@
+[package]
+name = "livekit-feed-client"
+version = "0.2.0"
+edition = "2018"
+authors = ["stackinspector"]
+license = "Apache-2.0"
+repository = "https://github.com/Berylsoft/LiveKit"
+# description
+# readme
+
+[lib]
+name = "livekit_feed_client"
+path = "lib.rs"
+
+[dependencies]
+log = { version = "0.4" }
+futures = { version = "0.3" }
+tokio = { version = "1.12", features = ["full"] }
+sled = { version = "0.34.7" } #, optional = true
+async-channel = { version = "1.6" } #, optional = true
+livekit-api = { path = "../api", default-features = false, features = ["feed"] }
+livekit-feed = { path = "../feed" }
+
+# [features]
+# client = ["default"]
+# client_rec = ["sled",  "client"]
+# client_sender_only = ["async-channel",  "client"]
+# client_sender = ["client_rec", "client_sender_only"]

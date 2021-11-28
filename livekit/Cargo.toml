@@ -28,7 +28,7 @@ async-channel = "1.6"
 reqwest = { version = "0.11", default-features = false, features = ["rustls-tls", "stream"] }
 # project
 livekit-api = { path = "../api", default-features = false, features = ["info", "stream"] }
-livekit-feed = { path = "../feed", features = ["client"] }
+livekit-feed-client = { path = "../feed-client" }
 
 [dev-dependencies]
 hex-literal = "0.3"

@@ -263,8 +263,8 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_init_request() {
+    #[test]
+    fn test_init_request() {
         let init = Package::create_init_request(TEST_ROOMID, "web".to_owned(), "key".to_owned());
         match &init {
             Package::InitRequest(payload) => assert!(payload.starts_with(PACKAGE_INIT_BEGINNING)),

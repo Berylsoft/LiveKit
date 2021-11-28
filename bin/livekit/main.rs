@@ -1,8 +1,8 @@
 use structopt::StructOpt;
 use tokio::{spawn, signal, fs::read_to_string};
 use livekit_api::client::HttpClient;
-use livekit_feed::storage::open_storage;
 use livekit::{
+    storage::open_storage,
     config::Group,
     room::Room,
 };

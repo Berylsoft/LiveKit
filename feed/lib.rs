@@ -13,7 +13,3 @@ pub mod package;
 pub mod stream;
 #[cfg(feature = "schema")]
 pub mod schema;
-#[cfg(feature = "client")]
-pub mod storage;
-#[cfg(feature = "client")]
-pub mod client;
