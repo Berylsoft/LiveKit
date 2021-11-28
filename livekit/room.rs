@@ -99,7 +99,7 @@ impl Room {
     }
 
     pub fn record(&self) -> Option<impl Future<Output = ()>> {
-        use crate::stream::{flv};
+        use livekit_stream::{flv};
         match self.config.record.as_ref() {
             None => None,
             Some(config) => Some(match config.mode {
