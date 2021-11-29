@@ -8,5 +8,4 @@ members = [
     "stream",
     "livekit",
     "bin/feedrec",
-    "bin/livekit",
 ]
