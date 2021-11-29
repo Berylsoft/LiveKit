@@ -1,18 +1,24 @@
 use structopt::StructOpt;
-use std::io::Write;
+use std::{io::Write, fs::OpenOptions};
 use livekit_feed_client::storage::open_storage;
 use livekit_feed_dump::*;
 
 fn main() {
-    let Args { roomid, storage_path, export_path } = Args::from_args();
+    let Args { roomid, storage_path, export_path, rocks_ver } = Args::from_args();
     
-    let db = open_storage(storage_path).unwrap();
-    let storage = db.open_tree(roomid.to_string()).unwrap();
+    let mut file = OpenOptions::new().write(true).append(true).open(export_path).unwrap();
 
-    let mut file = open(export_path);
-
-    for kv in storage.iter() {
-        let (k, v) = kv.unwrap();
-        writeln!(file, "{}", record(k.as_ref(), v.as_ref())).unwrap();
+    if let Some(rocks_ver) = rocks_ver {
+        let storage = rocksdb::DB::open_default(format!("{}/{}-{}", storage_path, roomid, rocks_ver)).unwrap();
+        for (k, v) in storage.iterator(rocksdb::IteratorMode::Start) {
+            writeln!(file, "{}", record(k.as_ref(), v.as_ref())).unwrap();
+        }    
+    } else {
+        let db = open_storage(storage_path).unwrap();
+        let storage = db.open_tree(roomid.to_string()).unwrap();
+        for kv in storage.iter() {
+            let (k, v) = kv.unwrap();
+            writeln!(file, "{}", record(k.as_ref(), v.as_ref())).unwrap();
+        }
     }
 }

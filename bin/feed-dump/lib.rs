@@ -1,4 +1,4 @@
-use std::{convert::TryInto, fs::{File, OpenOptions}};
+use std::convert::TryInto;
 use serde_json::Value as JsonValue;
 use structopt::StructOpt;
 use livekit_feed_client::package::Package;
@@ -11,16 +11,14 @@ pub struct Args {
     pub storage_path: String,
     #[structopt(short = "o", long)]
     pub export_path: String,
+    #[structopt(long)]
+    pub rocks_ver: Option<String>,
 }
 
 #[derive(serde::Serialize)]
 pub struct Record {
     time: i64,
     payloads: JsonValue,
-}
-
-pub fn open(path: String) -> File {
-    OpenOptions::new().write(true).append(true).open(path).unwrap()
 }
 
 pub fn record(k: &[u8], v: &[u8]) -> String {
