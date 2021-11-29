@@ -177,6 +177,17 @@ impl Package {
     }
 }
 
+impl FlatPackage {
+    pub fn to_json(self) -> Result<serde_json::Value, PackageCodecError> {
+        Ok(match self {
+            FlatPackage::Json(payload) => serde_json::from_str(payload.as_str())?,
+            FlatPackage::HeartbeatResponse(num) => serde_json::json!(num),
+            FlatPackage::InitResponse(payload) => serde_json::from_str(payload.as_str())?,
+            FlatPackage::CodecError(_, error) => return Err(error),
+        })
+    }
+}
+
 #[derive(Debug)]
 pub enum PackageCodecError {
     IoError(std::io::Error),
@@ -186,6 +197,7 @@ pub enum PackageCodecError {
     BytesCodecError(binrw::Error),
     UnknownType(Head),
     NotEncodable,
+    ToJsonError(serde_json::Error),
 }
 
 impl From<std::io::Error> for PackageCodecError {
@@ -215,6 +227,12 @@ impl From<std::array::TryFromSliceError> for PackageCodecError {
 impl From<binrw::Error> for PackageCodecError {
     fn from(err: binrw::Error) -> PackageCodecError {
         PackageCodecError::BytesCodecError(err)
+    }
+}
+
+impl From<serde_json::Error> for PackageCodecError {
+    fn from(err: serde_json::Error) -> PackageCodecError {
+        PackageCodecError::ToJsonError(err)
     }
 }
 
