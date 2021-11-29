@@ -1,4 +1,3 @@
-resolver = "2"
 [workspace]
 members = [
     "api",
@@ -8,4 +7,5 @@ members = [
     "stream",
     "livekit",
     "bin/feedrec",
+    "bin/feed-dump",
 ]

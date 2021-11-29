@@ -87,7 +87,7 @@ impl Package {
 
         macro_rules! u32 {
             () => {
-                u32::from_be_bytes(payload[0..4].try_into()?)
+                u32::from_be_bytes(payload.try_into()?)
             };
         }
 
