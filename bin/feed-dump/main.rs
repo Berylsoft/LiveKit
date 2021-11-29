@@ -1,4 +1,5 @@
 use structopt::StructOpt;
+use std::io::Write;
 use livekit_feed_client::storage::open_storage;
 use livekit_feed_dump::*;
 
@@ -12,6 +13,6 @@ fn main() {
 
     for kv in storage.iter() {
         let (k, v) = kv.unwrap();
-        record(k.as_ref(), v.as_ref(), &mut file);
+        writeln!(file, "{}", record(k.as_ref(), v.as_ref())).unwrap();
     }
 }

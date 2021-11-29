@@ -1,4 +1,4 @@
-use std::{convert::TryInto, io::Write, fs::{File, OpenOptions}};
+use std::{convert::TryInto, fs::{File, OpenOptions}};
 use serde_json::Value as JsonValue;
 use structopt::StructOpt;
 use livekit_feed_client::package::Package;
@@ -16,17 +16,23 @@ pub struct Args {
 #[derive(serde::Serialize)]
 pub struct Record {
     time: i64,
-    payloads: Vec<JsonValue>,
+    payloads: JsonValue,
 }
 
-pub fn open(export_path: String) -> File {
-    OpenOptions::new().write(true).append(true).open(export_path).unwrap()
+pub fn open(path: String) -> File {
+    OpenOptions::new().write(true).append(true).open(path).unwrap()
 }
 
-pub fn record(k: &[u8], v: &[u8], file: &mut File) {
-    let record = Record {
-        time: i64::from_be_bytes(k.try_into().unwrap()),
-        payloads: Package::decode(v).flatten().into_iter().map(|package| package.to_json().unwrap()).collect(),
+pub fn record(k: &[u8], v: &[u8]) -> String {
+    let packages = Package::decode(v).flatten();
+    let payloads = if packages.len() == 1 {
+        packages.into_iter().next().unwrap().to_json().unwrap()
+    } else {
+        let payloads: Vec<JsonValue> = packages.into_iter().map(|package| package.to_json().unwrap()).collect();
+        serde_json::to_value(payloads).unwrap()
     };
-    writeln!(file, "{}", serde_json::to_string(&record).unwrap()).unwrap();
+    serde_json::to_string(&Record {
+        time: i64::from_be_bytes(k.try_into().unwrap()),
+        payloads,
+    }).unwrap()
 }
