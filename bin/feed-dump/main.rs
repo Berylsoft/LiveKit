@@ -1,11 +1,12 @@
 use std::{convert::TryInto, io::Write, fs::OpenOptions};
+use serde_json::{Value as JsonValue, json};
 use structopt::StructOpt;
 use livekit_feed_client::{storage::open_storage, package::{Package, FlatPackage}};
 
 #[derive(serde::Serialize)]
 struct Record {
     time: i64,
-    payloads: Vec<String>,
+    payloads: Vec<JsonValue>,
 }
 
 #[derive(StructOpt)]
@@ -28,11 +29,11 @@ fn main() {
 
     for kv in storage.iter() {
         let (k, v) = kv.unwrap();
-        let payloads: Vec<String> = Package::decode(v).flatten().into_iter().map(|package| {
+        let payloads: Vec<JsonValue> = Package::decode(v).flatten().into_iter().map(|package| {
             match package {
-                FlatPackage::Json(payload) => payload,
-                FlatPackage::HeartbeatResponse(num) => num.to_string(),
-                FlatPackage::InitResponse(payload) => payload,
+                FlatPackage::Json(payload) => serde_json::from_str(payload.as_str()).unwrap(),
+                FlatPackage::HeartbeatResponse(num) => json!(num),
+                FlatPackage::InitResponse(payload) => serde_json::from_str(payload.as_str()).unwrap(),
                 FlatPackage::CodecError(_, error) => panic!("{:?}", error),
             }
         }).collect();
