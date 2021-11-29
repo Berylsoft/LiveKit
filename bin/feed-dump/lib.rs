@@ -1,19 +1,6 @@
 use std::convert::TryInto;
 use serde_json::Value as JsonValue;
-use structopt::StructOpt;
 use livekit_feed_client::package::Package;
-
-#[derive(StructOpt)]
-pub struct Args {
-    #[structopt(short = "r", long)]
-    pub roomid: u32,
-    #[structopt(short = "s", long)]
-    pub storage_path: String,
-    #[structopt(short = "o", long)]
-    pub export_path: String,
-    #[structopt(long)]
-    pub rocks_ver: Option<String>,
-}
 
 #[derive(serde::Serialize)]
 pub struct Record {
@@ -21,8 +8,8 @@ pub struct Record {
     payloads: JsonValue,
 }
 
-pub fn record(k: &[u8], v: &[u8]) -> String {
-    let packages = Package::decode(v).flatten();
+pub fn record<T: AsRef<[u8]>>(k: T, v: T) -> String {
+    let packages = Package::decode(v.as_ref()).flatten();
     let payloads = if packages.len() == 1 {
         packages.into_iter().next().unwrap().to_json().unwrap()
     } else {
@@ -30,7 +17,7 @@ pub fn record(k: &[u8], v: &[u8]) -> String {
         serde_json::to_value(payloads).unwrap()
     };
     serde_json::to_string(&Record {
-        time: i64::from_be_bytes(k.try_into().unwrap()),
+        time: i64::from_be_bytes(k.as_ref().try_into().unwrap()),
         payloads,
     }).unwrap()
 }
