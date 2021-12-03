@@ -4,16 +4,12 @@ use livekit_api::{client::HttpClient, stream::PlayInfo};
 use crate::url::StreamType;
 
 pub async fn get_stream(client: &HttpClient, url: String) -> Option<impl Stream<Item = Result<bytes::Bytes, reqwest::Error>>> {
-    let mut url = url;
-    loop {
-        println!("{}", url.clone());
-        let resp = client.get(url).await.unwrap();
-        match resp.status().as_u16() {
-            200 => return Some(resp.bytes_stream()),
-            404 => return None,
-            301 | 302 | 307 | 308 => url = resp.headers().get("Location").unwrap().to_str().unwrap().to_owned(),
-            status => panic!("{}", status),
-        }
+    println!("{}", url);
+    let resp = client.get(url).await.unwrap();
+    match resp.status().as_u16() {
+        200 => return Some(resp.bytes_stream()),
+        404 => return None,
+        status => panic!("{}", status),
     }
 }
 

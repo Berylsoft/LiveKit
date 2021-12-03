@@ -8,6 +8,7 @@ pub const WEB_USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Appl
 #[derive(Debug)]
 pub enum RestApiError {
     Network(reqwest::Error),
+    HttpFailure(StatusCode),
     Parse(serde_json::Error),
     RateLimited(String),
     Failure(String),
@@ -76,7 +77,10 @@ impl HttpClient {
         Data: DeserializeOwned,
     {
         let resp = self.get(format!("{}{}", self.host, url)).await?;
-        assert_eq!(resp.status(), StatusCode::OK);
+        match resp.status() {
+            StatusCode::OK => { },
+            status => return Err(RestApiError::HttpFailure(status)),
+        }
         let text = resp.text().await?;
         let parsed: RestApiResponse<Data> = serde_json::from_str(text.as_str())?;
         match parsed.code {

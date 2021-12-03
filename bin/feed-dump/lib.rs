@@ -1,6 +1,6 @@
 use std::convert::TryInto;
 use serde_json::Value as JsonValue;
-use livekit_feed_client::package::Package;
+use livekit_feed_client::{util::Timestamp, package::Package};
 
 #[derive(serde::Serialize)]
 pub struct Record {
@@ -17,7 +17,7 @@ pub fn record<T: AsRef<[u8]>>(k: T, v: T) -> String {
         serde_json::to_value(payloads).unwrap()
     };
     serde_json::to_string(&Record {
-        time: i64::from_be_bytes(k.as_ref().try_into().unwrap()),
+        time: Timestamp::from_bytes(k.as_ref().try_into().unwrap()).digits(),
         payloads,
     }).unwrap()
 }

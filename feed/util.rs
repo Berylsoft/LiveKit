@@ -14,6 +14,10 @@ impl Timestamp {
     pub fn to_bytes(&self) -> [u8; 8] {
         self.digits().to_be_bytes()
     }
+
+    pub fn from_bytes(raw: [u8; 8]) -> Timestamp {
+        Timestamp(i64::from_be_bytes(raw))
+    }
 }
 
 #[cfg(feature = "schema")]
