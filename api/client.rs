@@ -1,5 +1,5 @@
 use serde::{Deserialize, de::DeserializeOwned};
-use reqwest::{Client, StatusCode, header, Response};
+use reqwest::{Client, header, Response};
 
 pub const REFERER: &str = "https://live.bilibili.com/";
 pub const API_HOST: &str = "https://api.live.bilibili.com";
@@ -8,7 +8,7 @@ pub const WEB_USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Appl
 #[derive(Debug)]
 pub enum RestApiError {
     Network(reqwest::Error),
-    HttpFailure(StatusCode),
+    HttpFailure(u16, String),
     Parse(serde_json::Error),
     RateLimited(String),
     Failure(i32, String),
@@ -77,11 +77,9 @@ impl HttpClient {
         Data: DeserializeOwned,
     {
         let resp = self.get(format!("{}{}", self.host, url)).await?;
-        match resp.status() {
-            StatusCode::OK => { },
-            status => return Err(RestApiError::HttpFailure(status)),
-        }
+        let status = resp.status().as_u16();
         let text = resp.text().await?;
+        if status != 200 { return Err(RestApiError::HttpFailure(status, text)) };
         let parsed: RestApiResponse<Data> = serde_json::from_str(text.as_str())?;
         match parsed.code {
             0 => Ok(parsed.data),
