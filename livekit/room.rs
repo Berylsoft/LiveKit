@@ -1,5 +1,5 @@
 use rand::{Rng, thread_rng as rng};
-use tokio::spawn;
+use tokio::{spawn, io::AsyncWriteExt, fs::OpenOptions};
 use futures::Future;
 use async_channel::{unbounded as channel, Receiver};
 use livekit_api::{client::HttpClient, info::{RoomInfo, UserInfo}};
@@ -98,9 +98,20 @@ impl Room {
         }
     }
 
+    pub async fn write_events(&self) -> impl Future<Output = ()> {
+        let receiver = self.subscribe();
+        let mut file = OpenOptions::new().write(true).create(true).append(true)
+            .open(format!("{}/{}.txt", &self.config.common.dump_path, self.id())).await.unwrap();
+        async move {
+            while let Ok(message) = receiver.recv().await {
+                file.write_all(format!("{:?}\n", message).as_bytes()).await.unwrap();
+            }
+        }
+    }
+
     pub fn record(&self) -> Option<impl Future<Output = ()>> {
         use livekit_stream::{flv};
-        match self.config.record.as_ref() {
+        match &self.config.record {
             None => None,
             Some(config) => Some(match config.mode {
                 RecordMode::FlvRaw => flv::download(self.http_client.clone(), self.id(), self.record_file_path()),

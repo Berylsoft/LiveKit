@@ -65,6 +65,8 @@ pub enum Event {
         uface: String,
     },
 
+    RoomStat(RoomStat),
+
     RoomInfoChange(RoomInfoDiff),
 
     LiveStart,
@@ -172,6 +174,10 @@ impl Event {
                 }
             }
 
+            "ROOM_REAL_TIME_MESSAGE_UPDATE" => {
+                Event::RoomStat(to(&raw["data"])?)
+            }
+
             "ROOM_CHANGE" => {
                 Event::RoomInfoChange(to(&raw["data"])?)
             },
@@ -188,7 +194,7 @@ impl Event {
                 Event::Unimplemented
             },
 
-            "STOP_LIVE_ROOM_LIST" | "HOT_RANK_CHANGED" | "HOT_RANK_CHANGED_V2" | "WIDGET_BANNER" | "ONLINE_RANK_COUNT" | "ONLINE_RANK_V2" => {
+            "STOP_LIVE_ROOM_LIST" | "HOT_RANK_CHANGED" | "HOT_RANK_CHANGED_V2" | "WIDGET_BANNER" | "ONLINE_RANK_COUNT" | "ONLINE_RANK_V2" | "NOTICE_MSG" | "ONLINE_RANK_TOP3" => {
                 Event::Ignored
             },
 
@@ -346,15 +352,24 @@ impl InteractKind {
     }
 }
 
+// RoomStat
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RoomStat {
+    pub fans: u32,
+    pub fans_club: u32,
+    // red_notice: -1
+}
+
 // RoomInfoChange
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RoomInfoDiff {
-    parent_area_name: String,
-    area_name: String,
-    title: String,
-    area_id: u16,
-    parent_area_id: u8,
+    pub parent_area_name: String,
+    pub area_name: String,
+    pub title: String,
+    pub area_id: u16,
+    pub parent_area_id: u8,
 }
 
 #[cfg(test)]

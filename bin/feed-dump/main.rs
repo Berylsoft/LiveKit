@@ -18,7 +18,7 @@ struct Args {
 fn main() {
     let Args { roomid, storage_path, export_path, rocks_ver } = Args::from_args();
 
-    let mut file = OpenOptions::new().write(true).append(true).open(export_path).unwrap();
+    let mut file = OpenOptions::new().write(true).create(true).append(true).open(export_path).unwrap();
 
     if let Some(rocks_ver) = rocks_ver {
         let storage = rocksdb::DB::open_default(format!("{}/{}-{}", storage_path, roomid, rocks_ver)).unwrap();

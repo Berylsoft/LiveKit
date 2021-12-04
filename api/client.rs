@@ -3,7 +3,7 @@ use reqwest::{Client, StatusCode, header, Response};
 
 pub const REFERER: &str = "https://live.bilibili.com/";
 pub const API_HOST: &str = "https://api.live.bilibili.com";
-pub const WEB_USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/95.0.4638.69 Safari/537.36";
+pub const WEB_USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.45 Safari/537.36";
 
 #[derive(Debug)]
 pub enum RestApiError {
@@ -11,7 +11,7 @@ pub enum RestApiError {
     HttpFailure(StatusCode),
     Parse(serde_json::Error),
     RateLimited(String),
-    Failure(String),
+    Failure(i32, String),
 }
 
 impl From<reqwest::Error> for RestApiError {
@@ -86,7 +86,7 @@ impl HttpClient {
         match parsed.code {
             0 => Ok(parsed.data),
             412 => Err(RestApiError::RateLimited(text)),
-            _ => Err(RestApiError::Failure(text)),
+            code => Err(RestApiError::Failure(code, text)),
         }
     }
 
