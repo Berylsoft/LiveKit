@@ -1,5 +1,8 @@
 use serde::Deserialize;
+use serde_json::Value as JsonValue;
 use crate::client::{HttpClient, RestApiResult};
+
+/*
 
 type Quality = i32;
 
@@ -55,6 +58,8 @@ pub struct PlayUrlInfo {
     pub playurl: PlayUrl,
 }
 
+*/
+
 #[derive(Deserialize)]
 pub struct PlayInfo {
     // pub room_id: u32,
@@ -71,12 +76,12 @@ pub struct PlayInfo {
     // pub live_time: u64,
     // pub room_shield: _num,
     // pub all_special_types: Vec<_>,
-    pub playurl_info: PlayUrlInfo,
+    pub playurl_info: Option<JsonValue>,
 }
 
 impl PlayInfo {
     #[inline]
-    pub async fn call(client: &HttpClient, roomid: u32, qn: Quality) -> RestApiResult<Self> {
+    pub async fn call(client: &HttpClient, roomid: u32, qn: i32) -> RestApiResult<Self> {
         client.call(format!(
             "/xlive/web-room/v2/index/getRoomPlayInfo?room_id={}&protocol=0,1&format=0,1,2&codec=0,1&qn={}&platform=web&ptype=8",
             roomid,
