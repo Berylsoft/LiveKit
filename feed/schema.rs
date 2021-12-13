@@ -25,7 +25,7 @@ pub enum Event {
         user: User,
         medal: Option<Medal>,
         emoji: Option<DanmakuEmoji>,
-        title: DanmakuTitle,
+        title: Option<Title>,
     },
 
     Interact {
@@ -89,7 +89,6 @@ impl Event {
 
                 let info = &raw[0];
                 let user = &raw[2];
-                let title = &raw[5];
 
                 Event::Danmaku {
                     info: DanmakuInfo {
@@ -109,7 +108,7 @@ impl Event {
                     },
                     medal: Medal::from_danmaku(&raw[3])?,
                     emoji: may_inline_json_opt(&info[13])?,
-                    title: DanmakuTitle(string_opt(&title[0])?, string_opt(&title[1])?),
+                    title: Title::from(&raw[5])?,
                 }
             },
 
@@ -190,11 +189,11 @@ impl Event {
                 Event::LiveEnd
             },
 
-            "LIVE_INTERACTIVE_GAME" | "COMBO_SEND" | "ENTRY_EFFECT" | "SUPER_CHAT_MESSAGE_JPN" => {
+            "LIVE_INTERACTIVE_GAME" | "COMBO_SEND" | "ENTRY_EFFECT" | "SUPER_CHAT_MESSAGE_JPN" | "USER_TOAST_MSG" | "HOT_ROOM_NOTIFY" | "SPECIAL_GIFT" => {
                 Event::Unimplemented
             },
 
-            "STOP_LIVE_ROOM_LIST" | "HOT_RANK_CHANGED" | "HOT_RANK_CHANGED_V2" | "WIDGET_BANNER" | "ONLINE_RANK_COUNT" | "ONLINE_RANK_V2" | "NOTICE_MSG" | "ONLINE_RANK_TOP3" => {
+            "STOP_LIVE_ROOM_LIST" | "HOT_RANK_CHANGED" | "HOT_RANK_CHANGED_V2" | "WIDGET_BANNER" | "ONLINE_RANK_COUNT" | "ONLINE_RANK_V2" | "NOTICE_MSG" | "ONLINE_RANK_TOP3" | "HOT_RANK_SETTLEMENT" | "HOT_RANK_SETTLEMENT_V2" => {
                 Event::Ignored
             },
 
@@ -329,7 +328,25 @@ pub struct DanmakuEmoji {
 }
 
 #[derive(Debug, Serialize)]
-pub struct DanmakuTitle(Option<String>, Option<String>);
+pub struct Title(String, Option<String>);
+
+impl Title {
+    fn from(raw: &JsonValue) -> JsonResult<Option<Self>> {
+        Ok(match string_opt(&raw[0])? {
+            None => None,
+            Some(first) => match string_opt(&raw[1])? {
+                None => Some(Title(first, None)),
+                Some(second) => {
+                    if first == second {
+                        Some(Title(first, None))
+                    } else {
+                        Some(Title(first, Some(second)))
+                    }
+                },
+            },
+        })
+    }
+}
 
 // Interact
 
