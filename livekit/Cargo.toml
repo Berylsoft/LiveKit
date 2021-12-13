@@ -1,7 +1,7 @@
 [package]
 name = "livekit"
 version = "0.2.0"
-edition = "2018"
+edition = "2021"
 authors = ["stackinspector"]
 license = "Apache-2.0"
 repository = "https://github.com/Berylsoft/LiveKit"

@@ -1,4 +1,3 @@
-use std::convert::TryInto;
 use binrw::{BinRead, BinWrite};
 use bytes_codec::{BytesDecodeExt, BytesEncodeExt};
 
