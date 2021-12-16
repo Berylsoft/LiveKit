@@ -51,6 +51,10 @@ fn split_into_kv(pair: &str, pat: char) -> Option<(&str, &str)> {
     }
 }
 
+const K_UID: &str = "DedeUserID";
+const K_KEY: &str = "SESSDATA";
+const K_CSRF: &str = "bili_jct";
+
 impl Access {
     pub fn from_cookie<Str: AsRef<str>>(cookie: Str) -> Option<Access> {
         macro_rules! seat {
@@ -63,7 +67,7 @@ impl Access {
         seat!(key, String);
         seat!(csrf, String);
 
-        for pair in cookie.as_ref().split(";") {
+        for pair in cookie.as_ref().split(';') {
             let (k, v) = split_into_kv(pair.trim(), '=')?;
             let (k, v) = (k.trim(), v.trim());
 
@@ -75,9 +79,9 @@ impl Access {
             }
 
             match k {
-                "DedeUserID" => occupy!(uid),
-                "SESSDATA" => occupy!(key),
-                "bili_jct" => occupy!(csrf),
+                K_UID => occupy!(uid),
+                K_KEY => occupy!(key),
+                K_CSRF => occupy!(csrf),
                 _ => { },
             }
         }
@@ -90,7 +94,7 @@ impl Access {
     }
 
     pub fn as_cookie(&self) -> String {
-        format!("DedeUserID={}; SESSDATA={}; bili_jct={}", self.uid, self.key, self.csrf)
+        format!("{}={}; {}={}; {}={}", K_UID, self.uid, K_KEY, self.key, K_CSRF, self.csrf)
     }
 }
 
