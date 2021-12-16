@@ -35,6 +35,14 @@ pub struct Access {
     pub csrf: String,
 }
 
+fn split_into_kv(pair: &str, pat: char) -> Option<(&str, &str)> {
+    // ref: https://doc.servo.org/src/cookie/parse.rs.html#108-111
+    match pair.find(pat) {
+        Some(i) => Some((&pair[..i], &pair[(i + 1)..])),
+        None => None,
+    }
+}
+
 impl Access {
     pub fn from_cookie<T: AsRef<str>>(cookie: T) -> Option<Access> {
         macro_rules! seat {
@@ -48,11 +56,8 @@ impl Access {
         seat!(csrf, String);
 
         for pair in cookie.as_ref().split(";") {
-            // ref: https://doc.servo.org/src/cookie/parse.rs.html#108-111
-            let (k, v) = match pair.trim().find('=') {
-                Some(i) => (pair[..i].trim(), pair[(i + 1)..].trim()),
-                None => return None,
-            };
+            let (k, v) = split_into_kv(pair.trim(), '=')?;
+            let (k, v) = (k.trim(), v.trim());
 
             macro_rules! occupy {
                 ($name:ident) => {{
@@ -100,8 +105,8 @@ impl HttpClient {
         let mut headers = header::HeaderMap::new();
         let referer = header::HeaderValue::from_str(REFERER).unwrap();
         headers.insert(header::REFERER, referer);
-        if let Some(access) = &access {
-            let mut cookie = header::HeaderValue::from_str(access.as_cookie().as_str()).unwrap();
+        if let Some(_access) = &access {
+            let mut cookie = header::HeaderValue::from_str(_access.as_cookie().as_str()).unwrap();
             cookie.set_sensitive(true);
             headers.insert(header::COOKIE, cookie);
         }
