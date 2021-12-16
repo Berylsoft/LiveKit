@@ -1,0 +1,21 @@
+[package]
+name = "livekit-interactor"
+version = "0.2.0"
+edition = "2018"
+authors = ["stackinspector"]
+license = "Apache-2.0"
+repository = "https://github.com/Berylsoft/LiveKit"
+# description
+# readme
+
+[[bin]]
+name = "livekit-interactor"
+path = "main.rs"
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+structopt = "0.3"
+# project
+livekit-api = { path = "../../api", default-features = false }
