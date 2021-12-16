@@ -5,3 +5,5 @@ pub mod info;
 pub mod feed;
 #[cfg(feature = "stream")]
 pub mod stream;
+#[cfg(feature = "interact")]
+pub mod interact;
