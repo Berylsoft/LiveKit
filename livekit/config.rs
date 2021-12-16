@@ -1,4 +1,5 @@
 use serde::{Serialize, Deserialize};
+use livekit_api::client::Access;
 
 pub const STREAM_RETRY_INTERVEL_MILLISEC: u64 = 6000;
 pub const STREAM_CONNECT_TIMEOUT_MILLISEC: u64 = 5000;
@@ -44,7 +45,7 @@ pub struct RecordConfig {
 pub struct CommonConfig {
     pub storage_path: String,
     pub dump_path: String,
-    pub access_token: Option<String>,
+    pub access: Option<Access>,
     pub api_proxy: Option<String>,
 }
 

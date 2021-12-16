@@ -21,7 +21,7 @@ async fn main() {
     let http_client2 = HttpClient::new_bare().await;
     for Group { config, rooms } in groups {
         let db = open_storage(&config.common.storage_path).unwrap();
-        let http_client = HttpClient::new(config.common.access_token.clone(), config.common.api_proxy.clone()).await;
+        let http_client = HttpClient::new(config.common.access.clone(), config.common.api_proxy.clone()).await;
         for room in rooms {
             if room.operational {
                 let room = Room::init(room.sroomid, config.clone(), &db, http_client.clone(), http_client2.clone()).await;

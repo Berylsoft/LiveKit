@@ -1,5 +1,5 @@
-use serde::{Deserialize, de::DeserializeOwned};
-use reqwest::{Client, header, Response};
+use serde::{Serialize, Deserialize, de::DeserializeOwned};
+use reqwest::{Client, header, Response, IntoUrl};
 
 pub const REFERER: &str = "https://live.bilibili.com/";
 pub const API_HOST: &str = "https://api.live.bilibili.com";
@@ -28,6 +28,59 @@ impl From<serde_json::Error> for RestApiError {
 
 pub type RestApiResult<Data> = Result<Data, RestApiError>;
 
+#[derive(Clone, Serialize, Deserialize)]
+pub struct Access {
+    pub uid: u32,
+    pub key: String,
+    pub csrf: String,
+}
+
+impl Access {
+    pub fn from_cookie<T: AsRef<str>>(cookie: T) -> Option<Access> {
+        macro_rules! seat {
+            ($name:tt, $ty:ty) => {
+                let mut $name: Option<$ty> = None;
+            };
+        }
+
+        seat!(uid, u32);
+        seat!(key, String);
+        seat!(csrf, String);
+
+        for pair in cookie.as_ref().split(";") {
+            // ref: https://doc.servo.org/src/cookie/parse.rs.html#108-111
+            let (k, v) = match pair.trim().find('=') {
+                Some(i) => (pair[..i].trim(), pair[(i + 1)..].trim()),
+                None => return None,
+            };
+
+            macro_rules! occupy {
+                ($name:ident) => {{
+                    if let Some(_) = &$name { return None };
+                    $name = Some(v.parse().ok()?);
+                }};
+            }
+
+            match k {
+                "DedeUserID" => occupy!(uid),
+                "SESSDATA" => occupy!(key),
+                "bili_jct" => occupy!(csrf),
+                _ => { },
+            }
+        }
+
+        Some(Access {
+            uid: uid?,
+            key: key?,
+            csrf: csrf?,
+        })
+    }
+
+    pub fn as_cookie(&self) -> String {
+        format!("DedeUserID={}; SESSDATA={}; bili_jct={}", self.uid, self.key, self.csrf)
+    }
+}
+
 #[derive(Deserialize)]
 pub struct RestApiResponse<Data> {
     pub code: i32,
@@ -39,15 +92,16 @@ pub struct RestApiResponse<Data> {
 pub struct HttpClient {
     host: String,
     client: Client,
+    access: Option<Access>,
 }
 
 impl HttpClient {
-    pub async fn new(access_token: Option<String>, api_proxy: Option<String>) -> Self {
+    pub async fn new(access: Option<Access>, api_proxy: Option<String>) -> Self {
         let mut headers = header::HeaderMap::new();
         let referer = header::HeaderValue::from_str(REFERER).unwrap();
         headers.insert(header::REFERER, referer);
-        if let Some(token) = access_token {
-            let mut cookie = header::HeaderValue::from_str(token.as_str()).unwrap();
+        if let Some(access) = &access {
+            let mut cookie = header::HeaderValue::from_str(access.as_cookie().as_str()).unwrap();
             cookie.set_sensitive(true);
             headers.insert(header::COOKIE, cookie);
         }
@@ -58,6 +112,7 @@ impl HttpClient {
         Self {
             host,
             client: Client::builder().user_agent(WEB_USER_AGENT).default_headers(headers).build().unwrap(),
+            access,
         }
     }
 
@@ -65,18 +120,24 @@ impl HttpClient {
         Self {
             host: API_HOST.to_owned(),
             client: Client::new(),
+            access: None,
         }
     }
 
-    pub async fn get(&self, url: String) -> Result<Response, reqwest::Error> {
+    #[inline]
+    pub async fn get<T: IntoUrl>(&self, url: T) -> reqwest::Result<Response> {
         self.client.get(url).send().await
     }
 
-    pub async fn call<Data>(&self, url: String) -> RestApiResult<Data>
+    #[inline]
+    pub fn url<T: AsRef<str>>(&self, path: T) -> String {
+        format!("{}{}", self.host, path.as_ref())
+    }
+
+    pub async fn proc_call<Data>(&self, resp: Response) -> RestApiResult<Data>
     where
         Data: DeserializeOwned,
     {
-        let resp = self.get(format!("{}{}", self.host, url)).await?;
         let status = resp.status().as_u16();
         let text = resp.text().await?;
         if status != 200 { return Err(RestApiError::HttpFailure(status, text)) };
@@ -86,6 +147,13 @@ impl HttpClient {
             412 => Err(RestApiError::RateLimited(text)),
             code => Err(RestApiError::Failure(code, text)),
         }
+    }
+
+    pub async fn call<Data, T: AsRef<str>>(&self, path: T) -> RestApiResult<Data>
+    where
+        Data: DeserializeOwned,
+    {
+        self.proc_call(self.client.get(self.url(path)).send().await?).await
     }
 
     pub fn clone_raw(&self) -> Client {
