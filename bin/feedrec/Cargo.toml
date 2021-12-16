@@ -13,7 +13,7 @@ name = "feedrec"
 path = "main.rs"
 
 [dependencies]
-tokio = { version = "1.12", features = ["full"] }
+tokio = { version = "1", features = ["full"] }
 log = "0.4"
 log4rs = { version = "1.0", features = ["all_components"] }
 structopt = "0.3"
