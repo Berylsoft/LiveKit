@@ -75,7 +75,7 @@ pub enum Event {
 }
 
 impl Event {
-    pub fn parse<T: AsRef<str>>(raw: T) -> JsonResult<Event> {
+    pub fn parse<Str: AsRef<str>>(raw: Str) -> JsonResult<Event> {
         let raw = raw.as_ref();
 
         let unknown = || Event::Unknown { raw: raw.to_owned() };

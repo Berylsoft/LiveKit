@@ -58,7 +58,7 @@ pub enum FlatPackage {
 }
 
 impl Package {
-    pub fn decode<T: AsRef<[u8]>>(raw: T) -> Self {
+    pub fn decode<Au8: AsRef<[u8]>>(raw: Au8) -> Self {
         let raw = raw.as_ref();
         match Package::try_decode(raw) {
             Ok(package) => package,
@@ -144,7 +144,7 @@ impl Package {
         )
     }
 
-    fn unpack<T: AsRef<[u8]>>(pack: T) -> Result<Self, PackageCodecError> {
+    fn unpack<Au8: AsRef<[u8]>>(pack: Au8) -> Result<Self, PackageCodecError> {
         let pack = pack.as_ref();
         let pack_length = pack.len();
         let mut unpacked = Vec::new();
