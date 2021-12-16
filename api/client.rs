@@ -12,6 +12,8 @@ pub enum RestApiError {
     Parse(serde_json::Error),
     RateLimited(String),
     Failure(i32, String),
+    PostWithoutAccess,
+    EncodePostBody(serde_urlencoded::ser::Error),
 }
 
 impl From<reqwest::Error> for RestApiError {
@@ -23,6 +25,12 @@ impl From<reqwest::Error> for RestApiError {
 impl From<serde_json::Error> for RestApiError {
     fn from(err: serde_json::Error) -> RestApiError {
         RestApiError::Parse(err)
+    }
+}
+
+impl From<serde_urlencoded::ser::Error> for RestApiError {
+    fn from(err: serde_urlencoded::ser::Error) -> RestApiError {
+        RestApiError::EncodePostBody(err)
     }
 }
 
@@ -44,7 +52,7 @@ fn split_into_kv(pair: &str, pat: char) -> Option<(&str, &str)> {
 }
 
 impl Access {
-    pub fn from_cookie<T: AsRef<str>>(cookie: T) -> Option<Access> {
+    pub fn from_cookie<Str: AsRef<str>>(cookie: Str) -> Option<Access> {
         macro_rules! seat {
             ($name:tt, $ty:ty) => {
                 let mut $name: Option<$ty> = None;
@@ -130,13 +138,20 @@ impl HttpClient {
     }
 
     #[inline]
-    pub async fn get<T: IntoUrl>(&self, url: T) -> reqwest::Result<Response> {
+    pub async fn get<Url: IntoUrl>(&self, url: Url) -> reqwest::Result<Response> {
         self.client.get(url).send().await
     }
 
     #[inline]
-    pub fn url<T: AsRef<str>>(&self, path: T) -> String {
+    pub fn url<Str: AsRef<str>>(&self, path: Str) -> String {
         format!("{}{}", self.host, path.as_ref())
+    }
+
+    pub fn csrf(&self) -> RestApiResult<&str> {
+        match &self.access {
+            Some(_access) => Ok(_access.csrf.as_str()),
+            None => Err(RestApiError::PostWithoutAccess),
+        }
     }
 
     pub async fn proc_call<Data: DeserializeOwned>(&self, resp: Response) -> RestApiResult<Data>
@@ -152,9 +167,39 @@ impl HttpClient {
         }
     }
 
-    pub async fn call<Data: DeserializeOwned, T: AsRef<str>>(&self, path: T) -> RestApiResult<Data>
+    pub async fn call<Data: DeserializeOwned, Str: AsRef<str>>(&self, path: Str) -> RestApiResult<Data>
     {
         self.proc_call(self.client.get(self.url(path)).send().await?).await
+    }
+
+    pub async fn call_post<Data: DeserializeOwned, Form: Serialize, Str: AsRef<str>>(&self, path: Str, form: Option<Form>) -> RestApiResult<Data>
+    {
+        let csrf = self.csrf()?;
+
+        let body = match form {
+            Some(_form) => format!(
+                "{}&csrf={}&csrf_token={}",
+                serde_urlencoded::to_string(_form)?,
+                csrf,
+                csrf
+            ),
+            None => format!(
+                "csrf={}&csrf_token={}",
+                csrf,
+                csrf
+            )
+        };
+
+        self.proc_call(
+            self.client
+                .post(self.url(path))
+                .header(
+                    header::CONTENT_TYPE,
+                    header::HeaderValue::from_static("application/x-www-form-urlencoded"),
+                )
+                .body(body)
+                .send().await?
+        ).await
     }
 
     pub fn clone_raw(&self) -> Client {

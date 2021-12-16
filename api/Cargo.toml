@@ -15,6 +15,7 @@ path = "lib.rs"
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+serde_urlencoded = "0.7"
 reqwest = { version = "0.11", default-features = false, features = ["rustls-tls", "stream"] }
 
 [features]
