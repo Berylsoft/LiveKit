@@ -26,9 +26,7 @@ pub mod json {
     use serde_json::{Value, Result};
 
     // same as `serde_json::from_value`, but takes reference
-    pub fn to<T>(value: &Value) -> Result<T>
-    where
-        T: DeserializeOwned,
+    pub fn to<T: DeserializeOwned>(value: &Value) -> Result<T>
     {
         T::deserialize(value)
     }
@@ -46,17 +44,13 @@ pub mod json {
 
     /*
 
-    pub fn inline_json<T>(value: &Value) -> Result<T>
-    where
-        T: DeserializeOwned,
+    pub fn inline_json<T: DeserializeOwned>(value: &Value) -> Result<T>
     {
         let json: String = to(value)?;
         Ok(serde_json::from_str(json.as_str())?)
     }
 
-    pub fn inline_json_opt<T>(value: &Value) -> Result<Option<T>>
-    where
-        T: DeserializeOwned,
+    pub fn inline_json_opt<T: DeserializeOwned>(value: &Value) -> Result<Option<T>>
     {
         let json: String = to(value)?;
         if json == "{}" {
@@ -68,9 +62,7 @@ pub mod json {
 
     */
 
-    pub fn may_inline_json_opt<T>(value: &Value) -> Result<Option<T>>
-    where
-        T: DeserializeOwned,
+    pub fn may_inline_json_opt<T: DeserializeOwned>(value: &Value) -> Result<Option<T>>
     {
         match value.as_str() {
             None => Ok(Some(to(value)?)),

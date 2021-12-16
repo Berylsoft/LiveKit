@@ -139,9 +139,7 @@ impl HttpClient {
         format!("{}{}", self.host, path.as_ref())
     }
 
-    pub async fn proc_call<Data>(&self, resp: Response) -> RestApiResult<Data>
-    where
-        Data: DeserializeOwned,
+    pub async fn proc_call<Data: DeserializeOwned>(&self, resp: Response) -> RestApiResult<Data>
     {
         let status = resp.status().as_u16();
         let text = resp.text().await?;
@@ -154,9 +152,7 @@ impl HttpClient {
         }
     }
 
-    pub async fn call<Data, T: AsRef<str>>(&self, path: T) -> RestApiResult<Data>
-    where
-        Data: DeserializeOwned,
+    pub async fn call<Data: DeserializeOwned, T: AsRef<str>>(&self, path: T) -> RestApiResult<Data>
     {
         self.proc_call(self.client.get(self.url(path)).send().await?).await
     }
