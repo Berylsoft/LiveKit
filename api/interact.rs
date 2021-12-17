@@ -13,11 +13,16 @@ pub struct SendDanmaku {
     pub roomid: u32,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct SentDanmaku {
-    // pub mode: i32,
-    // pub show_player_type: i32,
-    // pub extra: String,
+    pub mode_info: SentDanmakuModeInfo,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct SentDanmakuModeInfo {
+    pub mode: i32,
+    pub show_player_type: i32,
+    pub extra: String,
 }
 
 impl SendDanmaku {

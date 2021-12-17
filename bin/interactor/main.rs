@@ -23,7 +23,7 @@ async fn main() {
     match payload {
         Payload::Danmaku { roomid, msg, rnd, emoji } => {
             let send = SendDanmaku::new(roomid, msg, rnd, emoji);
-            let _sent = send.call(&client).await.unwrap();
+            println!("{:?}", send.call(&client).await);
         }
     }
 }
