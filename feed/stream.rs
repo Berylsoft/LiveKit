@@ -26,6 +26,8 @@ pub struct FeedStream<Socket, Error> {
     error: mpsc::Receiver<Error>,
 }
 
+pub type WsFeedStream = FeedStream<WebSocket, WsError>;
+
 impl FeedStream<WebSocket, WsError> {
     pub async fn connect_ws(roomid: u32, hosts_info: HostsInfo) -> Result<Self, WsError> {
         let (error_sender, error_receiver) = mpsc::channel::<WsError>(2);
@@ -107,6 +109,8 @@ impl Stream for FeedStream<WebSocket, WsError> {
         }
     }
 }
+
+pub type TcpFeedStream = FeedStream<TcpSocket, IoError>;
 
 impl FeedStream<TcpSocket, IoError> {
     pub async fn connect_tcp(roomid: u32, hosts_info: HostsInfo) -> Result<Self, IoError> {

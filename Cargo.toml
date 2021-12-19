@@ -4,6 +4,7 @@ members = [
     "feed",
     "feed-client",
     "flv",
+    "hls",
     "stream",
     "livekit",
     "bin/feedrec",

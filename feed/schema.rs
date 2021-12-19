@@ -189,7 +189,7 @@ impl Event {
                 Event::LiveEnd
             },
 
-            "LIVE_INTERACTIVE_GAME" | "COMBO_SEND" | "ENTRY_EFFECT" | "SUPER_CHAT_MESSAGE_JPN" | "USER_TOAST_MSG" | "HOT_ROOM_NOTIFY" | "SPECIAL_GIFT" => {
+            "LIVE_INTERACTIVE_GAME" | "COMBO_SEND" | "ENTRY_EFFECT" | "SUPER_CHAT_MESSAGE_JPN" | "USER_TOAST_MSG" | "HOT_ROOM_NOTIFY" | "SPECIAL_GIFT" | "VOICE_JOIN_ROOM_COUNT_INFO" | "VOICE_JOIN_LIST" | "VOICE_JOIN_STATUS" => {
                 Event::Unimplemented
             },
 

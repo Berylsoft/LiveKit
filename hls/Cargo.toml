@@ -1,0 +1,15 @@
+[package]
+name = "livekit-hls"
+version = "0.1.0"
+edition = "2021"
+# authors = ["stackinspector"]
+# license = "Apache-2.0"
+repository = "https://github.com/Berylsoft/LiveKit"
+# description
+# readme
+
+[lib]
+name = "livekit_hls"
+path = "lib.rs"
+
+[dependencies]
