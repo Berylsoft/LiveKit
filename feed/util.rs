@@ -26,9 +26,9 @@ pub mod json {
     use serde_json::{Value, Result};
 
     // same as `serde_json::from_value`, but takes reference
-    pub fn to<T: DeserializeOwned>(value: &Value) -> Result<T>
+    pub fn to<De: DeserializeOwned>(value: &Value) -> Result<De>
     {
-        T::deserialize(value)
+        De::deserialize(value)
     }
 
     pub fn numbool(value: &Value) -> Result<bool> {
@@ -44,13 +44,13 @@ pub mod json {
 
     /*
 
-    pub fn inline_json<T: DeserializeOwned>(value: &Value) -> Result<T>
+    pub fn inline_json<De: DeserializeOwned>(value: &Value) -> Result<De>
     {
         let json: String = to(value)?;
         Ok(serde_json::from_str(json.as_str())?)
     }
 
-    pub fn inline_json_opt<T: DeserializeOwned>(value: &Value) -> Result<Option<T>>
+    pub fn inline_json_opt<De: DeserializeOwned>(value: &Value) -> Result<Option<De>>
     {
         let json: String = to(value)?;
         if json == "{}" {
@@ -62,7 +62,7 @@ pub mod json {
 
     */
 
-    pub fn may_inline_json_opt<T: DeserializeOwned>(value: &Value) -> Result<Option<T>>
+    pub fn may_inline_json_opt<De: DeserializeOwned>(value: &Value) -> Result<Option<De>>
     {
         match value.as_str() {
             None => Ok(Some(to(value)?)),

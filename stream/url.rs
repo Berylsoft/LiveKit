@@ -2,9 +2,9 @@ use serde::Deserialize;
 use serde_json::Value as JsonValue;
 use rand::{seq::IteratorRandom, thread_rng as rng};
 
-pub fn to<T: serde::de::DeserializeOwned,>(value: &JsonValue) -> Option<T>
+pub fn to<De: serde::de::DeserializeOwned>(value: &JsonValue) -> Option<De>
 {
-    T::deserialize(value).ok()
+    De::deserialize(value).ok()
 }
 
 #[derive(Debug, PartialEq)]
