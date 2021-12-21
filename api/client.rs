@@ -1,5 +1,5 @@
 use serde::{Serialize, Deserialize, de::DeserializeOwned};
-use reqwest::{Client, header, Response, IntoUrl};
+use reqwest::{Client, header::{self, HeaderValue, HeaderMap}, Response, IntoUrl};
 
 pub const REFERER: &str = "https://live.bilibili.com/";
 pub const API_HOST: &str = "https://api.live.bilibili.com";
@@ -107,37 +107,35 @@ pub struct RestApiResponse<Data> {
 
 #[derive(Clone)]
 pub struct HttpClient {
-    host: String,
     client: Client,
     access: Option<Access>,
+    proxy: Option<String>,
 }
 
 impl HttpClient {
-    pub async fn new(access: Option<Access>, api_proxy: Option<String>) -> Self {
-        let mut headers = header::HeaderMap::new();
-        let referer = header::HeaderValue::from_str(REFERER).unwrap();
-        headers.insert(header::REFERER, referer);
+    pub async fn new(access: Option<Access>, proxy: Option<String>) -> Self {
+        let mut headers = HeaderMap::new();
+        headers.insert(header::REFERER, HeaderValue::from_static(REFERER));
+        headers.insert(header::USER_AGENT, HeaderValue::from_static(WEB_USER_AGENT));
         if let Some(_access) = &access {
-            let mut cookie = header::HeaderValue::from_str(_access.as_cookie().as_str()).unwrap();
-            cookie.set_sensitive(true);
-            headers.insert(header::COOKIE, cookie);
+            headers.insert(header::COOKIE, {
+                let mut cookie = HeaderValue::from_str(_access.as_cookie().as_str()).unwrap();
+                cookie.set_sensitive(true);
+                cookie
+            });
         }
-        let host = match api_proxy {
-            None => API_HOST.to_owned(),
-            Some(host) => host.clone(),
-        };
         Self {
-            host,
-            client: Client::builder().user_agent(WEB_USER_AGENT).default_headers(headers).build().unwrap(),
+            client: Client::builder().default_headers(headers).build().unwrap(),
             access,
+            proxy,
         }
     }
 
     pub async fn new_bare() -> Self {
         Self {
-            host: API_HOST.to_owned(),
             client: Client::new(),
             access: None,
+            proxy: None,
         }
     }
 
@@ -148,7 +146,10 @@ impl HttpClient {
 
     #[inline]
     pub fn url<Str: AsRef<str>>(&self, path: Str) -> String {
-        format!("{}{}", self.host, path.as_ref())
+        format!("{}{}", match &self.proxy {
+            None => API_HOST,
+            Some(proxy) => proxy.as_str(),
+        }, path.as_ref())
     }
 
     pub fn csrf(&self) -> RestApiResult<&str> {
@@ -199,7 +200,7 @@ impl HttpClient {
                 .post(self.url(path))
                 .header(
                     header::CONTENT_TYPE,
-                    header::HeaderValue::from_static("application/x-www-form-urlencoded"),
+                    HeaderValue::from_static("application/x-www-form-urlencoded"),
                 )
                 .body(body)
                 .send().await?
