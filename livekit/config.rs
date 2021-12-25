@@ -77,6 +77,34 @@ pub struct Config {
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct RoomConfig {
-    pub sroomid: u32,
-    pub operational: bool,
+    pub sroomid: Option<u32>,
+    pub _sroomid: Option<u32>,
+}
+
+impl RoomConfig {
+    pub fn unwrap(&self) -> Option<u32> {
+        self.sroomid
+    }
+
+    pub fn decode(&self) -> Option<(u32, bool)> {
+        match self {
+            RoomConfig { sroomid: Some(sroomid), _sroomid: _ } => Some((*sroomid, true)),
+            RoomConfig { sroomid: None, _sroomid: Some(sroomid) } => Some((*sroomid, false)),
+            RoomConfig { sroomid: None, _sroomid: None } => None,
+        }
+    }
+
+    pub fn encode(decoded: (u32, bool)) -> RoomConfig {
+        if decoded.1 {
+            RoomConfig {
+                sroomid: Some(decoded.0),
+                _sroomid: None,
+            }
+        } else {
+            RoomConfig {
+                sroomid: None,
+                _sroomid: Some(decoded.0),
+            }
+        }
+    }
 }

@@ -23,8 +23,8 @@ async fn main() {
         let db = open_storage(&config.storage.path).unwrap();
         let http_client = HttpConfig::build(config.http.clone()).await;
         for room in rooms {
-            if room.operational {
-                let room = Room::init(room.sroomid, &config, &db, http_client.clone(), http_client2.clone()).await;
+            if let Some(sroomid) = room.unwrap() {
+                let room = Room::init(sroomid, &config, &db, http_client.clone(), http_client2.clone()).await;
                 assert!(config.dump.is_some());
                 if let Some(_) = &config.dump {
                     spawn(room.dump().await);
