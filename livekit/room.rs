@@ -7,6 +7,15 @@ use livekit_api::{client::HttpClient, info::{RoomInfo, UserInfo}};
 use livekit_feed_client::{storage::sled::Db, schema::Event, client::client_sender};
 use crate::config::*;
 
+macro_rules! template {
+    ($template:expr, $($k:expr => $v:expr),*, $(,)?) => {
+        $template
+        $(
+            .replace($k, $v.as_str())
+        )*
+    };
+}
+
 pub struct Room {
     roomid: u32,
     info: RoomInfo,
@@ -39,16 +48,16 @@ impl Room {
         self.roomid
     }
 
-    pub fn config(&self) -> Config {
-        self.config.clone()
+    pub fn config(&self) -> &Config {
+        &self.config
     }
 
-    pub fn info(&self) -> RoomInfo {
-        self.info.clone()
+    pub fn info(&self) -> &RoomInfo {
+        &self.info
     }
 
-    pub fn user_info(&self) -> UserInfo {
-        self.user_info.clone()
+    pub fn user_info(&self) -> &UserInfo {
+        &self.user_info
     }
 
     pub async fn update_info(&mut self) {
@@ -68,18 +77,20 @@ impl Room {
         );
         let time = chrono::Local::now();
 
-        template
-            .replace("{date}", time.format("%Y%m%d").to_string().as_str())
-            .replace("{time}", time.format("%H%M%S").to_string().as_str())
-            .replace("{ms}", time.format("%3f").to_string().as_str())
-            .replace("{iso8601}", time.to_rfc3339_opts(chrono::SecondsFormat::Millis, false).to_string().as_str())
-            .replace("{ts}", time.timestamp_millis().to_string().as_str())
-            .replace("{random}", rng().gen_range(0..100).to_string().as_str())
-            .replace("{roomid}", self.roomid.to_string().as_str())
-            .replace("{title}", self.info.title.as_str())
-            .replace("{name}", self.user_info.info.uname.as_str())
-            .replace("{parea}", self.info.parent_area_name.as_str())
-            .replace("{area}", self.info.area_name.as_str())
+        template!(
+            template,
+            "{date}"    => time.format("%Y%m%d").to_string(),
+            "{time}"    => time.format("%H%M%S").to_string(),
+            "{ms}"      => time.format("%3f").to_string(),
+            "{iso8601}" => time.to_rfc3339_opts(chrono::SecondsFormat::Millis, false).to_string(),
+            "{ts}"      => time.timestamp_millis().to_string(),
+            "{random}"  => rng().gen_range(0..100).to_string(),
+            "{roomid}"  => self.roomid.to_string(),
+            "{title}"   => self.info.title,
+            "{name}"    => self.user_info.info.uname,
+            "{parea}"   => self.info.parent_area_name,
+            "{area}"    => self.info.area_name,
+        )
     }
 
     pub fn subscribe(&self) -> Receiver<Event> {
