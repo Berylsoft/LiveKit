@@ -25,7 +25,7 @@ async fn main() {
         for room in rooms {
             if room.operational {
                 let room = Room::init(room.sroomid, config.clone(), &db, http_client.clone(), http_client2.clone()).await;
-                spawn(room.write_events().await);
+                spawn(room.write_events(true).await);
                 if let Some(record) = room.record() {
                     spawn(record);
                 }

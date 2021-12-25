@@ -1,5 +1,6 @@
+use std::{io::Write, fs::OpenOptions};
 use rand::{Rng, thread_rng as rng};
-use tokio::{spawn, io::AsyncWriteExt, fs::OpenOptions};
+use tokio::spawn;
 use futures::Future;
 use async_channel::{unbounded as channel, Receiver};
 use livekit_api::{client::HttpClient, info::{RoomInfo, UserInfo}};
@@ -63,7 +64,7 @@ impl Room {
         let template = format!(
             "{}/{}.flv",
             config.file_root,
-            match config.file_template.as_ref() {
+            match &config.file_template {
                 None => STREAM_DEFAULT_FILE_TEMPLATE,
                 Some(template) => template.as_str(),
             },
@@ -98,13 +99,18 @@ impl Room {
         }
     }
 
-    pub async fn write_events(&self) -> impl Future<Output = ()> {
+    pub async fn write_events(&self, debug: bool) -> impl Future<Output = ()> {
         let receiver = self.subscribe();
         let mut file = OpenOptions::new().write(true).create(true).append(true)
-            .open(format!("{}/{}.txt", &self.config.common.dump_path, self.id())).await.unwrap();
+            .open(format!("{}/{}.txt", &self.config.common.dump_path, self.id())).unwrap();
         async move {
             while let Ok(message) = receiver.recv().await {
-                file.write_all(format!("{:?}\n", message).as_bytes()).await.unwrap();
+                if debug {
+                    write!(file, "{:?}", message).unwrap();
+                } else {
+                    serde_json::to_writer(&mut file, &message).unwrap();
+                }
+                writeln!(file).unwrap();
             }
         }
     }
