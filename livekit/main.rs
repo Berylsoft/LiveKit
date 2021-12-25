@@ -16,18 +16,20 @@ struct Args {
 #[tokio::main]
 async fn main() {
     let config = read_to_string(Args::from_args().config_path).await.unwrap();
-    let groups: Vec<Group> = serde_json::from_str(config.as_str()).unwrap();
+    let Groups { group } = toml::from_str(config.as_str()).unwrap();
 
     let http_client2 = HttpClient::new_bare().await;
-    for Group { config, rooms } in groups {
+    for Group { config, rooms } in group {
         let db = open_storage(&config.storage.path).unwrap();
         let http_client = HttpConfig::build(config.http.clone()).await;
-        for room in rooms {
-            if let Some(sroomid) = room.unwrap() {
+        for _sroomid in rooms {
+            if _sroomid >= 0 {
+                let sroomid = _sroomid.try_into().unwrap();
                 let room = Room::init(sroomid, &config, &db, http_client.clone(), http_client2.clone()).await;
-                assert!(config.dump.is_some());
                 if let Some(_) = &config.dump {
                     spawn(room.dump().await);
+                } else {
+                    panic!();
                 }
                 if let Some(_) = &config.record {
                     spawn(room.record());

@@ -24,10 +24,10 @@ pub struct RoomInfo {
 
 impl RoomInfo {
     #[inline]
-    pub async fn call(client: &HttpClient, roomid: u32) -> RestApiResult<Self> {
+    pub async fn call(client: &HttpClient, sroomid: u32) -> RestApiResult<Self> {
         client.call(format!(
             "/room/v1/Room/get_info?id={}",
-            roomid
+            sroomid
         )).await
     }
 }

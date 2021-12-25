@@ -10,9 +10,14 @@ pub const ROOM_INFO_UPDATE_INTERVAL_SEC: u64 = 600;
 pub const STREAM_DEFAULT_FILE_TEMPLATE: &str = "{roomid}-{date}-{time}{ms}-{title}";
 
 #[derive(Serialize, Deserialize, Clone)]
+pub struct Groups {
+    pub group: Vec<Group>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Group {
     pub config: Config,
-    pub rooms: Vec<RoomConfig>,
+    pub rooms: Vec<i64>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -36,8 +41,8 @@ pub enum RecordFragmentMode {
 pub struct RecordConfig {
     pub mode: RecordMode,
     pub quality: Option<Vec<i32>>,
-    pub file_root: String,
-    pub file_template: Option<String>,
+    pub path: String,
+    pub name_template: Option<String>,
     pub fragment: Option<RecordFragmentMode>,
 }
 
@@ -73,38 +78,4 @@ pub struct Config {
     pub http: Option<HttpConfig>,
     pub dump: Option<DumpConfig>,
     pub record: Option<RecordConfig>,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub struct RoomConfig {
-    pub sroomid: Option<u32>,
-    pub _sroomid: Option<u32>,
-}
-
-impl RoomConfig {
-    pub fn unwrap(&self) -> Option<u32> {
-        self.sroomid
-    }
-
-    pub fn decode(&self) -> Option<(u32, bool)> {
-        match self {
-            RoomConfig { sroomid: Some(sroomid), _sroomid: _ } => Some((*sroomid, true)),
-            RoomConfig { sroomid: None, _sroomid: Some(sroomid) } => Some((*sroomid, false)),
-            RoomConfig { sroomid: None, _sroomid: None } => None,
-        }
-    }
-
-    pub fn encode(decoded: (u32, bool)) -> RoomConfig {
-        if decoded.1 {
-            RoomConfig {
-                sroomid: Some(decoded.0),
-                _sroomid: None,
-            }
-        } else {
-            RoomConfig {
-                sroomid: None,
-                _sroomid: Some(decoded.0),
-            }
-        }
-    }
 }

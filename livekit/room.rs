@@ -69,8 +69,8 @@ impl Room {
         let config = self.config.record.as_ref().unwrap();
         let template = format!(
             "{}/{}.flv",
-            config.file_root,
-            match &config.file_template {
+            config.path,
+            match &config.name_template {
                 None => STREAM_DEFAULT_FILE_TEMPLATE,
                 Some(template) => template.as_str(),
             },
