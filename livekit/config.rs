@@ -1,5 +1,5 @@
 use serde::{Serialize, Deserialize};
-use livekit_api::client::Access;
+use livekit_api::client::{Access, HttpClient};
 
 pub const STREAM_RETRY_INTERVEL_MILLISEC: u64 = 6000;
 pub const STREAM_CONNECT_TIMEOUT_MILLISEC: u64 = 5000;
@@ -42,16 +42,36 @@ pub struct RecordConfig {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
-pub struct CommonConfig {
-    pub storage_path: String,
-    pub dump_path: String,
-    pub access: Option<Access>,
-    pub api_proxy: Option<String>,
+pub struct HttpConfig {
+    access: Option<Access>,
+    proxy: Option<String>,
+}
+
+impl HttpConfig {
+    pub async fn build(config: Option<HttpConfig>) -> HttpClient {
+        match config {
+            Some(HttpConfig { access, proxy }) => HttpClient::new(access, proxy).await,
+            None => HttpClient::new(None, None).await,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct DumpConfig {
+    pub path: String,
+    pub debug: Option<bool>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct StorageConfig {
+    pub path: String,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Config {
-    pub common: CommonConfig,
+    pub storage: StorageConfig,
+    pub http: Option<HttpConfig>,
+    pub dump: Option<DumpConfig>,
     pub record: Option<RecordConfig>,
 }
 

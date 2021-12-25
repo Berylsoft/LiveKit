@@ -5,10 +5,7 @@ use futures::Future;
 use async_channel::{unbounded as channel, Receiver};
 use livekit_api::{client::HttpClient, info::{RoomInfo, UserInfo}};
 use livekit_feed_client::{storage::sled::Db, schema::Event, client::client_sender};
-use crate::config::{
-    STREAM_DEFAULT_FILE_TEMPLATE,
-    Config, RecordMode,
-};
+use crate::config::*;
 
 pub struct Room {
     roomid: u32,
@@ -20,7 +17,7 @@ pub struct Room {
 }
 
 impl Room {
-    pub async fn init(sroomid: u32, config: Config, db: &Db, http_client: HttpClient, http_client2: HttpClient) -> Self {
+    pub async fn init(sroomid: u32, config: &Config, db: &Db, http_client: HttpClient, http_client2: HttpClient) -> Self {
         let info = RoomInfo::call(&http_client, sroomid).await.unwrap();
         let roomid = info.room_id;
         let user_info = UserInfo::call(&http_client, roomid).await.unwrap();
@@ -33,7 +30,7 @@ impl Room {
             info,
             user_info,
             receiver,
-            config,
+            config: config.clone(),
             http_client,
         }
     }
@@ -89,20 +86,12 @@ impl Room {
         self.receiver.clone()
     }
 
-    pub fn print_events_to_stdout(&self) -> impl Future<Output = ()> {
-        let receiver = self.subscribe();
-        let roomid = self.id();
-        async move {
-            while let Ok(message) = receiver.recv().await {
-                println!("[{: >10}] {:?}", roomid, message);
-            }
-        }
-    }
-
-    pub async fn write_events(&self, debug: bool) -> impl Future<Output = ()> {
+    pub async fn dump(&self) -> impl Future<Output = ()> {
+        let config = self.config.dump.as_ref().unwrap();
+        let debug = if let Some(true) = config.debug { true } else { false };
         let receiver = self.subscribe();
         let mut file = OpenOptions::new().write(true).create(true).append(true)
-            .open(format!("{}/{}.txt", &self.config.common.dump_path, self.id())).unwrap();
+            .open(format!("{}/{}.txt", config.path, self.id())).unwrap();
         async move {
             while let Ok(message) = receiver.recv().await {
                 if debug {
@@ -115,14 +104,12 @@ impl Room {
         }
     }
 
-    pub fn record(&self) -> Option<impl Future<Output = ()>> {
+    pub fn record(&self) -> impl Future<Output = ()> {
         use livekit_stream::{flv};
-        match &self.config.record {
-            None => None,
-            Some(config) => Some(match config.mode {
-                RecordMode::FlvRaw => flv::download(self.http_client.clone(), self.id(), self.record_file_path()),
-                _ => unimplemented!(),
-            })
+        let config = self.config.record.as_ref().unwrap();
+        match config.mode {
+            RecordMode::FlvRaw => flv::download(self.http_client.clone(), self.id(), self.record_file_path()),
+            _ => unimplemented!(),
         }
     }
 }

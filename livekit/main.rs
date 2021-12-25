@@ -3,7 +3,7 @@ use tokio::{spawn, signal, fs::read_to_string};
 use livekit_api::client::HttpClient;
 use livekit::{
     storage::open_storage,
-    config::Group,
+    config::*,
     room::Room,
 };
 
@@ -20,14 +20,17 @@ async fn main() {
 
     let http_client2 = HttpClient::new_bare().await;
     for Group { config, rooms } in groups {
-        let db = open_storage(&config.common.storage_path).unwrap();
-        let http_client = HttpClient::new(config.common.access.clone(), config.common.api_proxy.clone()).await;
+        let db = open_storage(&config.storage.path).unwrap();
+        let http_client = HttpConfig::build(config.http.clone()).await;
         for room in rooms {
             if room.operational {
-                let room = Room::init(room.sroomid, config.clone(), &db, http_client.clone(), http_client2.clone()).await;
-                spawn(room.write_events(true).await);
-                if let Some(record) = room.record() {
-                    spawn(record);
+                let room = Room::init(room.sroomid, &config, &db, http_client.clone(), http_client2.clone()).await;
+                assert!(config.dump.is_some());
+                if let Some(_) = &config.dump {
+                    spawn(room.dump().await);
+                }
+                if let Some(_) = &config.record {
+                    spawn(room.record());
                 }
             }
         }
