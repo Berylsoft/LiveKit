@@ -1,13 +1,14 @@
-pub struct Timestamp(i64); // u64?
+pub struct Timestamp(u64);
 
 #[cfg(feature = "package")]
 impl Timestamp {
     pub fn now() -> Self {
-        Timestamp(chrono::Utc::now().timestamp_millis())
+        use std::time::{SystemTime, UNIX_EPOCH};
+        Timestamp(SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis().try_into().unwrap())
     }
 
     #[inline]
-    pub fn digits(&self) -> i64 {
+    pub fn digits(&self) -> u64 {
         self.0
     }
 
@@ -16,7 +17,7 @@ impl Timestamp {
     }
 
     pub fn from_bytes(raw: [u8; 8]) -> Timestamp {
-        Timestamp(i64::from_be_bytes(raw))
+        Timestamp(u64::from_be_bytes(raw))
     }
 }
 

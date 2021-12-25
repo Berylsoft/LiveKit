@@ -15,7 +15,6 @@ path = "lib.rs"
 [dependencies]
 hex = { version = "0.4", optional = true }
 rand = { version = "0.8", optional = true }
-chrono = { version = "0.4", optional = true }
 log = { version = "0.4", optional = true }
 # compress
 brotli-decompressor = { version = "2.3", optional = true }
@@ -38,6 +37,6 @@ hex-literal = "0.3"
 
 [features]
 default = ["package", "stream", "schema"]
-package = ["chrono", "binrw", "bytes-codec", "brotli-decompressor"]
+package = ["binrw", "bytes-codec", "brotli-decompressor"]
 stream = ["log", "rand", "futures", "tokio-tungstenite",  "livekit-api",  "package"]
 schema = ["hex"]

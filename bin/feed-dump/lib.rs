@@ -4,7 +4,7 @@ use livekit_feed_client::{util::Timestamp, package::Package};
 
 #[derive(serde::Serialize)]
 pub struct Record {
-    time: i64,
+    time: u64,
     payloads: JsonValue,
 }
 
