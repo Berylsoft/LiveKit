@@ -2,7 +2,7 @@ use structopt::StructOpt;
 use tokio::{spawn, signal, fs::read_to_string};
 use livekit_api::client::HttpClient;
 use livekit::{
-    storage::open_storage,
+    storage::open_db,
     config::*,
     room::Room,
 };
@@ -20,7 +20,7 @@ async fn main() {
 
     let http_client2 = HttpClient::new_bare().await;
     for Group { config, rooms } in group {
-        let db = open_storage(&config.storage.path).unwrap();
+        let db = open_db(&config.storage.path).unwrap();
         let http_client = HttpConfig::build(config.http.clone()).await;
         for _sroomid in rooms {
             if _sroomid >= 0 {

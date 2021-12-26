@@ -8,7 +8,7 @@ use structopt::StructOpt;
 use tokio::{spawn, signal, time::{sleep, Duration}};
 use livekit_api::client::HttpClient;
 use livekit_feed::config::*;
-use livekit_feed_client::{client::client_rec, storage::open_storage};
+use livekit_feed_client::{client::client_rec, storage::{open_db, open_storage}};
 
 pub fn log_config(path: String, debug: bool) -> Config {
     Config::builder()
@@ -49,10 +49,10 @@ async fn main() {
     if let Some(log_path) = log_path {
         log4rs::init_config(log_config(log_path, log_debug)).unwrap();
     }
-    let db = open_storage(storage_path).unwrap();
+    let db = open_db(storage_path).unwrap();
     let http_client = HttpClient::new_bare().await;
     for roomid in roomid_list.split(",").map(|roomid| roomid.parse::<u32>().unwrap()) {
-        let storage = db.open_tree(roomid.to_string()).unwrap();
+        let storage = open_storage(&db, roomid).unwrap();
         spawn(client_rec(roomid, http_client.clone(), storage));
         sleep(Duration::from_millis(FEED_INIT_INTERVAL_MS)).await;
     }

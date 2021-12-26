@@ -5,7 +5,7 @@ use futures::Future;
 use async_channel::{unbounded as channel, Receiver};
 use livekit_api::{client::HttpClient, info::{RoomInfo, UserInfo}};
 use livekit_feed::schema::Event;
-use livekit_feed_client::{storage::sled::Db, client::client_sender};
+use livekit_feed_client::{storage::{sled::Db, open_storage}, client::client_sender};
 use crate::config::*;
 
 macro_rules! template {
@@ -32,7 +32,7 @@ impl Room {
         let roomid = info.room_id;
         let user_info = UserInfo::call(&http_client, roomid).await.unwrap();
         let (sender, receiver) = channel();
-        let storage = db.open_tree(roomid.to_string()).unwrap();
+        let storage = open_storage(&db, roomid).unwrap();
         spawn(client_sender(roomid, http_client2, storage, sender));
 
         Room {

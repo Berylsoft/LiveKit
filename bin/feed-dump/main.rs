@@ -1,6 +1,6 @@
 use structopt::StructOpt;
 use std::{io::Write, fs::OpenOptions};
-use livekit_feed_client::storage::open_storage;
+use livekit_feed_client::storage::{open_db, open_storage};
 use livekit_feed_dump::*;
 
 #[derive(StructOpt)]
@@ -26,8 +26,8 @@ fn main() {
             writeln!(file, "{}", record(k, v)).unwrap();
         }
     } else {
-        let db = open_storage(storage_path).unwrap();
-        let storage = db.open_tree(roomid.to_string()).unwrap();
+        let db = open_db(storage_path).unwrap();
+        let storage = open_storage(&db, roomid).unwrap();
         for kv in storage.iter() {
             let (k, v) = kv.unwrap();
             writeln!(file, "{}", record(k, v)).unwrap();
