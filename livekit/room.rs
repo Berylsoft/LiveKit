@@ -5,7 +5,8 @@ use futures::Future;
 use async_channel::{unbounded as channel, Receiver};
 use livekit_api::{client::HttpClient, info::{RoomInfo, UserInfo}};
 use livekit_feed::schema::Event;
-use livekit_feed_client::{storage::{sled::Db, open_storage}, client::client_sender};
+use livekit_feed_storage::{sled::Db, open_storage};
+use livekit_feed_client::thread::client_sender;
 use crate::config::*;
 
 macro_rules! template {

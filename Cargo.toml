@@ -2,6 +2,7 @@
 members = [
     "api",
     "feed",
+    "feed-storage",
     "feed-client",
     "flv",
     "hls",

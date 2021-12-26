@@ -1,11 +1,8 @@
 use structopt::StructOpt;
 use tokio::{spawn, signal, fs::read_to_string};
 use livekit_api::client::HttpClient;
-use livekit::{
-    storage::open_db,
-    config::*,
-    room::Room,
-};
+use livekit_feed_storage::open_db;
+use livekit::{config::*, room::Room};
 
 #[derive(StructOpt)]
 struct Args {

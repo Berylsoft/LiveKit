@@ -1,6 +1,6 @@
 use structopt::StructOpt;
 use std::{io::Write, fs::OpenOptions};
-use livekit_feed_client::storage::{open_db, open_storage};
+use livekit_feed_storage::{open_db, open_storage};
 use livekit_feed_dump::*;
 
 #[derive(StructOpt)]

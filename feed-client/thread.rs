@@ -8,7 +8,7 @@ use livekit_feed::{
     config::*,
     stream::FeedStream, package::Package, schema::Event,
 };
-use crate::storage::{sled::Tree, Insert};
+use livekit_feed_storage::{sled::Tree, insert_payload};
 
 macro_rules! unwrap_or_continue {
     ($res:expr, $or:expr) => {
@@ -50,7 +50,7 @@ pub async fn client_rec(roomid: u32, http_client: HttpClient, storage: Tree) {
     loop {
         let mut stream = connect_impl!(roomid, http_client);
         while let Some(payload) = stream.next().await {
-            payload.insert(&storage).unwrap();
+            insert_payload(&storage, &payload).unwrap();
         }
         close_impl!(roomid);
     }
@@ -61,7 +61,7 @@ pub async fn client_sender(roomid: u32, http_client: HttpClient, storage: Tree, 
     loop {
         let mut stream = connect_impl!(roomid, http_client);
         while let Some(payload) = stream.next().await {
-            payload.insert(&storage).unwrap();
+            insert_payload(&storage, &payload).unwrap();
             for package in Package::decode(payload.payload).flatten() {
                 sender.send(Event::from_package(package)).await.unwrap();
             }

@@ -6,6 +6,7 @@ An experimental Bilibili Live support library with utilities. Written in Rust, d
 |-------|------|-------------|
 | livekit-api | lib | HTTP请求与REST API封装 |
 | livekit-feed | lib | 信息流协议及数据解析 |
+| livekit-feed-storage | lib | 信息流存储相关封装 |
 | livekit-feed-client | lib | 信息流封装 |
 | livekit-stream | lib | 直播流拉取与记录 |
 | livekit-flv | lib | FLV直播流解析与修复 |

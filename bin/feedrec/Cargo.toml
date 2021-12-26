@@ -20,4 +20,4 @@ structopt = "0.3"
 # project
 livekit-api = { path = "../../api", default-features = false }
 livekit-feed = { path = "../../feed" }
-livekit-feed-client = { path = "../../feed-client" }
+livekit-feed-storage = { path = "../../feed-storage", features = ["rec"] }
