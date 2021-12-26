@@ -7,7 +7,8 @@ use log4rs::{
 use structopt::StructOpt;
 use tokio::{spawn, signal, time::{sleep, Duration}};
 use livekit_api::client::HttpClient;
-use livekit_feed_client::{config::FEED_INIT_INTERVAL_MILLISEC, client::client_rec, storage::open_storage};
+use livekit_feed::config::*;
+use livekit_feed_client::{client::client_rec, storage::open_storage};
 
 pub fn log_config(path: String, debug: bool) -> Config {
     Config::builder()
@@ -53,7 +54,7 @@ async fn main() {
     for roomid in roomid_list.split(",").map(|roomid| roomid.parse::<u32>().unwrap()) {
         let storage = db.open_tree(roomid.to_string()).unwrap();
         spawn(client_rec(roomid, http_client.clone(), storage));
-        sleep(Duration::from_millis(FEED_INIT_INTERVAL_MILLISEC)).await;
+        sleep(Duration::from_millis(FEED_INIT_INTERVAL_MS)).await;
     }
     signal::ctrl_c().await.unwrap();
 }

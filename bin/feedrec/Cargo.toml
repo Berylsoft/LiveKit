@@ -19,4 +19,5 @@ log4rs = { version = "1.0", features = ["all_components"] }
 structopt = "0.3"
 # project
 livekit-api = { path = "../../api", default-features = false }
+livekit-feed = { path = "../../feed" }
 livekit-feed-client = { path = "../../feed-client" }

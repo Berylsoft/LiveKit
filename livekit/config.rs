@@ -1,10 +1,6 @@
 use serde::{Serialize, Deserialize};
 use livekit_api::client::{Access, HttpClient};
 
-pub const STREAM_RETRY_INTERVEL_MILLISEC: u64 = 6000;
-pub const STREAM_CONNECT_TIMEOUT_MILLISEC: u64 = 5000;
-pub const STREAM_NO_DATA_TIMEOUT_MILLISEC: u64 = 10000;
-
 pub const ROOM_INFO_UPDATE_INTERVAL_SEC: u64 = 600;
 
 pub const STREAM_DEFAULT_FILE_TEMPLATE: &str = "{roomid}-{date}-{time}{ms}-{title}";

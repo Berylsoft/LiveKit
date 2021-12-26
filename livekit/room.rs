@@ -4,7 +4,8 @@ use tokio::spawn;
 use futures::Future;
 use async_channel::{unbounded as channel, Receiver};
 use livekit_api::{client::HttpClient, info::{RoomInfo, UserInfo}};
-use livekit_feed_client::{storage::sled::Db, schema::Event, client::client_sender};
+use livekit_feed::schema::Event;
+use livekit_feed_client::{storage::sled::Db, client::client_sender};
 use crate::config::*;
 
 macro_rules! template {
@@ -104,11 +105,11 @@ impl Room {
         let mut file = OpenOptions::new().write(true).create(true).append(true)
             .open(format!("{}/{}.txt", config.path, self.id())).unwrap();
         async move {
-            while let Ok(message) = receiver.recv().await {
+            while let Ok(event) = receiver.recv().await {
                 if debug {
-                    write!(file, "{:?}", message).unwrap();
+                    write!(file, "{:?}", event).unwrap();
                 } else {
-                    serde_json::to_writer(&mut file, &message).unwrap();
+                    serde_json::to_writer(&mut file, &event).unwrap();
                 }
                 writeln!(file).unwrap();
             }

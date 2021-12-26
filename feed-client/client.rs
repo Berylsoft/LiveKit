@@ -4,12 +4,11 @@ use futures::StreamExt;
 use async_channel::Sender;
 use livekit_api::{client::HttpClient, feed::HostsInfo};
 // #[cfg(feature = "client_rec")]
-use crate::storage::sled::Tree;
-use crate::{
-    config::{FEED_RETRY_INTERVAL_MILLISEC, FEED_INIT_RETRY_INTERVAL_SEC},
-    util::Timestamp,
+use livekit_feed::{
+    config::*,
     stream::FeedStream, package::Package, schema::Event,
 };
+use crate::storage::{sled::Tree, Insert};
 
 macro_rules! unwrap_or_continue {
     ($res:expr, $or:expr) => {
@@ -42,7 +41,7 @@ macro_rules! connect_impl {
 macro_rules! close_impl {
     ($roomid:expr) => {{
         log::info!("[{: >10}] close", $roomid);
-        sleep(Duration::from_millis(FEED_RETRY_INTERVAL_MILLISEC)).await;
+        sleep(Duration::from_millis(FEED_RETRY_INTERVAL_MS)).await;
     }};
 }
 
@@ -50,8 +49,8 @@ macro_rules! close_impl {
 pub async fn client_rec(roomid: u32, http_client: HttpClient, storage: Tree) {
     loop {
         let mut stream = connect_impl!(roomid, http_client);
-        while let Some(message) = stream.next().await {
-            storage.insert(Timestamp::now().to_bytes(), message.as_slice()).unwrap();
+        while let Some(payload) = stream.next().await {
+            payload.insert(&storage).unwrap();
         }
         close_impl!(roomid);
     }
@@ -61,9 +60,9 @@ pub async fn client_rec(roomid: u32, http_client: HttpClient, storage: Tree) {
 pub async fn client_sender(roomid: u32, http_client: HttpClient, storage: Tree, sender: Sender<Event>) {
     loop {
         let mut stream = connect_impl!(roomid, http_client);
-        while let Some(message) = stream.next().await {
-            storage.insert(Timestamp::now().to_bytes(), message.as_slice()).unwrap();
-            for package in Package::decode(message).flatten() {
+        while let Some(payload) = stream.next().await {
+            payload.insert(&storage).unwrap();
+            for package in Package::decode(payload.payload).flatten() {
                 sender.send(Event::from_package(package)).await.unwrap();
             }
         }
@@ -75,8 +74,8 @@ pub async fn client_sender(roomid: u32, http_client: HttpClient, storage: Tree, 
 pub async fn client_sender_only(roomid: u32, http_client: HttpClient, sender: Sender<Event>) {
     loop {
         let mut stream = connect_impl!(roomid, http_client);
-        while let Some(message) = stream.next().await {
-            for package in Package::decode(message).flatten() {
+        while let Some(payload) = stream.next().await {
+            for package in Package::decode(payload.payload).flatten() {
                 sender.send(Event::from_package(package)).await.unwrap();
             }
         }

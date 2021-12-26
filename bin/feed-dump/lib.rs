@@ -1,6 +1,6 @@
 use std::convert::TryInto;
 use serde_json::Value as JsonValue;
-use livekit_feed_client::{util::Timestamp, package::Package};
+use livekit_feed::{util::Timestamp, package::Package};
 
 #[derive(serde::Serialize)]
 pub struct Record {

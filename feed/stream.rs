@@ -4,7 +4,7 @@ use tokio::{
     time::{self, Duration},
     sync::mpsc::{self, error::TryRecvError},
     io::{Error as IoError, AsyncRead, AsyncWriteExt, ReadBuf},
-    net::{TcpStream, tcp::OwnedReadHalf as TcpSocket},
+    net::{TcpStream, tcp::OwnedReadHalf as TcpStreamHalf},
 };
 use futures::{Stream, StreamExt, SinkExt, ready};
 use rand::{seq::SliceRandom, thread_rng as rng};
@@ -14,21 +14,27 @@ use tokio_tungstenite::{
 };
 use livekit_api::feed::HostsInfo;
 use crate::{
-    config::{FEED_HEARTBEAT_RATE_SEC, FEED_TCP_BUFFER_SIZE},
+    util::Timestamp,
+    config::*,
     package::Package,
 };
 
-type WebSocket = futures::stream::SplitStream<tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>>;
+type WsStreamHalf = futures::stream::SplitStream<tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>>;
 
-pub struct FeedStream<Socket, Error> {
-    roomid: u32,
-    socket: Socket,
-    error: mpsc::Receiver<Error>,
+pub struct FeedStreamPayload {
+    pub time: Timestamp,
+    pub payload: Vec<u8>,
 }
 
-pub type WsFeedStream = FeedStream<WebSocket, WsError>;
+pub struct FeedStream<T, E> {
+    roomid: u32,
+    inner: T,
+    error: mpsc::Receiver<E>,
+}
 
-impl FeedStream<WebSocket, WsError> {
+pub type WsFeedStream = FeedStream<WsStreamHalf, WsError>;
+
+impl WsFeedStream {
     pub async fn connect_ws(roomid: u32, hosts_info: HostsInfo) -> Result<Self, WsError> {
         let (error_sender, error_receiver) = mpsc::channel::<WsError>(2);
 
@@ -57,17 +63,17 @@ impl FeedStream<WebSocket, WsError> {
 
         Ok(Self {
             roomid,
-            socket: receiver,
+            inner: receiver,
             error: error_receiver,
         })
     }
 }
 
-impl Stream for FeedStream<WebSocket, WsError> {
-    type Item = Vec<u8>;
+impl Stream for WsFeedStream {
+    type Item = FeedStreamPayload;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        let message = ready!(Pin::new(&mut self.socket).poll_next(cx));
+        let message = ready!(Pin::new(&mut self.inner).poll_next(cx));
         let heartbeat_error = self.error.try_recv();
 
         match heartbeat_error {
@@ -79,7 +85,10 @@ impl Stream for FeedStream<WebSocket, WsError> {
                 match message {
                     Some(Ok(Message::Binary(payload))) => {
                         log::debug!("[{: >10}] (ws) recv: message {}", self.roomid, payload.len());
-                        Poll::Ready(Some(payload))
+                        Poll::Ready(Some(FeedStreamPayload {
+                            time: Timestamp::now(),
+                            payload,
+                        }))
                     },
                     Some(Ok(Message::Ping(payload))) => {
                         if payload.is_empty() {
@@ -110,9 +119,9 @@ impl Stream for FeedStream<WebSocket, WsError> {
     }
 }
 
-pub type TcpFeedStream = FeedStream<TcpSocket, IoError>;
+pub type TcpFeedStream = FeedStream<TcpStreamHalf, IoError>;
 
-impl FeedStream<TcpSocket, IoError> {
+impl TcpFeedStream {
     pub async fn connect_tcp(roomid: u32, hosts_info: HostsInfo) -> Result<Self, IoError> {
         let (error_sender, error_receiver) = mpsc::channel::<IoError>(2);
 
@@ -141,20 +150,20 @@ impl FeedStream<TcpSocket, IoError> {
 
         Ok(Self {
             roomid,
-            socket: receiver,
+            inner: receiver,
             error: error_receiver,
         })
     }
 }
 
-impl Stream for FeedStream<TcpSocket, IoError> {
-    type Item = Vec<u8>;
+impl Stream for TcpFeedStream {
+    type Item = FeedStreamPayload;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let mut bytes = [0u8; FEED_TCP_BUFFER_SIZE];
         let mut readbuf = ReadBuf::new(&mut bytes);
 
-        let message = ready!(Pin::new(&mut self.socket).poll_read(cx, &mut readbuf));
+        let message = ready!(Pin::new(&mut self.inner).poll_read(cx, &mut readbuf));
         let heartbeat_error = self.error.try_recv();
 
         match heartbeat_error {
@@ -167,7 +176,10 @@ impl Stream for FeedStream<TcpSocket, IoError> {
                     Ok(()) => {
                         let payload = readbuf.filled().to_vec();
                         log::debug!("[{: >10}] (tcp) recv: message {}", self.roomid, payload.len());
-                        Poll::Ready(Some(payload))
+                        Poll::Ready(Some(FeedStreamPayload {
+                            time: Timestamp::now(),
+                            payload,
+                        }))
                     },
                     Err(error) => {
                         log::warn!("[{: >10}] (tcp) close: caused by {:?}", self.roomid, error);
