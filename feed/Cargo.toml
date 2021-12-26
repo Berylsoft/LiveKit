@@ -30,13 +30,13 @@ tokio = { version = "1", features = ["rt", "time", "sync", "net"] }
 # net
 tokio-tungstenite = { version = "0.15", features = ["rustls-tls"], optional = true }
 # project
-livekit-api = { path = "../api", default-features = false, features = ["feed"], optional = true }
+livekit-api = { path = "../api", features = ["feed"], optional = true }
 
 [dev-dependencies]
 hex-literal = "0.3"
 
 [features]
-default = ["package", "stream", "schema"]
+# default = ["package", "stream", "schema"]
 package = ["binrw", "bytes-codec", "brotli-decompressor"]
 stream = ["log", "rand", "futures", "tokio-tungstenite",  "livekit-api",  "package"]
 schema = ["hex"]

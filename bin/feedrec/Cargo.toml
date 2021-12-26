@@ -1,6 +1,6 @@
 [package]
 name = "livekit-feedrec"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2018"
 authors = ["stackinspector"]
 license = "Apache-2.0"
@@ -19,5 +19,5 @@ log4rs = { version = "1.0", features = ["all_components"] }
 structopt = "0.3"
 # project
 livekit-api = { path = "../../api", default-features = false }
-livekit-feed = { path = "../../feed" }
+livekit-feed = { path = "../../feed", default-features = false, features = [] }
 livekit-feed-storage = { path = "../../feed-storage", features = ["rec"] }

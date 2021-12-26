@@ -1,3 +1,4 @@
+#[cfg(feature = "package")]
 pub struct Timestamp(u64);
 
 #[cfg(feature = "package")]
