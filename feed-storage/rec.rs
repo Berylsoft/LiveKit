@@ -20,6 +20,7 @@ macro_rules! unwrap_or_continue {
 pub fn rec(roomid: u32, http_client: &HttpClient, db: &Db) -> impl Future<Output = ()> {
     let http_client = http_client.clone();
     let storage = open_storage(&db, roomid).unwrap();
+
     async move {
         loop {
             let hosts_info = unwrap_or_continue!(
