@@ -38,9 +38,8 @@ impl Head {
     }
 }
 
-#[derive(Debug)]
+#[derive(PartialEq, Eq, Debug)]
 pub enum Package {
-    CodecError(Vec<u8>, PackageCodecError),
     InitRequest(String),
     InitResponse(String),
     HeartbeatRequest(),
@@ -49,24 +48,9 @@ pub enum Package {
     Multi(Vec<Package>),
 }
 
-#[derive(Debug)]
-pub enum FlatPackage {
-    CodecError(Vec<u8>, PackageCodecError),
-    InitResponse(String),
-    HeartbeatResponse(u32),
-    Json(String),
-}
-
 impl Package {
-    pub fn decode<Au8: AsRef<[u8]>>(raw: Au8) -> Self {
+    pub fn decode<Au8: AsRef<[u8]>>(raw: Au8) -> PackageCodecResult<Self> {
         let raw = raw.as_ref();
-        match Package::try_decode(raw) {
-            Ok(package) => package,
-            Err(error) => Package::CodecError(raw.to_vec(), error)
-        }
-    }
-
-    pub fn try_decode(raw: &[u8]) -> Result<Self, PackageCodecError> {
         let (head, payload) = raw.split_at(HEAD_LENGTH_SIZE);
         let head = Head::decode(head)?;
 
@@ -115,7 +99,7 @@ impl Package {
         })
     }
 
-    pub fn encode(self) -> Result<Vec<u8>, PackageCodecError> {
+    pub fn encode(self) -> PackageCodecResult<Vec<u8>> {
         Ok(match self {
             Package::HeartbeatRequest() => Head::new(2, 0).encode()?,
             Package::InitRequest(payload) => {
@@ -144,7 +128,7 @@ impl Package {
         )
     }
 
-    fn unpack<Au8: AsRef<[u8]>>(pack: Au8) -> Result<Self, PackageCodecError> {
+    fn unpack<Au8: AsRef<[u8]>>(pack: Au8) -> PackageCodecResult<Self> {
         let pack = pack.as_ref();
         let pack_length = pack.len();
         let mut unpacked = Vec::new();
@@ -152,40 +136,57 @@ impl Package {
         while offset < pack_length {
             let length_buf = pack[offset..offset + 4].try_into()?;
             let length: usize = u32::from_be_bytes(length_buf).try_into()?;
-            unpacked.push(Package::try_decode(&pack[offset..offset + length])?);
+            unpacked.push(Package::decode(&pack[offset..offset + length])?);
             offset += length;
         }
         Ok(Package::Multi(unpacked))
     }
 
-    // TODO improve
-    pub fn flatten(self) -> Vec<FlatPackage> {
-        match self {
-            Package::Json(a) => vec![FlatPackage::Json(a)],
-            Package::Multi(packages) => packages.into_iter().map(|package| {
-                match package {
-                    Package::Json(a) => FlatPackage::Json(a),
-                    _ => unreachable!(),
+    pub fn flatten(self) -> Vec<Package> {
+        let mut flattened = Vec::new();
+        fn inner(package: Package, flattened: &mut Vec<Package>) {
+            if let Package::Multi(packages) = package {
+                for sub_package in packages {
+                    inner(sub_package, flattened)
                 }
-            }).collect(),
-            Package::HeartbeatResponse(a) => vec![FlatPackage::HeartbeatResponse(a)],
-            Package::InitResponse(a) => vec![FlatPackage::InitResponse(a)],
-            Package::CodecError(a, b) => vec![FlatPackage::CodecError(a, b)],
-            Package::InitRequest(_) | Package::HeartbeatRequest() => unreachable!(),
+            } else {
+                flattened.push(package);
+            }
+        }
+        inner(self, &mut flattened);
+        flattened
+    }
+
+    pub fn to_json_inner_unchecked(&self) -> Result<serde_json::Value, serde_json::Error> {
+        Ok(match self {
+            Package::Json(payload) => serde_json::from_str(payload.as_str())?,
+            Package::HeartbeatResponse(num) => serde_json::json!(*num),
+            Package::InitResponse(payload) => serde_json::from_str(payload.as_str())?,
+            _ => panic!("ImpossibleInFlattened"),
+        })
+    }
+
+    // TODO true recursion like flatten()
+    pub fn into_json(self) -> Result<serde_json::Value, serde_json::Error> {
+        let packages = self.flatten();
+        if packages.len() == 1 {
+            packages
+                .into_iter()
+                .next()
+                .unwrap()
+                .to_json_inner_unchecked()
+        } else {
+            serde_json::to_value(
+                packages
+                    .into_iter()
+                    .map(|package| package.to_json_inner_unchecked())
+                    .collect::<Result<Vec<serde_json::Value>, serde_json::Error>>()?,
+            )
         }
     }
 }
 
-impl FlatPackage {
-    pub fn to_json(self) -> Result<serde_json::Value, PackageCodecError> {
-        Ok(match self {
-            FlatPackage::Json(payload) => serde_json::from_str(payload.as_str())?,
-            FlatPackage::HeartbeatResponse(num) => serde_json::json!(num),
-            FlatPackage::InitResponse(payload) => serde_json::from_str(payload.as_str())?,
-            FlatPackage::CodecError(_, error) => return Err(error),
-        })
-    }
-}
+pub type PackageCodecResult<T> = Result<T, PackageCodecError>;
 
 #[derive(Debug)]
 pub enum PackageCodecError {
@@ -196,7 +197,6 @@ pub enum PackageCodecError {
     BytesCodecError(binrw::Error),
     UnknownType(Head),
     NotEncodable,
-    ToJsonError(serde_json::Error),
 }
 
 impl From<std::io::Error> for PackageCodecError {
@@ -226,12 +226,6 @@ impl From<std::array::TryFromSliceError> for PackageCodecError {
 impl From<binrw::Error> for PackageCodecError {
     fn from(err: binrw::Error) -> PackageCodecError {
         PackageCodecError::BytesCodecError(err)
-    }
-}
-
-impl From<serde_json::Error> for PackageCodecError {
-    fn from(err: serde_json::Error) -> PackageCodecError {
-        PackageCodecError::ToJsonError(err)
     }
 }
 
@@ -268,16 +262,18 @@ mod tests {
     const PACKAGE_PAYLOAD: &str = "{\"cmd\":\"DANMU_MSG\",\"info\":[[0,1,25,5816798,1631676810606,1631676772,0,\"6420484f\",0,0,0,\"\",0,\"{}\",\"{}\"],\"Hello, LiveKit!!!\",[573732342,\"进栈检票\",1,0,0,10000,1,\"\"],[18,\"滑稽果\",\"老弟一号\",10308958,13081892,\"\",0,13081892,13081892,13081892,0,1,178429408],[13,0,6406234,\"\\u003e50000\",0],[\"\",\"\"],0,0,null,{\"ts\":1631676810,\"ct\":\"2D2BF6C4\"},0,0,null,null,0,91]}";
     const PACKAGE_INIT_BEGINNING: &str = "{\"uid\":0,\"roomid\":10308958,\"protover\":3,\"platform\":\"web\",\"type\":2,\"key\":\"";
 
+    macro_rules! pkg_json {
+        ($payload:expr) => {
+            Package::Json($payload.to_owned())
+        };
+    }
+
     #[test]
     fn test_package_decode() {
-        let package = Package::decode(&PACKAGE_RAW.to_vec());
-        match package {
-            Package::Multi(unpacked) => match &unpacked[0] {
-                Package::Json(payload) => assert_eq!(payload, PACKAGE_PAYLOAD),
-                _ => panic!(),
-            },
-            _ => panic!(),
-        }
+        assert_eq!(
+            Package::decode(&PACKAGE_RAW.to_vec()).unwrap(),
+            Package::Multi(vec![pkg_json!(PACKAGE_PAYLOAD)])
+        )
     }
 
     #[test]
@@ -285,9 +281,32 @@ mod tests {
         let init = Package::create_init_request(TEST_ROOMID, "web".to_owned(), "key".to_owned());
         match &init {
             Package::InitRequest(payload) => assert!(payload.starts_with(PACKAGE_INIT_BEGINNING)),
-            _ => panic!(),
+            _ => unreachable!(),
         }
         let init = init.encode().unwrap();
         assert_eq!(init.len(), 94);
+    }
+
+    #[test]
+    fn flat_related() {
+        assert_eq!(
+            Package::Multi(vec![
+                Package::Multi(vec![
+                    Package::Multi(vec![
+                        pkg_json!("a"),
+                    ]),
+                    pkg_json!("b"),
+                    pkg_json!("c"),
+                ]),
+                pkg_json!("d"),
+            ])
+            .flatten(),
+            vec![
+                pkg_json!("a"),
+                pkg_json!("b"),
+                pkg_json!("c"),
+                pkg_json!("d"),
+            ]
+        );
     }
 }

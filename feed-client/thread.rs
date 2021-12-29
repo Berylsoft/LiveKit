@@ -4,10 +4,7 @@ use futures::StreamExt;
 use async_channel::Sender;
 use livekit_api::{client::HttpClient, feed::HostsInfo};
 // #[cfg(feature = "client_rec")]
-use livekit_feed::{
-    config::*,
-    stream::FeedStream, package::Package, schema::Event,
-};
+use livekit_feed::{config::*, stream::FeedStream, schema::Event};
 use livekit_feed_storage::{sled::Tree, insert_payload};
 
 macro_rules! unwrap_or_continue {
@@ -62,8 +59,8 @@ pub async fn client_sender(roomid: u32, http_client: HttpClient, storage: Tree, 
         let mut stream = connect_impl!(roomid, http_client);
         while let Some(payload) = stream.next().await {
             insert_payload(&storage, &payload).unwrap();
-            for package in Package::decode(payload.payload).flatten() {
-                sender.send(Event::from_package(package)).await.unwrap();
+            for event in Event::from_raw(payload.payload) {
+                sender.send(event).await.unwrap();
             }
         }
         close_impl!(roomid);
@@ -75,8 +72,8 @@ pub async fn client_sender_only(roomid: u32, http_client: HttpClient, sender: Se
     loop {
         let mut stream = connect_impl!(roomid, http_client);
         while let Some(payload) = stream.next().await {
-            for package in Package::decode(payload.payload).flatten() {
-                sender.send(Event::from_package(package)).await.unwrap();
+            for event in Event::from_raw(payload.payload) {
+                sender.send(event).await.unwrap();
             }
         }
         close_impl!(roomid);

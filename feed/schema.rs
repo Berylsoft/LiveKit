@@ -1,12 +1,18 @@
 use serde::{Serialize, Deserialize};
-use serde_json::{Value as JsonValue, Result as JsonResult};
+use serde_json::{Value as JsonValue, Result as JsonResult, Error as JsonError};
 use crate::util::json::*;
 #[cfg(feature = "package")]
-use crate::package::FlatPackage;
+use crate::package::Package;
 
 #[derive(Debug, Deserialize)]
 pub struct InitResponse {
     pub code: i32,
+}
+
+impl InitResponse {
+    pub fn parse<Str: AsRef<str>>(raw: Str) -> JsonResult<Event> {
+        Ok(Event::InitResponse(serde_json::from_str::<InitResponse>(raw.as_ref())?.code))
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -202,35 +208,41 @@ impl Event {
     }
 
     #[cfg(feature = "package")]
-    pub fn from_package(package: FlatPackage) -> Event {
-        match package {
-            FlatPackage::Json(payload) => {
-                match Event::parse(payload.as_str()) {
-                    Ok(event) => event,
-                    Err(err) => Event::ParseError {
-                        raw: payload,
+    fn from_pacakge(package: Package) -> JsonResult<Event> {
+        Ok(match package {
+            Package::Json(payload) => Event::parse(payload)?,
+            Package::HeartbeatResponse(payload) => Event::Popularity(payload),
+            Package::InitResponse(payload) => InitResponse::parse(payload)?,
+            _ => panic!("ImpossibleInFlattened"),
+        })
+    }
+
+    #[cfg(feature = "package")]
+    pub fn from_raw<Au8: AsRef<[u8]>>(raw: Au8) -> Vec<Event> {
+        let raw = raw.as_ref();
+
+        match Package::decode(raw) {
+            Ok(package) => {
+                match {
+                    package
+                        .flatten()
+                        .into_iter()
+                        .map(Event::from_pacakge)
+                        .collect::<Result<Vec<_>, JsonError>>()
+                } {
+                    Ok(events) => events,
+                    Err(err) => vec![Event::ParseError {
+                        raw: hex::encode(raw),
                         error: format!("{:?}", err),
-                    },
+                    }],
                 }
-            },
-            FlatPackage::HeartbeatResponse(payload) => {
-                Event::Popularity(payload)
-            },
-            FlatPackage::InitResponse(payload) => {
-                match serde_json::from_str::<InitResponse>(payload.as_str()) {
-                    Ok(payload) => Event::InitResponse(payload.code),
-                    Err(err) => Event::ParseError {
-                        raw: payload,
-                        error: format!("{:?}", err),
-                    },
-                }
-            },
-            FlatPackage::CodecError(raw, err) => {
-                Event::CodecError {
+            }
+            Err(err) => {
+                vec![Event::CodecError {
                     raw: hex::encode(raw),
                     error: format!("{:?}", err),
-                }
-            },
+                }]
+            }
         }
     }
 }
@@ -395,7 +407,10 @@ mod tests {
 
     #[test]
     fn unknown_cmd() {
-        let event = Event::parse("{\"cmd\":\"RUST_YYDS\"}").unwrap();
-        assert!(matches!(event, Event::Unknown { raw: _ }));
+        const RAW: &str = "{\"cmd\":\"RUST_YYDS\"}";
+        match Event::parse(RAW).unwrap() {
+            Event::Unknown { raw } => assert_eq!(raw, RAW),
+            _ => unreachable!(),
+        }
     }
 }
