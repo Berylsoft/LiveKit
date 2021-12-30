@@ -26,50 +26,11 @@ pub enum Event {
     Popularity(u32),
     InitResponse(i32),
 
-    Danmaku {
-        info: DanmakuInfo,
-        user: User,
-        medal: Option<Medal>,
-        emoji: Option<DanmakuEmoji>,
-        title: Option<Title>,
-    },
-
-    Interact {
-        kind: InteractKind,
-        time: i64, // sec
-        uid: u32,
-        uname: String,
-        medal: Option<Medal>,
-    },
-
-    Gift {
-        time: i64, // sec
-        uid: u32,
-        uname: String,
-        uface: String,
-        id: i32,
-        name: String,
-        count: u32,
-        medal: Option<Medal>,
-    },
-
-    GuardBuy {
-        time: i64, // sec
-        uid: u32,
-        uname: String,
-        count: u32,
-        guard_level: u8,
-        price: u32,
-    },
-
-    SuperChat {
-        time: i64, // sec
-        text: String,
-        price: u32,
-        duration: u32,
-        user: User,
-        uface: String,
-    },
+    Danmaku(Danmaku),
+    Interact(Interact),
+    Gift(Gift),
+    GuardBuy(GuardBuy),
+    SuperChat(SuperChat),
 
     RoomStat(RoomStat),
 
@@ -96,7 +57,7 @@ impl Event {
                 let info = &raw[0];
                 let user = &raw[2];
 
-                Event::Danmaku {
+                Event::Danmaku(Danmaku {
                     info: DanmakuInfo {
                         time: to(&info[4])?,
                         text: to(&raw[1])?,
@@ -115,25 +76,25 @@ impl Event {
                     medal: Medal::from_danmaku(&raw[3])?,
                     emoji: may_inline_json_opt(&info[13])?,
                     title: Title::from(&raw[5])?,
-                }
+                })
             },
 
             "INTERACT_WORD" => {
                 let raw = &raw["data"];
 
-                Event::Interact {
+                Event::Interact(Interact {
                     kind: InteractKind::new(&raw["msg_type"])?,
                     time: to(&raw["timestamp"])?,
                     uid: to(&raw["uid"])?,
                     uname: to(&raw["uname"])?,
                     medal: Medal::from_common(&raw["fans_medal"])?,
-                }
+                })
             },
 
             "SEND_GIFT" => {
                 let raw = &raw["data"];
 
-                Event::Gift {
+                Event::Gift(Gift {
                     time: to(&raw["timestamp"])?,
                     uid: to(&raw["uid"])?,
                     uname: to(&raw["uname"])?,
@@ -142,14 +103,14 @@ impl Event {
                     name: to(&raw["giftName"])?,
                     count: to(&raw["num"])?,
                     medal: Medal::from_common(&raw["medal_info"])?
-                }
+                })
             },
 
             "SUPER_CHAT_MESSAGE" => {
                 let raw = &raw["data"];
                 let user = &raw["user_info"];
 
-                Event::SuperChat {
+                Event::SuperChat(SuperChat {
                     time: to(&raw["ts"])?,
                     text: to(&raw["message"])?,
                     price: to(&raw["price"])?,
@@ -163,20 +124,20 @@ impl Event {
                         laoye_annual: numbool(&user["is_svip"])?,
                     },
                     uface: to(&user["face"])?,
-                }
+                })
             },
 
             "GUARD_BUY" => {
                 let raw = &raw["data"];
 
-                Event::GuardBuy {
+                Event::GuardBuy(GuardBuy {
                     time: to(&raw["start_time"])?,
                     uid: to(&raw["uid"])?,
                     uname: to(&raw["username"])?,
                     count: to(&raw["num"])?,
                     guard_level: to(&raw["guard_level"])?,
                     price: to(&raw["price"])?,
-                }
+                })
             }
 
             "ROOM_REAL_TIME_MESSAGE_UPDATE" => {
@@ -245,6 +206,56 @@ impl Event {
             }
         }
     }
+}
+
+#[derive(Debug, Serialize)]
+pub struct Danmaku {
+    info: DanmakuInfo,
+    user: User,
+    medal: Option<Medal>,
+    emoji: Option<DanmakuEmoji>,
+    title: Option<Title>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct Interact {
+    kind: InteractKind,
+    time: i64, // sec
+    uid: u32,
+    uname: String,
+    medal: Option<Medal>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct Gift {
+    time: i64, // sec
+    uid: u32,
+    uname: String,
+    uface: String,
+    id: i32,
+    name: String,
+    count: u32,
+    medal: Option<Medal>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct GuardBuy {
+    time: i64, // sec
+    uid: u32,
+    uname: String,
+    count: u32,
+    guard_level: u8,
+    price: u32,
+}
+
+#[derive(Debug, Serialize)]
+pub struct SuperChat {
+    time: i64, // sec
+    text: String,
+    price: u32,
+    duration: u32,
+    user: User,
+    uface: String,
 }
 
 // common
