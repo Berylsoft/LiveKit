@@ -54,7 +54,7 @@ impl Package {
         let (head, payload) = raw.split_at(HEAD_LENGTH_SIZE);
         let head = Head::decode(head)?;
 
-        // region
+        // region macros
 
         macro_rules! unknown_type {
             () => {

@@ -17,12 +17,6 @@ impl InitResponse {
 
 #[derive(Debug, Serialize)]
 pub enum Event {
-    Unknown { raw: String },
-    ParseError { raw: String, error: String },
-    CodecError { raw: String, error: String },
-    Unimplemented,
-    Ignored,
-
     Popularity(u32),
     InitResponse(i32),
 
@@ -33,12 +27,17 @@ pub enum Event {
     SuperChat(SuperChat),
 
     RoomStat(RoomStat),
-
     RoomInfoChange(RoomInfoDiff),
 
     LiveStart,
-
     LiveEnd,
+
+    Unimplemented,
+    Ignored,
+    Unknown { raw: String },
+
+    ParseError { raw: String, error: String },
+    CodecError { raw: String, error: String },
 }
 
 impl Event {
@@ -51,118 +50,45 @@ impl Event {
         let command: String = to(&raw["cmd"])?;
 
         Ok(match command.as_str() {
-            "DANMU_MSG" => {
-                let raw = &raw["info"];
+            "DANMU_MSG" => Event::Danmaku(Danmaku::from(&raw["info"])?),
+            "INTERACT_WORD" => Event::Interact(Interact::from(&raw["data"])?),
+            "SEND_GIFT" => Event::Gift(Gift::from(&raw["data"])?),
+            "GUARD_BUY" => Event::GuardBuy(GuardBuy::from(&raw["data"])?),
+            "SUPER_CHAT_MESSAGE" => Event::SuperChat(SuperChat::from(&raw["data"], &raw["user_info"])?),
 
-                let info = &raw[0];
-                let user = &raw[2];
+            "ROOM_REAL_TIME_MESSAGE_UPDATE" => Event::RoomStat(to(&raw["data"])?),
+            "ROOM_CHANGE" => Event::RoomInfoChange(to(&raw["data"])?),
 
-                Event::Danmaku(Danmaku {
-                    info: DanmakuInfo {
-                        time: to(&info[4])?,
-                        text: to(&raw[1])?,
-                        color: to(&info[3])?,
-                        size: to(&info[2])?,
-                        rand: to(&info[5])?,
-                    },
-                    user: User {
-                        uid: to(&user[0])?,
-                        uname: to(&user[1])?,
-                        live_user_level: to(&raw[4][0])?,
-                        admin: numbool(&user[2])?,
-                        laoye_monthly: numbool(&user[3])?,
-                        laoye_annual: numbool(&user[4])?,
-                    },
-                    medal: Medal::from_danmaku(&raw[3])?,
-                    emoji: may_inline_json_opt(&info[13])?,
-                    title: Title::from(&raw[5])?,
-                })
-            },
+            "LIVE" => Event::LiveStart,
+            "PREPARING" => Event::LiveEnd,
 
-            "INTERACT_WORD" => {
-                let raw = &raw["data"];
+            "ROOM_BLOCK_MSG"
+            | "SUPER_CHAT_MESSAGE_DELETE"
+            | "LIVE_INTERACTIVE_GAME"
+            | "COMBO_SEND"
+            | "ENTRY_EFFECT"
+            | "SUPER_CHAT_MESSAGE_JPN"
+            | "USER_TOAST_MSG"
+            | "HOT_ROOM_NOTIFY"
+            | "SPECIAL_GIFT"
+            | "VOICE_JOIN_ROOM_COUNT_INFO"
+            | "VOICE_JOIN_LIST"
+            | "VOICE_JOIN_STATUS"
+            | "ANCHOR_LOT_CHECKSTATUS"
+            | "ANCHOR_LOT_START"
+            | "ANCHOR_LOT_END"
+            | "ANCHOR_LOT_AWARD" => Event::Unimplemented,
 
-                Event::Interact(Interact {
-                    kind: InteractKind::new(&raw["msg_type"])?,
-                    time: to(&raw["timestamp"])?,
-                    uid: to(&raw["uid"])?,
-                    uname: to(&raw["uname"])?,
-                    medal: Medal::from_common(&raw["fans_medal"])?,
-                })
-            },
-
-            "SEND_GIFT" => {
-                let raw = &raw["data"];
-
-                Event::Gift(Gift {
-                    time: to(&raw["timestamp"])?,
-                    uid: to(&raw["uid"])?,
-                    uname: to(&raw["uname"])?,
-                    uface: to(&raw["face"])?,
-                    id: to(&raw["giftId"])?,
-                    name: to(&raw["giftName"])?,
-                    count: to(&raw["num"])?,
-                    medal: Medal::from_common(&raw["medal_info"])?
-                })
-            },
-
-            "SUPER_CHAT_MESSAGE" => {
-                let raw = &raw["data"];
-                let user = &raw["user_info"];
-
-                Event::SuperChat(SuperChat {
-                    time: to(&raw["ts"])?,
-                    text: to(&raw["message"])?,
-                    price: to(&raw["price"])?,
-                    duration: to(&raw["time"])?,
-                    user: User {
-                        uid: to(&raw["uid"])?,
-                        uname: to(&user["uname"])?,
-                        live_user_level: to(&user["user_level"])?,
-                        admin: numbool(&user["manager"])?,
-                        laoye_monthly: numbool(&user["is_vip"])?,
-                        laoye_annual: numbool(&user["is_svip"])?,
-                    },
-                    uface: to(&user["face"])?,
-                })
-            },
-
-            "GUARD_BUY" => {
-                let raw = &raw["data"];
-
-                Event::GuardBuy(GuardBuy {
-                    time: to(&raw["start_time"])?,
-                    uid: to(&raw["uid"])?,
-                    uname: to(&raw["username"])?,
-                    count: to(&raw["num"])?,
-                    guard_level: to(&raw["guard_level"])?,
-                    price: to(&raw["price"])?,
-                })
-            }
-
-            "ROOM_REAL_TIME_MESSAGE_UPDATE" => {
-                Event::RoomStat(to(&raw["data"])?)
-            }
-
-            "ROOM_CHANGE" => {
-                Event::RoomInfoChange(to(&raw["data"])?)
-            },
-
-            "LIVE" => {
-                Event::LiveStart
-            },
-
-            "PREPARING" => {
-                Event::LiveEnd
-            },
-
-            "ROOM_BLOCK_MSG" | "SUPER_CHAT_MESSAGE_DELETE" | "LIVE_INTERACTIVE_GAME" | "COMBO_SEND" | "ENTRY_EFFECT" | "SUPER_CHAT_MESSAGE_JPN" | "USER_TOAST_MSG" | "HOT_ROOM_NOTIFY" | "SPECIAL_GIFT" | "VOICE_JOIN_ROOM_COUNT_INFO" | "VOICE_JOIN_LIST" | "VOICE_JOIN_STATUS" | "ANCHOR_LOT_CHECKSTATUS" | "ANCHOR_LOT_START" | "ANCHOR_LOT_END" | "ANCHOR_LOT_AWARD" => {
-                Event::Unimplemented
-            },
-
-            "STOP_LIVE_ROOM_LIST" | "HOT_RANK_CHANGED" | "HOT_RANK_CHANGED_V2" | "WIDGET_BANNER" | "ONLINE_RANK_COUNT" | "ONLINE_RANK_V2" | "NOTICE_MSG" | "ONLINE_RANK_TOP3" | "HOT_RANK_SETTLEMENT" | "HOT_RANK_SETTLEMENT_V2" => {
-                Event::Ignored
-            },
+            "STOP_LIVE_ROOM_LIST"
+            | "HOT_RANK_CHANGED"
+            | "HOT_RANK_CHANGED_V2"
+            | "WIDGET_BANNER"
+            | "ONLINE_RANK_COUNT"
+            | "ONLINE_RANK_V2"
+            | "NOTICE_MSG"
+            | "ONLINE_RANK_TOP3"
+            | "HOT_RANK_SETTLEMENT"
+            | "HOT_RANK_SETTLEMENT_V2" => Event::Ignored,
 
             _ => unknown(),
         })
@@ -208,6 +134,8 @@ impl Event {
     }
 }
 
+// region Danmaku
+
 #[derive(Debug, Serialize)]
 pub struct Danmaku {
     info: DanmakuInfo,
@@ -218,6 +146,56 @@ pub struct Danmaku {
 }
 
 #[derive(Debug, Serialize)]
+pub struct DanmakuInfo {
+    pub time: i64,
+    pub text: String,
+    pub color: u32,
+    pub size: u32,
+    pub rand: i64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DanmakuEmoji {
+    pub height: i32,
+    pub in_player_area: i32,
+    pub is_dynamic: i32,
+    pub url: String,
+    pub width: i32,
+}
+
+impl Danmaku {
+    fn from(raw: &JsonValue) -> JsonResult<Self> {
+        let info = &raw[0];
+        let user = &raw[2];
+
+        Ok(Danmaku {
+            info: DanmakuInfo {
+                time: to(&info[4])?,
+                text: to(&raw[1])?,
+                color: to(&info[3])?,
+                size: to(&info[2])?,
+                rand: to(&info[5])?,
+            },
+            user: User {
+                uid: to(&user[0])?,
+                uname: to(&user[1])?,
+                live_user_level: to(&raw[4][0])?,
+                admin: numbool(&user[2])?,
+                laoye_monthly: numbool(&user[3])?,
+                laoye_annual: numbool(&user[4])?,
+            },
+            medal: Medal::from_danmaku(&raw[3])?,
+            emoji: may_inline_json_opt(&info[13])?,
+            title: Title::from(&raw[5])?,
+        })
+    }
+}
+
+// endregion
+
+// region Interact
+
+#[derive(Debug, Serialize)]
 pub struct Interact {
     kind: InteractKind,
     time: i64, // sec
@@ -225,6 +203,41 @@ pub struct Interact {
     uname: String,
     medal: Option<Medal>,
 }
+
+#[derive(Debug, Serialize)]
+pub enum InteractKind {
+    Enter,
+    Follow,
+    Share,
+}
+
+impl InteractKind {
+    fn from(value: &JsonValue) -> JsonResult<InteractKind> {
+        let num: u32 = to(value)?;
+        Ok(match num {
+            1 => InteractKind::Enter,
+            2 => InteractKind::Follow,
+            3 => InteractKind::Share,
+            _ => unreachable!(),
+        })
+    }
+}
+
+impl Interact {
+    fn from(raw: &JsonValue) -> JsonResult<Self> {
+        Ok(Interact {
+            kind: InteractKind::from(&raw["msg_type"])?,
+            time: to(&raw["timestamp"])?,
+            uid: to(&raw["uid"])?,
+            uname: to(&raw["uname"])?,
+            medal: Medal::from_common(&raw["fans_medal"])?,
+        })
+    }
+}
+
+// endregion
+
+// region Gift
 
 #[derive(Debug, Serialize)]
 pub struct Gift {
@@ -238,6 +251,25 @@ pub struct Gift {
     medal: Option<Medal>,
 }
 
+impl Gift {
+    fn from(raw: &JsonValue) -> JsonResult<Self> {
+        Ok(Gift {
+            time: to(&raw["timestamp"])?,
+            uid: to(&raw["uid"])?,
+            uname: to(&raw["uname"])?,
+            uface: to(&raw["face"])?,
+            id: to(&raw["giftId"])?,
+            name: to(&raw["giftName"])?,
+            count: to(&raw["num"])?,
+            medal: Medal::from_common(&raw["medal_info"])?
+        })
+    }
+}
+
+// endregion
+
+// region GuardBuy
+
 #[derive(Debug, Serialize)]
 pub struct GuardBuy {
     time: i64, // sec
@@ -247,6 +279,23 @@ pub struct GuardBuy {
     guard_level: u8,
     price: u32,
 }
+
+impl GuardBuy {
+    fn from(raw: &JsonValue) -> JsonResult<Self> {
+        Ok(GuardBuy {
+            time: to(&raw["start_time"])?,
+            uid: to(&raw["uid"])?,
+            uname: to(&raw["username"])?,
+            count: to(&raw["num"])?,
+            guard_level: to(&raw["guard_level"])?,
+            price: to(&raw["price"])?,
+        })
+    }
+}
+
+// endregion
+
+// region SuperChat
 
 #[derive(Debug, Serialize)]
 pub struct SuperChat {
@@ -258,7 +307,53 @@ pub struct SuperChat {
     uface: String,
 }
 
-// common
+impl SuperChat {
+    fn from(raw: &JsonValue, user: &JsonValue) -> JsonResult<Self> {
+        Ok(SuperChat {
+            time: to(&raw["ts"])?,
+            text: to(&raw["message"])?,
+            price: to(&raw["price"])?,
+            duration: to(&raw["time"])?,
+            user: User {
+                uid: to(&raw["uid"])?,
+                uname: to(&user["uname"])?,
+                live_user_level: to(&user["user_level"])?,
+                admin: numbool(&user["manager"])?,
+                laoye_monthly: numbool(&user["is_vip"])?,
+                laoye_annual: numbool(&user["is_svip"])?,
+            },
+            uface: to(&user["face"])?,
+        })
+    }
+}
+
+// endregion
+
+// region RoomStat
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RoomStat {
+    pub fans: u32,
+    pub fans_club: u32,
+    // red_notice: -1
+}
+
+// endregion
+
+// region RoomInfoChange
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RoomInfoDiff {
+    pub parent_area_name: String,
+    pub area_name: String,
+    pub title: String,
+    pub area_id: u16,
+    pub parent_area_id: u8,
+}
+
+// endregion
+
+// region (common)
 
 #[derive(Debug, Serialize)]
 pub struct Medal {
@@ -330,26 +425,6 @@ pub struct User {
     pub laoye_annual: bool,
 }
 
-// Danmaku
-
-#[derive(Debug, Serialize)]
-pub struct DanmakuInfo {
-    pub time: i64,
-    pub text: String,
-    pub color: u32,
-    pub size: u32,
-    pub rand: i64,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct DanmakuEmoji {
-    pub height: i32,
-    pub in_player_area: i32,
-    pub is_dynamic: i32,
-    pub url: String,
-    pub width: i32,
-}
-
 #[derive(Debug, Serialize)]
 pub struct Title(String, Option<String>);
 
@@ -371,46 +446,7 @@ impl Title {
     }
 }
 
-// Interact
-
-#[derive(Debug, Serialize)]
-pub enum InteractKind {
-    Enter,
-    Follow,
-    Share,
-}
-
-impl InteractKind {
-    fn new(value: &JsonValue) -> JsonResult<InteractKind> {
-        let num: u32 = to(value)?;
-        Ok(match num {
-            1 => InteractKind::Enter,
-            2 => InteractKind::Follow,
-            3 => InteractKind::Share,
-            _ => unreachable!(),
-        })
-    }
-}
-
-// RoomStat
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct RoomStat {
-    pub fans: u32,
-    pub fans_club: u32,
-    // red_notice: -1
-}
-
-// RoomInfoChange
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct RoomInfoDiff {
-    pub parent_area_name: String,
-    pub area_name: String,
-    pub title: String,
-    pub area_id: u16,
-    pub parent_area_id: u8,
-}
+// endregion
 
 #[cfg(test)]
 mod tests {
