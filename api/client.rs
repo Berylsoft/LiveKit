@@ -118,6 +118,7 @@ impl HttpClient {
     pub async fn new(access: Option<Access>, proxy: Option<String>) -> Self {
         let mut headers = HeaderMap::new();
         headers.insert(header::REFERER, HeaderValue::from_static(REFERER));
+        headers.insert(header::ORIGIN, HeaderValue::from_static(REFERER));
         headers.insert(header::USER_AGENT, HeaderValue::from_static(WEB_USER_AGENT));
         if let Some(_access) = &access {
             headers.insert(header::COOKIE, {
