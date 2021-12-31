@@ -5,34 +5,35 @@ pub const REFERER: &str = "https://live.bilibili.com/";
 pub const API_HOST: &str = "https://api.live.bilibili.com";
 pub const WEB_USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.45 Safari/537.36";
 
-#[derive(Debug)]
-pub enum RestApiError {
-    Network(reqwest::Error),
-    HttpFailure(u16, String),
-    Parse(serde_json::Error),
-    RateLimited(String),
-    Failure(i32, String),
-    PostWithoutAccess,
-    EncodePostBody(serde_urlencoded::ser::Error),
+macro_rules! error_conv_impl {
+    ($name:ident, $($variant:ident => $error:ty),*, $(,)?) => {
+        #[derive(Debug)]
+        pub enum $name {
+            $(
+                $variant($error),
+            )*
+            HttpFailure(u16, String),
+            RateLimited(String),
+            Failure(i32, String),
+            PostWithoutAccess,
+        }
+
+        $(
+            impl From<$error> for $name {
+                fn from(err: $error) -> $name {
+                    <$name>::$variant(err)
+                }
+            }
+        )*
+    };
 }
 
-impl From<reqwest::Error> for RestApiError {
-    fn from(err: reqwest::Error) -> RestApiError {
-        RestApiError::Network(err)
-    }
-}
-
-impl From<serde_json::Error> for RestApiError {
-    fn from(err: serde_json::Error) -> RestApiError {
-        RestApiError::Parse(err)
-    }
-}
-
-impl From<serde_urlencoded::ser::Error> for RestApiError {
-    fn from(err: serde_urlencoded::ser::Error) -> RestApiError {
-        RestApiError::EncodePostBody(err)
-    }
-}
+error_conv_impl!(
+    RestApiError,
+    Network        => reqwest::Error,
+    Parse          => serde_json::Error,
+    EncodePostBody => serde_urlencoded::ser::Error,
+);
 
 pub type RestApiResult<Data> = Result<Data, RestApiError>;
 

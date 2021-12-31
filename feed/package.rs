@@ -186,48 +186,37 @@ impl Package {
     }
 }
 
+macro_rules! error_conv_impl {
+    ($name:ident, $($variant:ident => $error:ty),*, $(,)?) => {
+        #[derive(Debug)]
+        pub enum $name {
+            $(
+                $variant($error),
+            )*
+            UnknownType(Head),
+            NotEncodable,
+        }
+
+        $(
+            impl From<$error> for $name {
+                fn from(err: $error) -> $name {
+                    <$name>::$variant(err)
+                }
+            }
+        )*
+    };
+}
+
+error_conv_impl!(
+    PackageCodecError,
+    IoError            => std::io::Error,
+    StringCodecError   => std::string::FromUtf8Error,
+    BytesSilceError    => std::array::TryFromSliceError,
+    NumberConvertError => std::num::TryFromIntError,
+    BytesCodecError    => binrw::Error,
+);
+
 pub type PackageCodecResult<T> = Result<T, PackageCodecError>;
-
-#[derive(Debug)]
-pub enum PackageCodecError {
-    IoError(std::io::Error),
-    StringCodecError(std::string::FromUtf8Error),
-    BytesSilceError(std::array::TryFromSliceError),
-    NumberConvertError(std::num::TryFromIntError),
-    BytesCodecError(binrw::Error),
-    UnknownType(Head),
-    NotEncodable,
-}
-
-impl From<std::io::Error> for PackageCodecError {
-    fn from(err: std::io::Error) -> PackageCodecError {
-        PackageCodecError::IoError(err)
-    }
-}
-
-impl From<std::string::FromUtf8Error> for PackageCodecError {
-    fn from(err: std::string::FromUtf8Error) -> PackageCodecError {
-        PackageCodecError::StringCodecError(err)
-    }
-}
-
-impl From<std::num::TryFromIntError> for PackageCodecError {
-    fn from(err: std::num::TryFromIntError) -> PackageCodecError {
-        PackageCodecError::NumberConvertError(err)
-    }
-}
-
-impl From<std::array::TryFromSliceError> for PackageCodecError {
-    fn from(err: std::array::TryFromSliceError) -> PackageCodecError {
-        PackageCodecError::BytesSilceError(err)
-    }
-}
-
-impl From<binrw::Error> for PackageCodecError {
-    fn from(err: binrw::Error) -> PackageCodecError {
-        PackageCodecError::BytesCodecError(err)
-    }
-}
 
 #[cfg(test)]
 mod tests {
