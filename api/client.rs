@@ -1,5 +1,6 @@
 use serde::{Serialize, Deserialize, de::DeserializeOwned};
 use reqwest::{Client, header::{self, HeaderValue, HeaderMap}, Response, IntoUrl};
+pub use reqwest::Error as ReqwestError;
 
 pub const REFERER: &str = "https://live.bilibili.com/";
 pub const API_HOST: &str = "https://api.live.bilibili.com";

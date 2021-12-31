@@ -1,9 +1,9 @@
 use tokio::{fs::File, io::AsyncWriteExt};
 use futures::{Stream, StreamExt};
-use livekit_api::{client::HttpClient, stream::PlayInfo};
+use livekit_api::{client::{HttpClient, ReqwestError}, stream::PlayInfo};
 use crate::url::StreamInfo;
 
-pub async fn get_stream(client: &HttpClient, url: String) -> Option<impl Stream<Item = Result<bytes::Bytes, reqwest::Error>>> {
+pub async fn get_stream(client: &HttpClient, url: String) -> Option<impl Stream<Item = Result<bytes::Bytes, ReqwestError>>> {
     println!("{}", url);
     let resp = client.get(url).await.unwrap();
     match resp.status().as_u16() {
