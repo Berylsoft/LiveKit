@@ -3,7 +3,7 @@ use tokio::{
     spawn,
     time::{self, Duration},
     io::{Error as IoError, AsyncRead, AsyncWriteExt, ReadBuf},
-    net::{TcpStream, tcp::OwnedReadHalf as TcpStreamHalf},
+    net::{TcpStream, tcp::OwnedReadHalf as TcpStreamReceiver},
 };
 use futures::{Stream, StreamExt, SinkExt, ready};
 use rand::{seq::SliceRandom, thread_rng as rng};
@@ -18,7 +18,7 @@ use crate::{
     package::Package,
 };
 
-type WsStreamHalf = futures::stream::SplitStream<tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>>;
+type WsStreamReceiver = futures::stream::SplitStream<tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>>;
 
 pub struct FeedStreamPayload {
     pub time: Timestamp,
@@ -27,10 +27,10 @@ pub struct FeedStreamPayload {
 
 pub struct FeedStream<T> {
     roomid: u32,
-    inner: T,
+    rx: T,
 }
 
-pub type WsFeedStream = FeedStream<WsStreamHalf>;
+pub type WsFeedStream = FeedStream<WsStreamReceiver>;
 
 impl WsFeedStream {
     pub async fn connect_ws(roomid: u32, hosts_info: HostsInfo) -> Result<Self, WsError> {
@@ -49,7 +49,7 @@ impl WsFeedStream {
             loop {
                 interval.tick().await;
                 if let Err(error) = tx.send(heartbeat.clone()).await {
-                    log::warn!("[{: >10}] (ws) send error: (heartbeat-thread) caused by {:?}", roomid, error);
+                    log::warn!("[{: >10}] (ws) stop sending: (heartbeat-thread) caused by {:?}", roomid, error);
                     break;
                 }
                 log::debug!("[{: >10}] (ws) sent: (heartbeat-thread) heartbeat", roomid);
@@ -58,7 +58,7 @@ impl WsFeedStream {
 
         Ok(Self {
             roomid,
-            inner: rx,
+            rx,
         })
     }
 }
@@ -67,7 +67,7 @@ impl Stream for WsFeedStream {
     type Item = FeedStreamPayload;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        match ready!(Pin::new(&mut self.inner).poll_next(cx)) {
+        match ready!(Pin::new(&mut self.rx).poll_next(cx)) {
             Some(Ok(Message::Binary(payload))) => {
                 log::debug!("[{: >10}] (ws) recv: message {}", self.roomid, payload.len());
                 Poll::Ready(Some(FeedStreamPayload {
@@ -99,7 +99,7 @@ impl Stream for WsFeedStream {
     }
 }
 
-pub type TcpFeedStream = FeedStream<TcpStreamHalf>;
+pub type TcpFeedStream = FeedStream<TcpStreamReceiver>;
 
 impl TcpFeedStream {
     pub async fn connect_tcp(roomid: u32, hosts_info: HostsInfo) -> Result<Self, IoError> {
@@ -118,7 +118,7 @@ impl TcpFeedStream {
             loop {
                 interval.tick().await;
                 if let Err(error) = tx.write_all(heartbeat.as_slice()).await {
-                    log::warn!("[{: >10}] (tcp) send error: (heartbeat-thread) caused by {:?}", roomid, error);
+                    log::warn!("[{: >10}] (tcp) stop sending: (heartbeat-thread) caused by {:?}", roomid, error);
                     break;
                 }
                 log::debug!("[{: >10}] (tcp) sent: (heartbeat-thread) heartbeat", roomid);
@@ -127,7 +127,7 @@ impl TcpFeedStream {
 
         Ok(Self {
             roomid,
-            inner: rx,
+            rx,
         })
     }
 }
@@ -138,7 +138,8 @@ impl Stream for TcpFeedStream {
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let mut bytes = [0u8; FEED_TCP_BUFFER_SIZE];
         let mut readbuf = ReadBuf::new(&mut bytes);
-        match ready!(Pin::new(&mut self.inner).poll_read(cx, &mut readbuf)) {
+
+        match ready!(Pin::new(&mut self.rx).poll_read(cx, &mut readbuf)) {
             Ok(()) => {
                 let payload = readbuf.filled().to_vec();
                 log::debug!("[{: >10}] (tcp) recv: message {}", self.roomid, payload.len());
