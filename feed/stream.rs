@@ -1,24 +1,16 @@
 use std::{pin::Pin, task::{Context, Poll}};
-use tokio::{
-    spawn,
-    time::{self, Duration},
-    io::{Error as IoError, AsyncRead, AsyncWriteExt, ReadBuf},
-    net::{TcpStream, tcp::OwnedReadHalf as TcpStreamReceiver},
-};
 use futures::{Stream, StreamExt, SinkExt, ready};
 use rand::{seq::SliceRandom, thread_rng as rng};
-use tokio_tungstenite::{
-    connect_async,
-    tungstenite::{protocol::Message, Error as WsError}
+use tokio::{spawn, time::{self, Duration}, net::TcpStream};
+use tokio::{
+    io::{Error as IoError, AsyncRead, AsyncWriteExt, ReadBuf},
+    net::{tcp::OwnedReadHalf as TcpStreamReceiver},
 };
+use tokio_tungstenite::{connect_async as connect_ws_stream, tungstenite::{protocol::Message, Error as WsError}};
 use livekit_api::feed::HostsInfo;
-use crate::{
-    util::Timestamp,
-    config::*,
-    package::Package,
-};
+use crate::{config::*, util::Timestamp, package::Package};
 
-type WsStreamReceiver = futures::stream::SplitStream<tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>>;
+type WsStreamReceiver = futures::stream::SplitStream<tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<TcpStream>>>;
 
 pub struct FeedStreamPayload {
     pub time: Timestamp,
@@ -34,8 +26,8 @@ pub type WsFeedStream = FeedStream<WsStreamReceiver>;
 
 impl WsFeedStream {
     pub async fn connect_ws(roomid: u32, hosts_info: HostsInfo) -> Result<Self, WsError> {
-        let host = &hosts_info.host_list.choose(&mut rng()).unwrap();
-        let (stream, _) = connect_async(format!("wss://{}:{}/sub", host.host, host.wss_port)).await?;
+        let host = hosts_info.host_list.choose(&mut rng()).unwrap();
+        let (stream, _) = connect_ws_stream(format!("wss://{}:{}/sub", host.host, host.wss_port)).await?;
         let (mut tx, rx) = stream.split();
         log::debug!("[{: >10}] (ws) connected", roomid);
 
@@ -103,7 +95,7 @@ pub type TcpFeedStream = FeedStream<TcpStreamReceiver>;
 
 impl TcpFeedStream {
     pub async fn connect_tcp(roomid: u32, hosts_info: HostsInfo) -> Result<Self, IoError> {
-        let host = &hosts_info.host_list.choose(&mut rng()).unwrap();
+        let host = hosts_info.host_list.choose(&mut rng()).unwrap();
         let stream = TcpStream::connect((host.host.as_str(), host.port)).await?;
         let (rx, mut tx) = stream.into_split();
         log::debug!("[{: >10}] (tcp) connected", roomid);

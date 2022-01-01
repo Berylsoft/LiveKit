@@ -19,7 +19,8 @@ futures = "0.3"
 tokio = { version = "1", features = ["full"] }
 sled = "0.34.7"
 livekit-api = { path = "../api" }
-livekit-feed = { path = "../feed", features = ["stream"] }
+livekit-feed = { path = "../feed" }
 
 [features]
+default = []
 rec = []

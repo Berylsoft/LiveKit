@@ -1,7 +1,7 @@
 [package]
 name = "livekit-feedrec"
 version = "0.3.0"
-edition = "2018"
+edition = "2021"
 authors = ["stackinspector"]
 license = "Apache-2.0"
 repository = "https://github.com/Berylsoft/LiveKit"
@@ -15,9 +15,9 @@ path = "main.rs"
 [dependencies]
 tokio = { version = "1", features = ["full"] }
 log = "0.4"
-log4rs = { version = "1.0", features = ["all_components"] }
+log4rs = { version = "1.0", default-features = false, features = ["all_components"] }
 structopt = "0.3"
 # project
-livekit-api = { path = "../../api", default-features = false }
-livekit-feed = { path = "../../feed", default-features = false, features = [] }
+livekit-api = { path = "../../api" }
+livekit-feed = { path = "../../feed" }
 livekit-feed-storage = { path = "../../feed-storage", features = ["rec"] }

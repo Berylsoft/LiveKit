@@ -36,7 +36,15 @@ livekit-api = { path = "../api", features = ["feed"], optional = true }
 hex-literal = "0.3"
 
 [features]
-# default = ["package", "stream", "schema"]
-package = ["binrw", "bytes-codec", "brotli-decompressor"]
-stream = ["log", "rand", "futures", "tokio-tungstenite",  "livekit-api",  "package"]
-schema = ["hex"]
+default = ["package", "stream", "schema"]
+package = [
+    "binrw", "bytes-codec", "brotli-decompressor",
+]
+stream = [
+    "log", "rand", "futures", "tokio-tungstenite",
+    "livekit-api",
+    "package",
+]
+schema = [
+    "hex",
+]

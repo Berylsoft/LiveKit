@@ -13,11 +13,11 @@ name = "livekit_feed_client"
 path = "lib.rs"
 
 [dependencies]
-log = { version = "0.4" }
-futures = { version = "0.3" }
+log = "0.4"
+futures = "0.3"
 tokio = { version = "1", features = ["full"] }
-async-channel = { version = "1.6" }
+async-channel = "1.6"
 livekit-api = { path = "../api", features = ["feed"] }
-livekit-feed = { path = "../feed", features = ["schema"] }
+livekit-feed = { path = "../feed" }
 livekit-feed-storage = { path = "../feed-storage" }
 # actix = "0.10"
