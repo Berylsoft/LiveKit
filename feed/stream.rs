@@ -2,7 +2,6 @@ use std::{pin::Pin, task::{Context, Poll}};
 use tokio::{
     spawn,
     time::{self, Duration},
-    sync::oneshot::{channel as error_channel, Receiver as ErrorReceiver, error::TryRecvError},
     io::{Error as IoError, AsyncRead, AsyncWriteExt, ReadBuf},
     net::{TcpStream, tcp::OwnedReadHalf as TcpStreamHalf},
 };
@@ -26,18 +25,15 @@ pub struct FeedStreamPayload {
     pub payload: Vec<u8>,
 }
 
-pub struct FeedStream<T, E> {
+pub struct FeedStream<T> {
     roomid: u32,
     inner: T,
-    error: ErrorReceiver<E>,
 }
 
-pub type WsFeedStream = FeedStream<WsStreamHalf, WsError>;
+pub type WsFeedStream = FeedStream<WsStreamHalf>;
 
 impl WsFeedStream {
     pub async fn connect_ws(roomid: u32, hosts_info: HostsInfo) -> Result<Self, WsError> {
-        let (error_tx, error_rx) = error_channel::<WsError>();
-
         let host = &hosts_info.host_list.choose(&mut rng()).unwrap();
         let (stream, _) = connect_async(format!("wss://{}:{}/sub", host.host, host.wss_port)).await?;
         let (mut tx, rx) = stream.split();
@@ -53,7 +49,7 @@ impl WsFeedStream {
             loop {
                 interval.tick().await;
                 if let Err(error) = tx.send(heartbeat.clone()).await {
-                    let _ = error_tx.send(error);
+                    log::warn!("[{: >10}] (ws) send error: (heartbeat-thread) caused by {:?}", roomid, error);
                     break;
                 }
                 log::debug!("[{: >10}] (ws) sent: (heartbeat-thread) heartbeat", roomid);
@@ -63,7 +59,6 @@ impl WsFeedStream {
         Ok(Self {
             roomid,
             inner: rx,
-            error: error_rx,
         })
     }
 }
@@ -72,58 +67,42 @@ impl Stream for WsFeedStream {
     type Item = FeedStreamPayload;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        let message = ready!(Pin::new(&mut self.inner).poll_next(cx));
-        let heartbeat_error = self.error.try_recv();
-
-        match heartbeat_error {
-            Ok(error) => {
-                log::warn!("[{: >10}] (ws) close: (heartbeat-thread) caused by {:?}", self.roomid, error);
+        match ready!(Pin::new(&mut self.inner).poll_next(cx)) {
+            Some(Ok(Message::Binary(payload))) => {
+                log::debug!("[{: >10}] (ws) recv: message {}", self.roomid, payload.len());
+                Poll::Ready(Some(FeedStreamPayload {
+                    time: Timestamp::now(),
+                    payload,
+                }))
+            },
+            Some(Ok(Message::Ping(payload))) => {
+                if payload.is_empty() {
+                    log::debug!("[{: >10}] (ws) recv: empty ping", self.roomid);
+                } else {
+                    log::error!("[{: >10}] (ws) recv: non-empty ping {:?}", self.roomid, payload);
+                }
+                Poll::Pending
+            },
+            Some(Ok(message)) => {
+                log::error!("[{: >10}] (ws) recv: unexpected message type {:?}", self.roomid, message);
+                Poll::Pending
+            },
+            Some(Err(error)) => {
+                log::warn!("[{: >10}] (ws) close: caused by {:?}", self.roomid, error);
                 Poll::Ready(None)
             },
-            Err(TryRecvError::Empty) => {
-                match message {
-                    Some(Ok(Message::Binary(payload))) => {
-                        log::debug!("[{: >10}] (ws) recv: message {}", self.roomid, payload.len());
-                        Poll::Ready(Some(FeedStreamPayload {
-                            time: Timestamp::now(),
-                            payload,
-                        }))
-                    },
-                    Some(Ok(Message::Ping(payload))) => {
-                        if payload.is_empty() {
-                            log::debug!("[{: >10}] (ws) recv: empty ping", self.roomid);
-                        } else {
-                            log::error!("[{: >10}] (ws) recv: non-empty ping {:?}", self.roomid, payload);
-                        }
-                        Poll::Pending
-                    },
-                    Some(Ok(message)) => {
-                        log::error!("[{: >10}] (ws) recv: unexpected message type {:?}", self.roomid, message);
-                        Poll::Pending
-                    },
-                    Some(Err(error)) => {
-                        log::warn!("[{: >10}] (ws) close: caused by {:?}", self.roomid, error);
-                        Poll::Ready(None)
-                    },
-                    None => {
-                        log::warn!("[{: >10}] (ws) close: normally", self.roomid);
-                        Poll::Ready(None)
-                    },
-                }
-            },
-            Err(TryRecvError::Closed) => {
-                unreachable!()
+            None => {
+                log::warn!("[{: >10}] (ws) close: normally", self.roomid);
+                Poll::Ready(None)
             },
         }
     }
 }
 
-pub type TcpFeedStream = FeedStream<TcpStreamHalf, IoError>;
+pub type TcpFeedStream = FeedStream<TcpStreamHalf>;
 
 impl TcpFeedStream {
     pub async fn connect_tcp(roomid: u32, hosts_info: HostsInfo) -> Result<Self, IoError> {
-        let (error_tx, error_rx) = error_channel::<IoError>();
-
         let host = &hosts_info.host_list.choose(&mut rng()).unwrap();
         let stream = TcpStream::connect((host.host.as_str(), host.port)).await?;
         let (rx, mut tx) = stream.into_split();
@@ -139,7 +118,7 @@ impl TcpFeedStream {
             loop {
                 interval.tick().await;
                 if let Err(error) = tx.write_all(heartbeat.as_slice()).await {
-                    let _ = error_tx.send(error);
+                    log::warn!("[{: >10}] (tcp) send error: (heartbeat-thread) caused by {:?}", roomid, error);
                     break;
                 }
                 log::debug!("[{: >10}] (tcp) sent: (heartbeat-thread) heartbeat", roomid);
@@ -149,7 +128,6 @@ impl TcpFeedStream {
         Ok(Self {
             roomid,
             inner: rx,
-            error: error_rx,
         })
     }
 }
@@ -160,33 +138,18 @@ impl Stream for TcpFeedStream {
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let mut bytes = [0u8; FEED_TCP_BUFFER_SIZE];
         let mut readbuf = ReadBuf::new(&mut bytes);
-
-        let message = ready!(Pin::new(&mut self.inner).poll_read(cx, &mut readbuf));
-        let heartbeat_error = self.error.try_recv();
-
-        match heartbeat_error {
-            Ok(error) => {
-                log::warn!("[{: >10}] (tcp) close: (heartbeat-thread) caused by {:?}", self.roomid, error);
+        match ready!(Pin::new(&mut self.inner).poll_read(cx, &mut readbuf)) {
+            Ok(()) => {
+                let payload = readbuf.filled().to_vec();
+                log::debug!("[{: >10}] (tcp) recv: message {}", self.roomid, payload.len());
+                Poll::Ready(Some(FeedStreamPayload {
+                    time: Timestamp::now(),
+                    payload,
+                }))
+            },
+            Err(error) => {
+                log::warn!("[{: >10}] (tcp) close: caused by {:?}", self.roomid, error);
                 Poll::Ready(None)
-            },
-            Err(TryRecvError::Empty) => {
-                match message {
-                    Ok(()) => {
-                        let payload = readbuf.filled().to_vec();
-                        log::debug!("[{: >10}] (tcp) recv: message {}", self.roomid, payload.len());
-                        Poll::Ready(Some(FeedStreamPayload {
-                            time: Timestamp::now(),
-                            payload,
-                        }))
-                    },
-                    Err(error) => {
-                        log::warn!("[{: >10}] (tcp) close: caused by {:?}", self.roomid, error);
-                        Poll::Ready(None)
-                    },
-                }
-            },
-            Err(TryRecvError::Closed) => {
-                unreachable!()
             },
         }
     }
