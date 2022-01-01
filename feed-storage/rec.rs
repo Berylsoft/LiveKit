@@ -36,7 +36,7 @@ pub fn rec(roomid: u32, http_client: &HttpClient, db: &Db) -> impl Future<Output
             log::info!("[{: >10}] open", roomid);
 
             while let Some(payload) = stream.next().await {
-                insert_payload(&storage, &payload).unwrap();
+                insert_payload(&storage, &payload);
             }
 
             log::info!("[{: >10}] close", roomid);

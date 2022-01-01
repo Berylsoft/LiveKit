@@ -47,7 +47,7 @@ pub async fn client_rec(roomid: u32, http_client: HttpClient, storage: Tree) {
     loop {
         let mut stream = connect_impl!(roomid, http_client);
         while let Some(payload) = stream.next().await {
-            insert_payload(&storage, &payload).unwrap();
+            insert_payload(&storage, &payload);
         }
         close_impl!(roomid);
     }
@@ -58,7 +58,7 @@ pub async fn client_sender(roomid: u32, http_client: HttpClient, storage: Tree, 
     loop {
         let mut stream = connect_impl!(roomid, http_client);
         while let Some(payload) = stream.next().await {
-            insert_payload(&storage, &payload).unwrap();
+            insert_payload(&storage, &payload);
             for event in Event::from_raw(payload.payload) {
                 sender.send(event).await.unwrap();
             }

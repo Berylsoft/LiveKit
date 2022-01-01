@@ -15,8 +15,22 @@ pub fn open_storage(db: &Db, roomid: u32) -> Result<Tree> {
     db.open_tree(roomid.to_string())
 }
 
-pub fn insert_payload(storage: &Tree, payload: &FeedStreamPayload) -> Result<Option<IVec>> {
-    storage.insert(payload.time.to_bytes(), payload.payload.as_slice())
+fn roomid(storage: &Tree) -> u32 {
+    std::str::from_utf8(storage.name().as_ref()).unwrap().parse().unwrap()
+}
+
+pub fn insert_payload(storage: &Tree, payload: &FeedStreamPayload) {
+    match storage.insert(payload.time.to_bytes(), payload.payload.as_slice()) {
+        Ok(None) => { },
+        Ok(Some(vec)) => log::error!(
+            "[{: >10}] (storage) dup: key={} val(hex)={} val_prev(hex)={}",
+            roomid(storage), payload.time.digits(), hex::encode(&payload.payload), hex::encode(vec),
+        ),
+        Err(err) => panic!(
+            "[{: >10}] (storage) FATAL: insert error: {:?} key={} val(hex)={}",
+            roomid(storage), err, payload.time.digits(), hex::encode(&payload.payload),
+        ),
+    }
 }
 
 #[cfg(feature = "rec")]

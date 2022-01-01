@@ -13,10 +13,11 @@ name = "livekit_feed_storage"
 path = "lib.rs"
 
 [dependencies]
-log = { version = "0.4" }
-futures = { version = "0.3" }
+hex = "0.4"
+log = "0.4"
+futures = "0.3"
 tokio = { version = "1", features = ["full"] }
-sled = { version = "0.34.7" }
+sled = "0.34.7"
 livekit-api = { path = "../api" }
 livekit-feed = { path = "../feed", features = ["stream"] }
 
