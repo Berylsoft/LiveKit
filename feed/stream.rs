@@ -2,7 +2,7 @@ use std::{pin::Pin, task::{Context, Poll}};
 use tokio::{
     spawn,
     time::{self, Duration},
-    sync::mpsc::{self, error::TryRecvError},
+    sync::oneshot::{channel as error_channel, Receiver as ErrorReceiver, error::TryRecvError},
     io::{Error as IoError, AsyncRead, AsyncWriteExt, ReadBuf},
     net::{TcpStream, tcp::OwnedReadHalf as TcpStreamHalf},
 };
@@ -29,22 +29,22 @@ pub struct FeedStreamPayload {
 pub struct FeedStream<T, E> {
     roomid: u32,
     inner: T,
-    error: mpsc::Receiver<E>,
+    error: ErrorReceiver<E>,
 }
 
 pub type WsFeedStream = FeedStream<WsStreamHalf, WsError>;
 
 impl WsFeedStream {
     pub async fn connect_ws(roomid: u32, hosts_info: HostsInfo) -> Result<Self, WsError> {
-        let (error_sender, error_receiver) = mpsc::channel::<WsError>(2);
+        let (error_tx, error_rx) = error_channel::<WsError>();
 
         let host = &hosts_info.host_list.choose(&mut rng()).unwrap();
-        let (ws, _) = connect_async(format!("wss://{}:{}/sub", host.host, host.wss_port)).await?;
-        let (mut sender, receiver) = ws.split();
+        let (stream, _) = connect_async(format!("wss://{}:{}/sub", host.host, host.wss_port)).await?;
+        let (mut tx, rx) = stream.split();
         log::debug!("[{: >10}] (ws) connected", roomid);
 
         let init = Message::Binary(Package::create_init_request(roomid, "web".to_owned(), hosts_info.token).encode().unwrap());
-        sender.send(init).await?;
+        tx.send(init).await?;
         log::debug!("[{: >10}] (ws) sent: init", roomid);
 
         spawn(async move {
@@ -52,10 +52,9 @@ impl WsFeedStream {
             let mut interval = time::interval(Duration::from_secs(FEED_HEARTBEAT_RATE_SEC));
             loop {
                 interval.tick().await;
-                if let Err(error) = sender.send(heartbeat.clone()).await {
-                    if let Err(_) = error_sender.send(error).await {
-                        break
-                    }
+                if let Err(error) = tx.send(heartbeat.clone()).await {
+                    let _ = error_tx.send(error);
+                    break;
                 }
                 log::debug!("[{: >10}] (ws) sent: (heartbeat-thread) heartbeat", roomid);
             }
@@ -63,8 +62,8 @@ impl WsFeedStream {
 
         Ok(Self {
             roomid,
-            inner: receiver,
-            error: error_receiver,
+            inner: rx,
+            error: error_rx,
         })
     }
 }
@@ -112,7 +111,7 @@ impl Stream for WsFeedStream {
                     },
                 }
             },
-            Err(TryRecvError::Disconnected) => {
+            Err(TryRecvError::Closed) => {
                 unreachable!()
             },
         }
@@ -123,15 +122,15 @@ pub type TcpFeedStream = FeedStream<TcpStreamHalf, IoError>;
 
 impl TcpFeedStream {
     pub async fn connect_tcp(roomid: u32, hosts_info: HostsInfo) -> Result<Self, IoError> {
-        let (error_sender, error_receiver) = mpsc::channel::<IoError>(2);
+        let (error_tx, error_rx) = error_channel::<IoError>();
 
         let host = &hosts_info.host_list.choose(&mut rng()).unwrap();
-        let tcp = TcpStream::connect((host.host.as_str(), host.port)).await?;
-        let (receiver, mut sender) = tcp.into_split();
+        let stream = TcpStream::connect((host.host.as_str(), host.port)).await?;
+        let (rx, mut tx) = stream.into_split();
         log::debug!("[{: >10}] (tcp) connected", roomid);
 
         let init = Package::create_init_request(roomid, "web".to_owned(), hosts_info.token).encode().unwrap();
-        sender.write_all(init.as_slice()).await?;
+        tx.write_all(init.as_slice()).await?;
         log::debug!("[{: >10}] (tcp) sent: init", roomid);
 
         spawn(async move {
@@ -139,10 +138,9 @@ impl TcpFeedStream {
             let mut interval = time::interval(Duration::from_secs(FEED_HEARTBEAT_RATE_SEC));
             loop {
                 interval.tick().await;
-                if let Err(error) = sender.write_all(heartbeat.as_slice()).await {
-                    if let Err(_) = error_sender.send(error).await {
-                        break
-                    }
+                if let Err(error) = tx.write_all(heartbeat.as_slice()).await {
+                    let _ = error_tx.send(error);
+                    break;
                 }
                 log::debug!("[{: >10}] (tcp) sent: (heartbeat-thread) heartbeat", roomid);
             }
@@ -150,8 +148,8 @@ impl TcpFeedStream {
 
         Ok(Self {
             roomid,
-            inner: receiver,
-            error: error_receiver,
+            inner: rx,
+            error: error_rx,
         })
     }
 }
@@ -187,7 +185,7 @@ impl Stream for TcpFeedStream {
                     },
                 }
             },
-            Err(TryRecvError::Disconnected) => {
+            Err(TryRecvError::Closed) => {
                 unreachable!()
             },
         }
