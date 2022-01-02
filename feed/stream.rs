@@ -56,38 +56,40 @@ impl WsFeedStream {
 }
 
 impl Stream for WsFeedStream {
-    type Item = FeedStreamPayload;
+    type Item = Option<FeedStreamPayload>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        match ready!(Pin::new(&mut self.rx).poll_next(cx)) {
-            Some(Ok(Message::Binary(payload))) => {
-                log::debug!("[{: >10}] (ws) recv: message {}", self.roomid, payload.len());
-                Poll::Ready(Some(FeedStreamPayload {
-                    time: Timestamp::now(),
-                    payload,
-                }))
-            },
-            Some(Ok(Message::Ping(payload))) => {
-                if payload.is_empty() {
-                    log::debug!("[{: >10}] (ws) recv: empty ping", self.roomid);
-                } else {
-                    log::error!("[{: >10}] (ws) recv: non-empty ping {:?}", self.roomid, payload);
-                }
-                Poll::Pending
-            },
-            Some(Ok(message)) => {
-                log::error!("[{: >10}] (ws) recv: unexpected message type {:?}", self.roomid, message);
-                Poll::Pending
-            },
+        Poll::Ready(match ready!(Pin::new(&mut self.rx).poll_next(cx)) {
+            Some(Ok(message)) => Some(match message {
+                Message::Binary(payload) => {
+                    log::debug!("[{: >10}] (ws) recv: message {}", self.roomid, payload.len());
+                    Some(FeedStreamPayload {
+                        time: Timestamp::now(),
+                        payload,
+                    })
+                },
+                Message::Ping(payload) => {
+                    if payload.is_empty() {
+                        log::debug!("[{: >10}] (ws) recv: empty ping", self.roomid);
+                    } else {
+                        log::error!("[{: >10}] (ws) recv: non-empty ping {:?}", self.roomid, payload);
+                    }
+                    None
+                },
+                message => {
+                    log::error!("[{: >10}] (ws) recv: unexpected message type {:?}", self.roomid, message);
+                    None
+                },
+            }),
             Some(Err(error)) => {
                 log::warn!("[{: >10}] (ws) close: caused by {:?}", self.roomid, error);
-                Poll::Ready(None)
+                None
             },
             None => {
                 log::warn!("[{: >10}] (ws) close: normally", self.roomid);
-                Poll::Ready(None)
+                None
             },
-        }
+        })
     }
 }
 
@@ -125,25 +127,25 @@ impl TcpFeedStream {
 }
 
 impl Stream for TcpFeedStream {
-    type Item = FeedStreamPayload;
+    type Item = Option<FeedStreamPayload>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let mut bytes = [0u8; FEED_TCP_BUFFER_SIZE];
         let mut readbuf = ReadBuf::new(&mut bytes);
 
-        match ready!(Pin::new(&mut self.rx).poll_read(cx, &mut readbuf)) {
-            Ok(()) => {
+        Poll::Ready(match ready!(Pin::new(&mut self.rx).poll_read(cx, &mut readbuf)) {
+            Ok(()) => Some({
                 let payload = readbuf.filled().to_vec();
                 log::debug!("[{: >10}] (tcp) recv: message {}", self.roomid, payload.len());
-                Poll::Ready(Some(FeedStreamPayload {
+                Some(FeedStreamPayload {
                     time: Timestamp::now(),
                     payload,
-                }))
-            },
+                })
+            }),
             Err(error) => {
                 log::warn!("[{: >10}] (tcp) close: caused by {:?}", self.roomid, error);
-                Poll::Ready(None)
+                None
             },
-        }
+        })
     }
 }

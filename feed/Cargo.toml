@@ -28,7 +28,7 @@ serde_json = "1.0"
 futures = { version = "0.3", optional = true }
 tokio = { version = "1", features = ["rt", "time", "sync", "net"] }
 # net
-tokio-tungstenite = { version = "0.15", features = ["rustls-tls"], optional = true }
+tokio-tungstenite = { version = "0.16", features = ["rustls-tls-webpki-roots"], optional = true }
 # project
 livekit-api = { path = "../api", features = ["feed"], optional = true }
 

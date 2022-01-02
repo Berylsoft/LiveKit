@@ -34,10 +34,12 @@ pub async fn client_sender(roomid: u32, http_client: HttpClient, storage: Tree, 
 
         log::info!("[{: >10}] open", roomid);
 
-        while let Some(payload) = stream.next().await {
-            insert_payload(&storage, &payload);
-            for event in Event::from_raw(payload.payload) {
-                sender.send(event).await.unwrap();
+        while let Some(may_payload) = stream.next().await {
+            if let Some(payload) = may_payload {
+                insert_payload(&storage, &payload);
+                for event in Event::from_raw(payload.payload) {
+                    sender.send(event).await.unwrap();
+                }
             }
         }
 
