@@ -21,7 +21,7 @@ fn roomid(storage: &Tree) -> u32 {
 }
 
 pub fn insert_payload(storage: &Tree, payload: &Payload) {
-    match storage.insert(payload.get_bare_key(), payload.payload.as_slice()) {
+    match storage.insert(payload.get_key().encode(), payload.payload.as_slice()) {
         Ok(None) => { },
         Ok(Some(vec)) => log::error!(
             "[{: >10}] (storage) dup: key={} val(hex)={} val_prev(hex)={}",

@@ -9,30 +9,37 @@ pub fn crc32(raw: &[u8]) -> u32 {
     hasher.finalize()
 }
 
-pub type BareKeyWithHash = [u8; 12];
-pub type BareKeyWithoutHash = [u8; 8];
+pub struct KeyWithHash(u64, u32);
+
+impl KeyWithHash {
+    pub fn encode(&self) -> Vec<u8> {
+        [
+            self.0.to_be_bytes().as_slice(),
+            self.1.to_be_bytes().as_slice(),
+        ].concat()
+    }
+}
 
 pub enum Key {
-    WithHash(BareKeyWithHash),
-    WithoutHash(BareKeyWithoutHash),
+    WithHash(KeyWithHash),
+    WithoutHash(u64),
 }
 
 impl Key {
     pub fn from(raw: &[u8]) -> Option<Key> {
         let len = raw.len();
         if len == 12 {
-            Some(Key::WithHash(raw.try_into().unwrap()))
+            let (time, hash) = raw.split_at(8);
+            Some(Key::WithHash(KeyWithHash(
+                u64::from_be_bytes(time.try_into().unwrap()),
+                u32::from_be_bytes(hash.try_into().unwrap()),
+            )))
         } else if len == 8 {
-            Some(Key::WithoutHash(raw.try_into().unwrap()))
+            Some(Key::WithoutHash(
+                u64::from_be_bytes(raw.try_into().unwrap())
+            ))
         } else {
             None
-        }
-    }
-
-    pub fn as_slice(&self) -> &[u8] {
-        match self {
-            Key::WithHash(k) => k.as_slice(),
-            Key::WithoutHash(k) => k.as_slice(),
         }
     }
 }
@@ -51,27 +58,21 @@ impl Payload {
     }
 
     pub fn from_kv<T: AsRef<[u8]>>(k: T, v: T) -> Payload {
+        let v = v.as_ref();
+
         Payload {
-            time: u64::from_be_bytes(Key::from(k.as_ref()).unwrap().as_slice()[0..8].try_into().unwrap()),
-            payload: v.as_ref().to_vec(),
+            time: match Key::from(k.as_ref()).unwrap() {
+                Key::WithHash(KeyWithHash(time, hash)) => {
+                    assert_eq!(hash, crc32(v));
+                    time
+                },
+                Key::WithoutHash(time) => time,
+            },
+            payload: v.to_vec(),
         }
     }
 
-    pub fn get_bare_key(&self) -> BareKeyWithHash {
-        [
-            self.time.to_be_bytes().as_slice(),
-            crc32(self.payload.as_slice()).to_be_bytes().as_slice(),
-        ].concat().try_into().unwrap()
-    }
-
-    pub fn get_key(&self) -> Key {
-        Key::WithHash(self.get_bare_key())
-    }
-
-    pub fn check_key(&self, key: Key) -> bool {
-        match key {
-            Key::WithHash(k) => k == self.get_bare_key(),
-            Key::WithoutHash(_) => true,
-        }
+    pub fn get_key(&self) -> KeyWithHash {
+        KeyWithHash(self.time, crc32(self.payload.as_slice()))
     }
 }
