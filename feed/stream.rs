@@ -8,14 +8,9 @@ use tokio::{
 };
 use tokio_tungstenite::{connect_async as connect_ws_stream, tungstenite::{protocol::Message, Error as WsError}};
 use livekit_api::feed::HostsInfo;
-use crate::{config::*, util::Timestamp, package::Package};
+use crate::{config::*, payload::Payload, package::Package};
 
 type WsStreamReceiver = futures::stream::SplitStream<tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<TcpStream>>>;
-
-pub struct FeedStreamPayload {
-    pub time: Timestamp,
-    pub payload: Vec<u8>,
-}
 
 pub struct FeedStream<T> {
     roomid: u32,
@@ -56,17 +51,14 @@ impl WsFeedStream {
 }
 
 impl Stream for WsFeedStream {
-    type Item = Option<FeedStreamPayload>;
+    type Item = Option<Payload>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         Poll::Ready(match ready!(Pin::new(&mut self.rx).poll_next(cx)) {
             Some(Ok(message)) => Some(match message {
                 Message::Binary(payload) => {
                     log::debug!("[{: >10}] (ws) recv: message {}", self.roomid, payload.len());
-                    Some(FeedStreamPayload {
-                        time: Timestamp::now(),
-                        payload,
-                    })
+                    Some(Payload::new(payload))
                 },
                 Message::Ping(payload) => {
                     if payload.is_empty() {
@@ -127,7 +119,7 @@ impl TcpFeedStream {
 }
 
 impl Stream for TcpFeedStream {
-    type Item = Option<FeedStreamPayload>;
+    type Item = Option<Payload>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let mut bytes = [0u8; FEED_TCP_BUFFER_SIZE];
@@ -137,10 +129,7 @@ impl Stream for TcpFeedStream {
             Ok(()) => Some({
                 let payload = readbuf.filled().to_vec();
                 log::debug!("[{: >10}] (tcp) recv: message {}", self.roomid, payload.len());
-                Some(FeedStreamPayload {
-                    time: Timestamp::now(),
-                    payload,
-                })
+                Some(Payload::new(payload))
             }),
             Err(error) => {
                 log::warn!("[{: >10}] (tcp) close: caused by {:?}", self.roomid, error);

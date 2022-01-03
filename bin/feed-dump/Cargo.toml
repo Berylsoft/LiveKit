@@ -8,10 +8,6 @@ repository = "https://github.com/Berylsoft/LiveKit"
 # description
 # readme
 
-[lib]
-name = "livekit_feed_dump"
-path = "lib.rs"
-
 [[bin]]
 name = "feed-dump"
 path = "main.rs"

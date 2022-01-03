@@ -8,7 +8,7 @@ pub mod config {
     pub const FEED_STORAGE_FLUSH_INTERVAL_MS: u64 = 1000;
 }
 
-pub mod util;
+pub mod payload;
 #[cfg(feature = "package")]
 pub mod package;
 #[cfg(feature = "stream")]

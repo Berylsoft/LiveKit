@@ -1,8 +1,98 @@
-use serde::{Serialize, Deserialize};
+use serde::{Serialize, Deserialize, de::DeserializeOwned};
 use serde_json::{Value as JsonValue, Result as JsonResult, Error as JsonError};
-use crate::util::json::*;
 #[cfg(feature = "package")]
 use crate::package::Package;
+
+// region util
+
+// same as `serde_json::from_value`, but takes reference
+pub fn to<De: DeserializeOwned>(value: &JsonValue) -> JsonResult<De>
+{
+    De::deserialize(value)
+}
+
+pub fn numbool(value: &JsonValue) -> JsonResult<bool> {
+    let num: u8 = to(value)?;
+    if num == 0 {
+        Ok(false)
+    } else if num == 1 {
+        Ok(true)
+    } else {
+        panic!()
+    }
+}
+
+/*
+
+pub fn inline_json<De: DeserializeOwned>(value: &JsonValue) -> JsonResult<De>
+{
+    let json: String = to(value)?;
+    Ok(serde_json::from_str(json.as_str())?)
+}
+
+pub fn inline_json_opt<De: DeserializeOwned>(value: &JsonValue) -> JsonResult<Option<De>>
+{
+    let json: String = to(value)?;
+    if json == "{}" {
+        Ok(None)
+    } else {
+        Ok(Some(serde_json::from_str(json.as_str())?))
+    }
+}
+
+*/
+
+pub fn may_inline_json_opt<De: DeserializeOwned>(value: &JsonValue) -> JsonResult<Option<De>>
+{
+    match value.as_str() {
+        None => Ok(Some(to(value)?)),
+        Some("{}") => Ok(None),
+        Some(json) => Ok(Some(serde_json::from_str(json)?))
+    }
+}
+
+pub fn string_opt(value: &JsonValue) -> JsonResult<Option<String>> {
+    let string: String = to(value)?;
+    if string.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(string))
+    }
+}
+
+// todo num_opt
+pub fn u32_opt(value: &JsonValue) -> JsonResult<Option<u32>> {
+    let num: u32 = to(value)?;
+    if num == 0 {
+        Ok(None)
+    } else {
+        Ok(Some(num))
+    }
+}
+
+pub fn string_u32(value: &JsonValue) -> JsonResult<u32> {
+    let string: String = to(value)?;
+    Ok(string.parse::<u32>().unwrap())
+}
+
+pub fn string_color_to_u32(value: &JsonValue) -> JsonResult<u32> {
+    if value.is_string() {
+        let string: String = to(value)?;
+        let string = {
+            assert_eq!(string.len(), 7);
+            let mut c = string.chars();
+            assert_eq!(c.next(), Some('/'));
+            format!("00{}", c.as_str())
+        };
+        let mut buf = [0u8; 4];
+        hex::decode_to_slice(string, &mut buf).unwrap();
+        Ok(u32::from_be_bytes(buf))
+    } else {
+        Ok(to(value)?)
+    }
+}
+
+// endregion
 
 #[derive(Debug, Deserialize)]
 pub struct InitResponse {
