@@ -6,7 +6,7 @@
 
 构建方式：安装好rustup后在仓库根目录运行`cargo build --release`即可，可执行文件会出现在/target/release/位置，运行只需要可执行文件本身
 
-对于Windows用户可以直接下载使用我构建好的：[e8bad13](https://berylsoft-assert-1307736292.file.myqcloud.com/livekit-alpha/release-v03-e8bad13-x86_64-pc-windows-msvc.7z)
+对于Windows用户可以直接下载使用我构建好的：[e8bad13](https://berylsoft-assert-1307736292.file.myqcloud.com/livekit-alpha/release-v03-e8bad13-x86_64-pc-windows-msvc.7z) [6ac2adc](https://berylsoft-assert-1307736292.file.myqcloud.com/livekit-alpha/release-v03-6ac2adc-x86_64-pc-windows-msvc.7z)
 
 项目结构见README，以下列出各个模块的功能介绍、开发状态和使用说明。可执行文件在前，库在后，**但有很多注意事项在库的介绍中，请测试参与者务必阅读完整个文件。**
 
