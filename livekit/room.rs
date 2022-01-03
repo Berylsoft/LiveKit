@@ -86,7 +86,7 @@ impl Room {
             "{ms}"      => time.format("%3f").to_string(),
             "{iso8601}" => time.to_rfc3339_opts(chrono::SecondsFormat::Millis, false).to_string(),
             "{ts}"      => time.timestamp_millis().to_string(),
-            "{random}"  => rng().gen_range(0..100).to_string(),
+            "{random}"  => format!("{:0>2}", rng().gen_range(0..100)),
             "{roomid}"  => self.roomid.to_string(),
             "{title}"   => self.info.title,
             "{name}"    => self.user_info.info.uname,
@@ -110,6 +110,9 @@ impl Room {
                 if debug {
                     write!(file, "{:?}", event).unwrap();
                 } else {
+                    if let Event::Unimplemented | Event::Ignored = event {
+                        continue
+                    }
                     serde_json::to_writer(&mut file, &event).unwrap();
                 }
                 writeln!(file).unwrap();

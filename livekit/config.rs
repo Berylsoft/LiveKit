@@ -37,7 +37,7 @@ pub enum RecordFragmentMode {
 #[derive(Serialize, Deserialize, Clone)]
 pub struct RecordConfig {
     pub mode: RecordMode,
-    pub quality: Option<Vec<i32>>,
+    pub qn: Option<Vec<i32>>,
     pub path: String,
     pub name_template: Option<String>,
     pub fragment: Option<RecordFragmentMode>,

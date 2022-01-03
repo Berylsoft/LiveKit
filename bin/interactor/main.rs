@@ -10,8 +10,9 @@ struct Args {
 }
 
 #[derive(serde::Deserialize)]
+#[serde(tag = "type", content = "data")]
 enum Payload {
-    Danmaku { roomid: u32, msg: String, rnd: i64, emoji: bool },
+    Danmaku { roomid: u32, msg: String, rnd: Option<i64>, emoji: bool },
 }
 
 #[tokio::main]
@@ -22,6 +23,13 @@ async fn main() {
     let client = HttpClient::new(Some(access), None).await;
     match payload {
         Payload::Danmaku { roomid, msg, rnd, emoji } => {
+            let rnd = match rnd {
+                Some(rnd) => rnd,
+                None => {
+                    use std::time::{SystemTime, UNIX_EPOCH};
+                    SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis().try_into().unwrap()
+                }
+            };
             let send = SendDanmaku::new(roomid, msg, rnd, emoji);
             println!("{:?}", send.call(&client).await);
         }
