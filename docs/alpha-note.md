@@ -32,16 +32,16 @@ rooms = [ # 完整房间号或者短号
 ]
 [group.config]
 # 信息流原始数据存储
-storage.path = "C:\\swap\\livekit-testing\\long2" # 目前必填
+storage.path = 'C:\swap\livekit-testing\long2' # 目前必填
 # 信息流解析后数据记录，输出schema参考 feed/schema.rs，之后可能会想办法生成一个json schema
-dump.path = "C:\\swap\\livekit-testing\\dump" # 目前必填
-dump.debug = false # false输出流式json，同时不输出未实现和忽略的事件；true输出rust debug
+dump.path = 'C:\swap\livekit-testing\dump' # 目前必填
+dump.debug = false # false或不填输出流式json，同时不输出未实现和忽略的事件；true输出rust debug
 # http配置
 # http.access = { uid = 1130367996, key = "********************************", csrf = "********************************" } # 账号登录信息
 # http.proxy = "https://example.com" # api.live.bilibili.com的代理
 # 录制目前还是残废，连自动开始录制都没有
 # record.mode = "FlvRaw"
-# record.path = "C:\\swap\\livekit-testing\\rec"
+# record.path = 'C:\swap\livekit-testing\rec'
 # record.name_template = "{roomid}-{date}-{time}{ms}-{title}" # 参考下方模板列表
 # record.fragment = { type = "ByTime", per_min = 60 } # 目前不起作用
 # record.qn = [10000] # 目前不起作用，目前逻辑是有20000就录20000，没有就录10000
