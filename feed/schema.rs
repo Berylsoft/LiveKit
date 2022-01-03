@@ -16,6 +16,7 @@ impl InitResponse {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(tag = "type", content = "data")]
 pub enum Event {
     Popularity(u32),
     InitResponse(i32),

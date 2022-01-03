@@ -1,5 +1,5 @@
 [package]
-name = "livekit-hls"
+name = "livekit-stream-parse"
 version = "0.1.0"
 edition = "2021"
 # authors = ["stackinspector"]
@@ -9,7 +9,7 @@ repository = "https://github.com/Berylsoft/LiveKit"
 # readme
 
 [lib]
-name = "livekit_hls"
+name = "livekit_stream_parse"
 path = "lib.rs"
 
 [dependencies]

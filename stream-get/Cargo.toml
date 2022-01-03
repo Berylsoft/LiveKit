@@ -1,5 +1,5 @@
 [package]
-name = "livekit-stream"
+name = "livekit-stream-get"
 version = "0.3.0"
 edition = "2021"
 authors = ["stackinspector"]
@@ -9,7 +9,7 @@ repository = "https://github.com/Berylsoft/LiveKit"
 # readme
 
 [lib]
-name = "livekit_stream"
+name = "livekit_stream_get"
 path = "lib.rs"
 
 [dependencies]

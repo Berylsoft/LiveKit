@@ -12,6 +12,8 @@ struct Args {
 
 #[tokio::main]
 async fn main() {
+    env_logger::init();
+
     let config = read_to_string(Args::from_args().config_path).await.unwrap();
     let Groups { group } = toml::from_str(config.as_str()).unwrap();
 

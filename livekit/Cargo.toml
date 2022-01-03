@@ -17,6 +17,7 @@ name = "livekit"
 path = "main.rs"
 
 [dependencies]
+env_logger = "0.9"
 rand = "0.8"
 chrono = "0.4"
 log = "0.4"
@@ -35,7 +36,7 @@ livekit-api = { path = "../api", features = ["info"] }
 livekit-feed = { path = "../feed" }
 livekit-feed-storage = { path = "../feed-storage" }
 livekit-feed-client = { path = "../feed-client" }
-livekit-stream = { path = "../stream" }
+livekit-stream-get = { path = "../stream-get" }
 
 log4rs = { version = "1.0", features = ["all_components"] }
 structopt = "0.3"

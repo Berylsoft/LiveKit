@@ -5,7 +5,7 @@ use async_channel::Sender;
 use livekit_api::{client::HttpClient, feed::HostsInfo};
 // #[cfg(feature = "client_rec")]
 use livekit_feed::{config::*, stream::FeedStream, schema::Event};
-use livekit_feed_storage::{sled::Tree, insert_payload};
+use livekit_feed_storage::{Tree, insert_payload};
 
 macro_rules! unwrap_or_continue {
     ($res:expr, $or:expr) => {

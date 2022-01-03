@@ -28,9 +28,10 @@ pub enum RecordMode {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
+#[serde(tag = "type")]
 pub enum RecordFragmentMode {
-    ByTime(u32), // min
-    BySize(u32), // MB
+    ByTime { per_min: u32 },
+    BySize { per_mb: u32 },
 }
 
 #[derive(Serialize, Deserialize, Clone)]

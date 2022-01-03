@@ -1,4 +1,5 @@
 pub use sled;
+pub use self::sled::{Db, Tree};
 
 use self::sled::*;
 use livekit_feed::{config::*, stream::FeedStreamPayload};

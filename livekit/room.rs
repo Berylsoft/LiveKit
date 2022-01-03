@@ -5,7 +5,7 @@ use futures::Future;
 use async_channel::{unbounded as channel, Receiver};
 use livekit_api::{client::HttpClient, info::{RoomInfo, UserInfo}};
 use livekit_feed::schema::Event;
-use livekit_feed_storage::{sled::Db, open_storage};
+use livekit_feed_storage::{Db, open_storage};
 use livekit_feed_client::thread::client_sender;
 use crate::config::*;
 
@@ -118,7 +118,7 @@ impl Room {
     }
 
     pub fn record(&self) -> impl Future<Output = ()> {
-        use livekit_stream::{flv};
+        use livekit_stream_get::{flv};
         let config = self.config.record.as_ref().unwrap();
         match config.mode {
             RecordMode::FlvRaw => flv::download(self.http_client.clone(), self.id(), self.record_file_path()),
