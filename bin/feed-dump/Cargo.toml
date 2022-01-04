@@ -23,4 +23,5 @@ livekit-feed = { path = "../../feed" }
 livekit-feed-storage = { path = "../../feed-storage" }
 
 [features]
+# default = ["rocks"]
 rocks = ["rocksdb"]

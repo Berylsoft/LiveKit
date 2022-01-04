@@ -11,6 +11,7 @@ struct Args {
     storage_path: String,
     #[structopt(short = "o", long)]
     export_path: String,
+    // #[cfg(feature = "rocks")]
     #[structopt(long)]
     rocks_ver: Option<String>,
 }

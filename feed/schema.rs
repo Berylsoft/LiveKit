@@ -1,9 +1,9 @@
 use serde::{Serialize, Deserialize, de::DeserializeOwned};
-use serde_json::{Value as JsonValue, Result as JsonResult, Error as JsonError};
+use serde_json::{Value as JsonValue, Result as JsonResult};
 #[cfg(feature = "package")]
 use crate::package::Package;
 
-// region util
+// region: (util)
 
 // same as `serde_json::from_value`, but takes reference
 pub fn to<De: DeserializeOwned>(value: &JsonValue) -> JsonResult<De>
@@ -94,7 +94,7 @@ pub fn string_color_to_u32(value: &JsonValue) -> JsonResult<u32> {
 
 // endregion
 
-// region (common)
+// region: (common)
 
 #[derive(Debug, Serialize)]
 pub struct Medal {
@@ -189,7 +189,7 @@ impl Title {
 
 // endregion
 
-// region InitResponse
+// region: InitResponse
 
 #[derive(Debug, Deserialize)]
 pub struct InitResponse {
@@ -204,7 +204,7 @@ impl InitResponse {
 
 // endregion
 
-// region Danmaku
+// region: Danmaku
 
 #[derive(Debug, Serialize)]
 pub struct Danmaku {
@@ -263,7 +263,7 @@ impl Danmaku {
 
 // endregion
 
-// region Interact
+// region: Interact
 
 #[derive(Debug, Serialize)]
 pub struct Interact {
@@ -307,7 +307,7 @@ impl Interact {
 
 // endregion
 
-// region Gift
+// region: Gift
 
 #[derive(Debug, Serialize)]
 pub struct Gift {
@@ -338,7 +338,7 @@ impl Gift {
 
 // endregion
 
-// region GuardBuy
+// region: GuardBuy
 
 #[derive(Debug, Serialize)]
 pub struct GuardBuy {
@@ -365,7 +365,7 @@ impl GuardBuy {
 
 // endregion
 
-// region SuperChat
+// region: SuperChat
 
 #[derive(Debug, Serialize)]
 pub struct SuperChat {
@@ -399,7 +399,7 @@ impl SuperChat {
 
 // endregion
 
-// region RoomStat
+// region: RoomStat
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RoomStat {
@@ -410,7 +410,7 @@ pub struct RoomStat {
 
 // endregion
 
-// region RoomInfoChange
+// region: RoomInfoChange
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RoomInfoDiff {
@@ -502,10 +502,10 @@ impl Event {
     }
 
     #[cfg(feature = "package")]
-    fn from_pacakge(package: Package) -> JsonResult<Event> {
+    fn from_pacakge(package: &Package) -> JsonResult<Event> {
         Ok(match package {
             Package::Json(payload) => Event::parse(payload)?,
-            Package::HeartbeatResponse(payload) => Event::Popularity(payload),
+            Package::HeartbeatResponse(payload) => Event::Popularity(*payload),
             Package::InitResponse(payload) => InitResponse::parse(payload)?,
             _ => panic!("ImpossibleInFlattened"),
         })
@@ -514,30 +514,29 @@ impl Event {
     #[cfg(feature = "package")]
     pub fn from_raw<Au8: AsRef<[u8]>>(raw: Au8) -> Vec<Event> {
         let raw = raw.as_ref();
+        let mut events = Vec::new();
 
         match Package::decode(raw) {
             Ok(package) => {
-                match {
-                    package
-                        .flatten()
-                        .into_iter()
-                        .map(Event::from_pacakge)
-                        .collect::<Result<Vec<_>, JsonError>>()
-                } {
-                    Ok(events) => events,
-                    Err(err) => vec![Event::ParseError {
-                        raw: hex::encode(raw),
-                        error: format!("{:?}", err),
-                    }],
+                for flattened in package.flatten() {
+                    events.push(match Event::from_pacakge(&flattened) {
+                        Ok(event) => event,
+                        Err(err) => Event::ParseError {
+                            raw: format!("{:?}", &flattened),
+                            error: format!("{:?}", err),
+                        }
+                    })
                 }
             }
             Err(err) => {
-                vec![Event::CodecError {
+                events.push(Event::CodecError {
                     raw: hex::encode(raw),
                     error: format!("{:?}", err),
-                }]
+                })
             }
         }
+
+        events
     }
 }
 
