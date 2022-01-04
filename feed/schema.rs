@@ -94,6 +94,103 @@ pub fn string_color_to_u32(value: &JsonValue) -> JsonResult<u32> {
 
 // endregion
 
+// region (common)
+
+#[derive(Debug, Serialize)]
+pub struct Medal {
+    pub on: bool,
+    pub level: u8,
+    pub name: String,
+    pub guard_level: u8,
+    pub t_roomid: Option<u32>,
+    pub t_uid: Option<u32>,
+    pub t_uname: Option<String>,
+    pub color: u32,
+    pub color_border: u32,
+    pub color_start: u32,
+    pub color_end: u32,
+    // pub score: u32, (interact)
+}
+
+impl Medal {
+    fn from_danmaku(raw: &JsonValue) -> JsonResult<Option<Self>> {
+        let medal: Vec<JsonValue> = to(&raw)?;
+        if medal.len() == 0 {
+            Ok(None)
+        } else {
+            Ok(Some(Medal {
+                on: numbool(&medal[11])?,
+                level: to(&medal[0])?,
+                name: to(&medal[1])?,
+                guard_level: to(&medal[10])?,
+                t_roomid: to(&medal[3])?,
+                t_uid: Some(to(&medal[12])?),
+                t_uname: Some(to(&medal[2])?),
+                color: to(&medal[4])?,
+                color_border: to(&medal[7])?,
+                color_start: to(&medal[8])?,
+                color_end: to(&medal[9])?,
+            }))
+        }
+    }
+
+    fn from_common(medal: &JsonValue) -> JsonResult<Option<Self>> {
+        let name: String = to(&medal["medal_name"])?;
+        if name.len() == 0 {
+            Ok(None)
+        } else {
+            Ok(Some(Medal {
+                on: numbool(&medal["is_lighted"])?,
+                level: to(&medal["medal_level"])?,
+                name: to(&medal["medal_name"])?,
+                guard_level: to(&medal["guard_level"])?,
+                t_roomid: u32_opt(&medal["anchor_roomid"])?,
+                t_uid: u32_opt(&medal["target_id"])?,
+                t_uname: None,
+                color: string_color_to_u32(&medal["medal_color"])?,
+                color_border: to(&medal["medal_color_border"])?,
+                color_start: to(&medal["medal_color_start"])?,
+                color_end: to(&medal["medal_color_end"])?,
+            }))
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct User {
+    pub uid: u32,
+    pub uname: String,
+    pub live_user_level: u8,
+    pub admin: bool,
+    pub laoye_monthly: bool,
+    pub laoye_annual: bool,
+}
+
+#[derive(Debug, Serialize)]
+pub struct Title(String, Option<String>);
+
+impl Title {
+    fn from(raw: &JsonValue) -> JsonResult<Option<Self>> {
+        Ok(match string_opt(&raw[0])? {
+            None => None,
+            Some(first) => match string_opt(&raw[1])? {
+                None => Some(Title(first, None)),
+                Some(second) => {
+                    if first == second {
+                        Some(Title(first, None))
+                    } else {
+                        Some(Title(first, Some(second)))
+                    }
+                },
+            },
+        })
+    }
+}
+
+// endregion
+
+// region InitResponse
+
 #[derive(Debug, Deserialize)]
 pub struct InitResponse {
     pub code: i32,
@@ -105,125 +202,7 @@ impl InitResponse {
     }
 }
 
-#[derive(Debug, Serialize)]
-#[serde(tag = "type", content = "data")]
-pub enum Event {
-    Popularity(u32),
-    InitResponse(i32),
-
-    Danmaku(Danmaku),
-    Interact(Interact),
-    Gift(Gift),
-    GuardBuy(GuardBuy),
-    SuperChat(SuperChat),
-
-    RoomStat(RoomStat),
-    RoomInfoChange(RoomInfoDiff),
-
-    LiveStart,
-    LiveEnd,
-
-    Unimplemented,
-    Ignored,
-    Unknown { raw: String },
-
-    ParseError { raw: String, error: String },
-    CodecError { raw: String, error: String },
-}
-
-impl Event {
-    pub fn parse<Str: AsRef<str>>(raw: Str) -> JsonResult<Event> {
-        let raw = raw.as_ref();
-
-        let unknown = || Event::Unknown { raw: raw.to_owned() };
-
-        let raw: JsonValue = serde_json::from_str(raw)?;
-        let command: String = to(&raw["cmd"])?;
-
-        Ok(match command.as_str() {
-            "DANMU_MSG" => Event::Danmaku(Danmaku::from(&raw["info"])?),
-            "INTERACT_WORD" => Event::Interact(Interact::from(&raw["data"])?),
-            "SEND_GIFT" => Event::Gift(Gift::from(&raw["data"])?),
-            "GUARD_BUY" => Event::GuardBuy(GuardBuy::from(&raw["data"])?),
-            "SUPER_CHAT_MESSAGE" => Event::SuperChat(SuperChat::from(&raw["data"], &raw["user_info"])?),
-
-            "ROOM_REAL_TIME_MESSAGE_UPDATE" => Event::RoomStat(to(&raw["data"])?),
-            "ROOM_CHANGE" => Event::RoomInfoChange(to(&raw["data"])?),
-
-            "LIVE" => Event::LiveStart,
-            "PREPARING" => Event::LiveEnd,
-
-            "ROOM_BLOCK_MSG"
-            | "SUPER_CHAT_MESSAGE_DELETE"
-            | "LIVE_INTERACTIVE_GAME"
-            | "COMBO_SEND"
-            | "ENTRY_EFFECT"
-            | "SUPER_CHAT_MESSAGE_JPN"
-            | "USER_TOAST_MSG"
-            | "HOT_ROOM_NOTIFY"
-            | "SPECIAL_GIFT"
-            | "VOICE_JOIN_ROOM_COUNT_INFO"
-            | "VOICE_JOIN_LIST"
-            | "VOICE_JOIN_STATUS"
-            | "ANCHOR_LOT_CHECKSTATUS"
-            | "ANCHOR_LOT_START"
-            | "ANCHOR_LOT_END"
-            | "ANCHOR_LOT_AWARD" => Event::Unimplemented,
-
-            "STOP_LIVE_ROOM_LIST"
-            | "HOT_RANK_CHANGED"
-            | "HOT_RANK_CHANGED_V2"
-            | "WIDGET_BANNER"
-            | "ONLINE_RANK_COUNT"
-            | "ONLINE_RANK_V2"
-            | "NOTICE_MSG"
-            | "ONLINE_RANK_TOP3"
-            | "HOT_RANK_SETTLEMENT"
-            | "HOT_RANK_SETTLEMENT_V2" => Event::Ignored,
-
-            _ => unknown(),
-        })
-    }
-
-    #[cfg(feature = "package")]
-    fn from_pacakge(package: Package) -> JsonResult<Event> {
-        Ok(match package {
-            Package::Json(payload) => Event::parse(payload)?,
-            Package::HeartbeatResponse(payload) => Event::Popularity(payload),
-            Package::InitResponse(payload) => InitResponse::parse(payload)?,
-            _ => panic!("ImpossibleInFlattened"),
-        })
-    }
-
-    #[cfg(feature = "package")]
-    pub fn from_raw<Au8: AsRef<[u8]>>(raw: Au8) -> Vec<Event> {
-        let raw = raw.as_ref();
-
-        match Package::decode(raw) {
-            Ok(package) => {
-                match {
-                    package
-                        .flatten()
-                        .into_iter()
-                        .map(Event::from_pacakge)
-                        .collect::<Result<Vec<_>, JsonError>>()
-                } {
-                    Ok(events) => events,
-                    Err(err) => vec![Event::ParseError {
-                        raw: hex::encode(raw),
-                        error: format!("{:?}", err),
-                    }],
-                }
-            }
-            Err(err) => {
-                vec![Event::CodecError {
-                    raw: hex::encode(raw),
-                    error: format!("{:?}", err),
-                }]
-            }
-        }
-    }
-}
+// endregion
 
 // region Danmaku
 
@@ -444,100 +423,123 @@ pub struct RoomInfoDiff {
 
 // endregion
 
-// region (common)
-
 #[derive(Debug, Serialize)]
-pub struct Medal {
-    pub on: bool,
-    pub level: u8,
-    pub name: String,
-    pub guard_level: u8,
-    pub t_roomid: Option<u32>,
-    pub t_uid: Option<u32>,
-    pub t_uname: Option<String>,
-    pub color: u32,
-    pub color_border: u32,
-    pub color_start: u32,
-    pub color_end: u32,
-    // pub score: u32, (interact)
+#[serde(tag = "type", content = "data")]
+pub enum Event {
+    Popularity(u32),
+    InitResponse(i32),
+
+    Danmaku(Danmaku),
+    Interact(Interact),
+    Gift(Gift),
+    GuardBuy(GuardBuy),
+    SuperChat(SuperChat),
+
+    RoomStat(RoomStat),
+    RoomInfoChange(RoomInfoDiff),
+
+    LiveStart,
+    LiveEnd,
+
+    Unimplemented,
+    Ignored,
+    Unknown { raw: String },
+
+    ParseError { raw: String, error: String },
+    CodecError { raw: String, error: String },
 }
 
-impl Medal {
-    fn from_danmaku(raw: &JsonValue) -> JsonResult<Option<Self>> {
-        let medal: Vec<JsonValue> = to(&raw)?;
-        if medal.len() == 0 {
-            Ok(None)
-        } else {
-            Ok(Some(Medal {
-                on: numbool(&medal[11])?,
-                level: to(&medal[0])?,
-                name: to(&medal[1])?,
-                guard_level: to(&medal[10])?,
-                t_roomid: to(&medal[3])?,
-                t_uid: Some(to(&medal[12])?),
-                t_uname: Some(to(&medal[2])?),
-                color: to(&medal[4])?,
-                color_border: to(&medal[7])?,
-                color_start: to(&medal[8])?,
-                color_end: to(&medal[9])?,
-            }))
-        }
-    }
+impl Event {
+    pub fn parse<Str: AsRef<str>>(raw: Str) -> JsonResult<Event> {
+        let _raw = raw.as_ref();
 
-    fn from_common(medal: &JsonValue) -> JsonResult<Option<Self>> {
-        let name: String = to(&medal["medal_name"])?;
-        if name.len() == 0 {
-            Ok(None)
-        } else {
-            Ok(Some(Medal {
-                on: numbool(&medal["is_lighted"])?,
-                level: to(&medal["medal_level"])?,
-                name: to(&medal["medal_name"])?,
-                guard_level: to(&medal["guard_level"])?,
-                t_roomid: u32_opt(&medal["anchor_roomid"])?,
-                t_uid: u32_opt(&medal["target_id"])?,
-                t_uname: None,
-                color: string_color_to_u32(&medal["medal_color"])?,
-                color_border: to(&medal["medal_color_border"])?,
-                color_start: to(&medal["medal_color_start"])?,
-                color_end: to(&medal["medal_color_end"])?,
-            }))
-        }
-    }
-}
+        let raw: JsonValue = serde_json::from_str(_raw)?;
+        let command: String = to(&raw["cmd"])?;
 
-#[derive(Debug, Serialize)]
-pub struct User {
-    pub uid: u32,
-    pub uname: String,
-    pub live_user_level: u8,
-    pub admin: bool,
-    pub laoye_monthly: bool,
-    pub laoye_annual: bool,
-}
+        Ok(match command.as_str() {
+            "DANMU_MSG" => Event::Danmaku(Danmaku::from(&raw["info"])?),
+            "INTERACT_WORD" => Event::Interact(Interact::from(&raw["data"])?),
+            "SEND_GIFT" => Event::Gift(Gift::from(&raw["data"])?),
+            "GUARD_BUY" => Event::GuardBuy(GuardBuy::from(&raw["data"])?),
+            "SUPER_CHAT_MESSAGE" => Event::SuperChat(SuperChat::from(&raw["data"], &raw["user_info"])?),
 
-#[derive(Debug, Serialize)]
-pub struct Title(String, Option<String>);
+            "ROOM_REAL_TIME_MESSAGE_UPDATE" => Event::RoomStat(to(&raw["data"])?),
+            "ROOM_CHANGE" => Event::RoomInfoChange(to(&raw["data"])?),
 
-impl Title {
-    fn from(raw: &JsonValue) -> JsonResult<Option<Self>> {
-        Ok(match string_opt(&raw[0])? {
-            None => None,
-            Some(first) => match string_opt(&raw[1])? {
-                None => Some(Title(first, None)),
-                Some(second) => {
-                    if first == second {
-                        Some(Title(first, None))
-                    } else {
-                        Some(Title(first, Some(second)))
-                    }
-                },
-            },
+            "LIVE" => Event::LiveStart,
+            "PREPARING" => Event::LiveEnd,
+
+            "ROOM_BLOCK_MSG"
+            | "SUPER_CHAT_MESSAGE_DELETE"
+            | "LIVE_INTERACTIVE_GAME"
+            | "COMBO_SEND"
+            | "ENTRY_EFFECT"
+            | "SUPER_CHAT_MESSAGE_JPN"
+            | "USER_TOAST_MSG"
+            | "HOT_ROOM_NOTIFY"
+            | "SPECIAL_GIFT"
+            | "VOICE_JOIN_ROOM_COUNT_INFO"
+            | "VOICE_JOIN_LIST"
+            | "VOICE_JOIN_STATUS"
+            | "ANCHOR_LOT_CHECKSTATUS"
+            | "ANCHOR_LOT_START"
+            | "ANCHOR_LOT_END"
+            | "ANCHOR_LOT_AWARD" => Event::Unimplemented,
+
+            "STOP_LIVE_ROOM_LIST"
+            | "HOT_RANK_CHANGED"
+            | "HOT_RANK_CHANGED_V2"
+            | "WIDGET_BANNER"
+            | "ONLINE_RANK_COUNT"
+            | "ONLINE_RANK_V2"
+            | "NOTICE_MSG"
+            | "ONLINE_RANK_TOP3"
+            | "HOT_RANK_SETTLEMENT"
+            | "HOT_RANK_SETTLEMENT_V2" => Event::Ignored,
+
+            _ => Event::Unknown { raw: _raw.to_owned() },
         })
     }
-}
 
-// endregion
+    #[cfg(feature = "package")]
+    fn from_pacakge(package: Package) -> JsonResult<Event> {
+        Ok(match package {
+            Package::Json(payload) => Event::parse(payload)?,
+            Package::HeartbeatResponse(payload) => Event::Popularity(payload),
+            Package::InitResponse(payload) => InitResponse::parse(payload)?,
+            _ => panic!("ImpossibleInFlattened"),
+        })
+    }
+
+    #[cfg(feature = "package")]
+    pub fn from_raw<Au8: AsRef<[u8]>>(raw: Au8) -> Vec<Event> {
+        let raw = raw.as_ref();
+
+        match Package::decode(raw) {
+            Ok(package) => {
+                match {
+                    package
+                        .flatten()
+                        .into_iter()
+                        .map(Event::from_pacakge)
+                        .collect::<Result<Vec<_>, JsonError>>()
+                } {
+                    Ok(events) => events,
+                    Err(err) => vec![Event::ParseError {
+                        raw: hex::encode(raw),
+                        error: format!("{:?}", err),
+                    }],
+                }
+            }
+            Err(err) => {
+                vec![Event::CodecError {
+                    raw: hex::encode(raw),
+                    error: format!("{:?}", err),
+                }]
+            }
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
