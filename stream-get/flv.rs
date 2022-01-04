@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use tokio::{fs::File, io::AsyncWriteExt};
 use futures::{Stream, StreamExt};
 use livekit_api::{client::{HttpClient, ReqwestError}, stream::PlayInfo};
@@ -14,7 +15,7 @@ pub async fn get_stream(client: &HttpClient, url: String) -> Option<impl Stream<
     }
 }
 
-pub async fn download(client: HttpClient, roomid: u32, path: String) {
+pub async fn download(client: HttpClient, roomid: u32, path: PathBuf) {
     macro_rules! x {
         ($qn:expr) => {
             StreamInfo::parse(&PlayInfo::call(&client, roomid, $qn).await.unwrap().playurl_info.unwrap()).unwrap().flv_avc

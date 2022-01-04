@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use serde::{Serialize, Deserialize};
 use livekit_api::client::{Access, HttpClient};
 use livekit_feed::transfer::OutputKind;
@@ -39,7 +40,7 @@ pub enum RecordFragmentMode {
 pub struct RecordConfig {
     pub mode: RecordMode,
     pub qn: Option<Vec<i32>>,
-    pub path: String,
+    pub path: PathBuf,
     pub name_template: Option<String>,
     pub fragment: Option<RecordFragmentMode>,
 }
@@ -61,13 +62,13 @@ impl HttpConfig {
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct DumpConfig {
-    pub path: String,
+    pub path: PathBuf,
     pub kind: OutputKind,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct StorageConfig {
-    pub path: String,
+    pub path: PathBuf,
 }
 
 #[derive(Serialize, Deserialize, Clone)]

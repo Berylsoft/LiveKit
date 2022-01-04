@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use structopt::StructOpt;
 use tokio::{spawn, signal, fs::read_to_string};
 use livekit_api::client::HttpClient;
@@ -6,8 +7,8 @@ use livekit::{config::*, room::Room};
 
 #[derive(StructOpt)]
 struct Args {
-    #[structopt(short = "c", long)]
-    config_path: String,
+    #[structopt(short = "c", long, parse(from_os_str))]
+    config_path: PathBuf,
 }
 
 #[tokio::main]

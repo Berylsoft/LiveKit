@@ -67,16 +67,12 @@ impl Room {
         self.user_info = UserInfo::call(&self.http_client, self.roomid).await.unwrap();
     }
 
-    pub fn record_file_path(&self) -> String {
+    pub fn record_file_name(&self) -> String {
         let config = self.config.record.as_ref().unwrap();
-        let template = format!(
-            "{}/{}.flv",
-            config.path,
-            match &config.name_template {
-                None => STREAM_DEFAULT_FILE_TEMPLATE,
-                Some(template) => template.as_str(),
-            },
-        );
+        let template = match &config.name_template {
+            None => STREAM_DEFAULT_FILE_TEMPLATE,
+            Some(template) => template.as_str(),
+        };
         let time = chrono::Local::now();
 
         template!(
@@ -103,8 +99,9 @@ impl Room {
         let config = self.config.dump.as_ref().unwrap();
         let kind = config.kind.clone();
         let receiver = self.subscribe();
-        let mut file = OpenOptions::new().write(true).create(true).append(true)
-            .open(format!("{}/{}.txt", config.path, self.id())).unwrap();
+        let mut path = config.path.clone();
+        path.push(format!("{}.txt", self.id()));
+        let mut file = OpenOptions::new().write(true).create(true).append(true).open(path).unwrap();
         async move {
             while let Ok(payload) = receiver.recv().await {
                 for event in Event::from_raw(payload.payload) {
@@ -118,7 +115,11 @@ impl Room {
         use livekit_stream_get::{flv};
         let config = self.config.record.as_ref().unwrap();
         match config.mode {
-            RecordMode::FlvRaw => flv::download(self.http_client.clone(), self.id(), self.record_file_path()),
+            RecordMode::FlvRaw => flv::download(self.http_client.clone(), self.id(), {
+                let mut path = config.path.clone();
+                path.push(format!("{}.flv", self.record_file_name()));
+                path
+            }),
             _ => unimplemented!(),
         }
     }

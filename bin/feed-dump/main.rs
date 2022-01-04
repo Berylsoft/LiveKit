@@ -1,5 +1,5 @@
 use structopt::StructOpt;
-use std::{io::Write, fs::{File, OpenOptions}};
+use std::{path::PathBuf, io::Write, fs::{File, OpenOptions}};
 use livekit_feed::{payload::Payload, package::Package};
 use livekit_feed_storage::{open_db, open_storage};
 
@@ -7,10 +7,10 @@ use livekit_feed_storage::{open_db, open_storage};
 struct Args {
     #[structopt(short = "r", long)]
     roomid: u32,
-    #[structopt(short = "s", long)]
-    storage_path: String,
-    #[structopt(short = "o", long)]
-    export_path: String,
+    #[structopt(short = "s", long, parse(from_os_str))]
+    storage_path: PathBuf,
+    #[structopt(short = "o", long, parse(from_os_str))]
+    export_path: PathBuf,
     // #[cfg(feature = "rocks")]
     #[structopt(long)]
     rocks_ver: Option<String>,

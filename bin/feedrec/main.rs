@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use log::LevelFilter;
 use log4rs::{
     append::file::FileAppender,
@@ -10,7 +11,7 @@ use livekit_api::client::HttpClient;
 use livekit_feed::config::*;
 use livekit_feed_storage::{open_db, rec};
 
-pub fn log_config(path: String, debug: bool) -> Config {
+pub fn log_config(path: PathBuf, debug: bool) -> Config {
     Config::builder()
         .appender(
             Appender::builder().build(
@@ -35,10 +36,10 @@ pub fn log_config(path: String, debug: bool) -> Config {
 struct Args {
     #[structopt(short = "r", long)]
     roomid_list: String,
-    #[structopt(short = "s", long)]
-    storage_path: String,
-    #[structopt(short = "l", long)]
-    log_path: Option<String>,
+    #[structopt(short = "s", long, parse(from_os_str))]
+    storage_path: PathBuf,
+    #[structopt(short = "l", long, parse(from_os_str))]
+    log_path: Option<PathBuf>,
     #[structopt(long)]
     log_debug: bool,
 }
