@@ -37,7 +37,7 @@ livekit-api = { path = "../api", features = ["feed"], optional = true }
 hex-literal = "0.3"
 
 [features]
-default = ["package", "stream", "schema"]
+default = ["package", "stream", "schema", "transfer"]
 package = [
     "binrw", "bytes-codec", "brotli-decompressor",
 ]
@@ -48,4 +48,6 @@ stream = [
 ]
 schema = [
     "hex",
+]
+transfer = [
 ]

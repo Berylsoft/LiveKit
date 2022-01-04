@@ -35,7 +35,7 @@ rooms = [ # 完整房间号或者短号
 storage.path = 'C:\swap\livekit-testing\long2' # 目前必填
 # 信息流解析后数据记录，输出schema参考 feed/schema.rs，之后可能会想办法生成一个json schema
 dump.path = 'C:\swap\livekit-testing\dump' # 目前必填
-dump.debug = false # false或不填输出流式json，同时不输出未实现和忽略的事件；true输出rust debug
+dump.kind = "NdJson"
 # http配置
 # http.access = { uid = 1130367996, key = "********************************", csrf = "********************************" } # 账号登录信息
 # http.proxy = "https://example.com" # api.live.bilibili.com的代理

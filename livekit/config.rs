@@ -1,5 +1,6 @@
 use serde::{Serialize, Deserialize};
 use livekit_api::client::{Access, HttpClient};
+use livekit_feed::transfer::OutputKind;
 
 pub const ROOM_INFO_UPDATE_INTERVAL_SEC: u64 = 600;
 
@@ -61,7 +62,7 @@ impl HttpConfig {
 #[derive(Serialize, Deserialize, Clone)]
 pub struct DumpConfig {
     pub path: String,
-    pub debug: Option<bool>,
+    pub kind: OutputKind,
 }
 
 #[derive(Serialize, Deserialize, Clone)]

@@ -1,10 +1,10 @@
-use std::{io::Write, fs::OpenOptions};
+use std::fs::OpenOptions;
 use rand::{Rng, thread_rng as rng};
 use tokio::spawn;
 use futures::Future;
 use async_channel::{unbounded as channel, Receiver};
 use livekit_api::{client::HttpClient, info::{RoomInfo, UserInfo}};
-use livekit_feed::schema::Event;
+use livekit_feed::{payload::Payload, schema::Event, transfer::write};
 use livekit_feed_storage::{Db, open_storage};
 use livekit_feed_client::thread::client_sender;
 use crate::config::*;
@@ -22,7 +22,7 @@ pub struct Room {
     roomid: u32,
     info: RoomInfo,
     user_info: UserInfo,
-    receiver: Receiver<Event>,
+    receiver: Receiver<Payload>,
     config: Config,
     http_client: HttpClient,
 }
@@ -95,27 +95,21 @@ impl Room {
         )
     }
 
-    pub fn subscribe(&self) -> Receiver<Event> {
+    pub fn subscribe(&self) -> Receiver<Payload> {
         self.receiver.clone()
     }
 
     pub async fn dump(&self) -> impl Future<Output = ()> {
         let config = self.config.dump.as_ref().unwrap();
-        let debug = if let Some(true) = config.debug { true } else { false };
+        let kind = config.kind.clone();
         let receiver = self.subscribe();
         let mut file = OpenOptions::new().write(true).create(true).append(true)
             .open(format!("{}/{}.txt", config.path, self.id())).unwrap();
         async move {
-            while let Ok(event) = receiver.recv().await {
-                if debug {
-                    write!(file, "{:?}", event).unwrap();
-                } else {
-                    if let Event::Unimplemented | Event::Ignored = event {
-                        continue
-                    }
-                    serde_json::to_writer(&mut file, &event).unwrap();
+            while let Ok(payload) = receiver.recv().await {
+                for event in Event::from_raw(payload.payload) {
+                    write(&mut file, &kind, &event);
                 }
-                writeln!(file).unwrap();
             }
         }
     }
