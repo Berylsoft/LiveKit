@@ -18,6 +18,9 @@ log4rs = { version = "1.0", features = ["all_components"] }
 structopt = "0.3"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-rocksdb = { version = "0.16", default-features = false, features = ["lz4"] }
+rocksdb = { version = "0.16", default-features = false, features = ["lz4"], optional = true }
 livekit-feed = { path = "../../feed" }
 livekit-feed-storage = { path = "../../feed-storage" }
+
+[features]
+rocks = ["rocksdb"]

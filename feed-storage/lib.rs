@@ -16,20 +16,21 @@ pub fn open_storage(db: &Db, roomid: u32) -> Result<Tree> {
     db.open_tree(roomid.to_string())
 }
 
-fn roomid(storage: &Tree) -> u32 {
+fn roomid_of(storage: &Tree) -> u32 {
     std::str::from_utf8(storage.name().as_ref()).unwrap().parse().unwrap()
 }
 
 pub fn insert_payload(storage: &Tree, payload: &Payload) {
-    match storage.insert(payload.get_key().encode(), payload.payload.as_slice()) {
+    let key = payload.get_key();
+    match storage.insert(key.encode(), payload.payload.as_slice()) {
         Ok(None) => { },
         Ok(Some(vec)) => log::error!(
-            "[{: >10}] (storage) dup: key={} val(hex)={} val_prev(hex)={}",
-            roomid(storage), payload.time, hex::encode(&payload.payload), hex::encode(vec),
+            "[{: >10}] (storage) dup: key={:?} val(hex)={} val_prev(hex)={}",
+            roomid_of(storage), key, hex::encode(&payload.payload), hex::encode(vec),
         ),
         Err(err) => panic!(
-            "[{: >10}] (storage) FATAL: insert error: {:?} key={} val(hex)={}",
-            roomid(storage), err, payload.time, hex::encode(&payload.payload),
+            "[{: >10}] (storage) FATAL: insert error: {:?} key={:?} val(hex)={}",
+            roomid_of(storage), err, key, hex::encode(&payload.payload),
         ),
     }
 }

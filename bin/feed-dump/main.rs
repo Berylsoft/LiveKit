@@ -1,5 +1,5 @@
 use structopt::StructOpt;
-use std::{io::Write, fs::OpenOptions};
+use std::{io::Write, fs::{File, OpenOptions}};
 use livekit_feed::{payload::Payload, package::Package};
 use livekit_feed_storage::{open_db, open_storage};
 
@@ -21,11 +21,13 @@ struct Record {
     payloads: serde_json::Value,
 }
 
-fn record(payload: Payload) -> String {
-    serde_json::to_string(&Record {
+fn record<Au8: AsRef<[u8]>>(file: &mut File, kv: (Au8, Au8)) {
+    let payload = Payload::from_kv(kv);
+    let line = serde_json::to_string(&Record {
         time: payload.time,
         payloads: Package::decode(payload.payload).unwrap().into_json().unwrap(),
-    }).unwrap()
+    }).unwrap();
+    writeln!(file, "{}", line).unwrap();
 }
 
 fn main() {
@@ -34,16 +36,23 @@ fn main() {
     let mut file = OpenOptions::new().write(true).create(true).append(true).open(export_path).unwrap();
 
     if let Some(rocks_ver) = rocks_ver {
-        let storage = rocksdb::DB::open_default(format!("{}/{}-{}", storage_path, roomid, rocks_ver)).unwrap();
-        for (k, v) in storage.iterator(rocksdb::IteratorMode::Start) {
-            writeln!(file, "{}", record(Payload::from_kv(k, v))).unwrap();
+        #[cfg(feature = "rocks")]
+        {
+            let storage = rocksdb::DB::open_default(format!("{}/{}-{}", storage_path, roomid, rocks_ver)).unwrap();
+            for kv in storage.iterator(rocksdb::IteratorMode::Start) {
+                record(&mut file, kv);
+            }
+        }
+        #[cfg(not(feature = "rocks"))]
+        {
+            let _ = rocks_ver;
+            panic!("complied without rocksdb");
         }
     } else {
         let db = open_db(storage_path).unwrap();
         let storage = open_storage(&db, roomid).unwrap();
         for kv in storage.iter() {
-            let (k, v) = kv.unwrap();
-            writeln!(file, "{}", record(Payload::from_kv(k, v))).unwrap();
+            record(&mut file, kv.unwrap());
         }
     }
 }

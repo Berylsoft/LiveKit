@@ -9,6 +9,7 @@ pub fn crc32(raw: &[u8]) -> u32 {
     hasher.finalize()
 }
 
+#[derive(Debug)]
 pub struct KeyWithHash(u64, u32);
 
 impl KeyWithHash {
@@ -57,11 +58,11 @@ impl Payload {
         }
     }
 
-    pub fn from_kv<T: AsRef<[u8]>>(k: T, v: T) -> Payload {
-        let v = v.as_ref();
+    pub fn from_kv<Au8: AsRef<[u8]>>(kv: (Au8, Au8)) -> Payload {
+        let v = kv.0.as_ref();
 
         Payload {
-            time: match Key::from(k.as_ref()).unwrap() {
+            time: match Key::from(kv.1.as_ref()).unwrap() {
                 Key::WithHash(KeyWithHash(time, hash)) => {
                     assert_eq!(hash, crc32(v));
                     time
