@@ -6,7 +6,7 @@
 
 构建方式：安装好rustup后在仓库根目录运行`cargo build --release`即可，可执行文件会出现在/target/release/位置，运行只需要可执行文件本身
 
-对于Windows用户可以直接下载使用我构建好的：[e8bad13](https://berylsoft-assert-1307736292.file.myqcloud.com/livekit-alpha/release-v03-e8bad13-x86_64-pc-windows-msvc.7z) [6ac2adc](https://berylsoft-assert-1307736292.file.myqcloud.com/livekit-alpha/release-v03-6ac2adc-x86_64-pc-windows-msvc.7z)
+对于Windows用户可以直接下载使用我构建好的：[e8bad13](https://berylsoft-assert-1307736292.file.myqcloud.com/livekit-alpha/release-v03-e8bad13-x86_64-pc-windows-msvc.7z) [6ac2adc](https://berylsoft-assert-1307736292.file.myqcloud.com/livekit-alpha/release-v03-6ac2adc-x86_64-pc-windows-msvc.7z) [058730c](https://berylsoft-assert-1307736292.file.myqcloud.com/livekit-alpha/release-v03-058730c-x86_64-pc-windows-msvc.7z)
 
 项目结构见README，以下列出各个模块的功能介绍、开发状态和使用说明。可执行文件在前，库在后，**但有很多注意事项在库的介绍中，请测试参与者务必阅读完整个文件。**
 
@@ -35,12 +35,12 @@ rooms = [ # 完整房间号或者短号
 storage.path = 'C:\swap\livekit-testing\long2' # 目前必填
 # 信息流解析后数据记录，输出schema参考 feed/schema.rs，之后可能会想办法生成一个json schema
 dump.path = 'C:\swap\livekit-testing\dump' # 目前必填
-dump.kind = "NdJson"
+dump.kind = "NdJson" # "NdJson"=流式json "Debug"=rust debug输出
 # http配置
 # http.access = { uid = 1130367996, key = "********************************", csrf = "********************************" } # 账号登录信息
 # http.proxy = "https://example.com" # api.live.bilibili.com的代理
 # 录制目前还是残废，连自动开始录制都没有
-# record.mode = "FlvRaw"
+# record.mode = "FlvRaw" # 目前只有这一个可选项
 # record.path = 'C:\swap\livekit-testing\rec'
 # record.name_template = "{roomid}-{date}-{time}{ms}-{title}" # 参考下方模板列表
 # record.fragment = { type = "ByTime", per_min = 60 } # 目前不起作用
@@ -87,7 +87,7 @@ LiveKit主程序采用了一种叫房间组的策略，**同一个主程序实�
 | `-r, --roomid` | 要解析的 |
 | `-s, --storage-path` | 要解析的存储文件夹的路径 |
 | `-o, --export-path` | 输出文件的路径 |
-| `--rocks-ver` | （可选）如果解析的是rocksdb格式存储，则要解析的存储的rocksdb的版本字符串<br>（早期使用rocksdb格式存储的版本从未在除了我这里的地方使用，所以忽略即可） |
+| `--rocks-ver` | （可选，并且**仅在`rocks` feature开启下可用，默认编译产物不可用**）<br>如果解析的是rocksdb格式存储，则要解析的存储的rocksdb的版本字符串<br>（早期使用rocksdb格式存储的版本从未在除了我这里的地方使用，所以忽略即可） |
 
 未来会加入可选的输出重整格式，以及更细致的过滤器（如要解析的时间段）。
 
@@ -97,7 +97,7 @@ LiveKit主程序采用了一种叫房间组的策略，**同一个主程序实�
 
 | option/flag | description |
 |-------------|-------------|
-| `-a, --access` | 账号登陆信息文件路径，写为json，[格式参考](/api/client.rs#L42)，举例：<br>`{"uid": 1130367996, "key": "********************************", "csrf": "********************************"}` |
+| `-a, --access-path` | 账号登陆信息文件路径，写为json，[格式参考](/api/client.rs#L42)，举例：<br>`{"uid": 1130367996, "key": "********************************", "csrf": "********************************"}` |
 | `-p, --payload` | 要执行的操作，写为json，[格式参考](/bin/interactor/main.rs#L13)，举例：<br>`{"type": "Danmaku", "data": {"roomid": 24393, "msg": "test", "emoji": false}}`<br>注意其中房间号也为**完整**房间号 |
 
 ## livekit-api
