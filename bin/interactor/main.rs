@@ -1,12 +1,12 @@
 use std::path::PathBuf;
-use tokio::fs::read_to_string;
+use tokio::fs;
 use structopt::StructOpt;
 use livekit_api::{client::{HttpClient, Access}, interact::SendDanmaku};
 
 #[derive(StructOpt)]
 struct Args {
     #[structopt(short = "a", long, parse(from_os_str))]
-    access: PathBuf,
+    access_path: PathBuf,
     #[structopt(short = "p", long)]
     payload: String,
 }
@@ -19,8 +19,8 @@ enum Payload {
 
 #[tokio::main]
 async fn main() {
-    let Args { access, payload } = Args::from_args();
-    let access: Access = serde_json::from_str(read_to_string(access).await.unwrap().as_str()).unwrap();
+    let Args { access_path, payload } = Args::from_args();
+    let access: Access = serde_json::from_str(fs::read_to_string(access_path).await.unwrap().as_str()).unwrap();
     let payload: Payload = serde_json::from_str(payload.as_str()).unwrap();
     let client = HttpClient::new(Some(access), None).await;
     match payload {

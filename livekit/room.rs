@@ -108,7 +108,7 @@ impl Room {
         async move {
             while let Ok(payload) = receiver.recv().await {
                 for event in Event::from_raw(payload.payload) {
-                    write(&mut file, &kind, &event).expect("writing to dump file error");
+                    write(&mut file, &kind, &event);
                 }
             }
         }
