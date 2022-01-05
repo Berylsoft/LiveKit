@@ -1,6 +1,6 @@
 use std::{io::Write, fs::File};
 use serde::{Serialize, Deserialize};
-use crate::schema::Event;
+use livekit_feed::schema::Event;
 
 #[derive(Serialize, Deserialize, Clone)]
 pub enum OutputKind {

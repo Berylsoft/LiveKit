@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use serde::{Serialize, Deserialize};
 use livekit_api::client::{Access, HttpClient};
-use livekit_feed::transfer::OutputKind;
+use crate::transfer::OutputKind;
 
 pub const ROOM_INFO_UPDATE_INTERVAL_SEC: u64 = 600;
 

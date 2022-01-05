@@ -4,10 +4,9 @@ use tokio::spawn;
 use futures::Future;
 use async_channel::{unbounded as channel, Receiver};
 use livekit_api::{client::{HttpClient, RestApiResult}, info::{RoomInfo, UserInfo}};
-use livekit_feed::{payload::Payload, schema::Event, transfer::write};
+use livekit_feed::{payload::Payload, schema::Event};
 use livekit_feed_storage::{Db, open_storage};
-use livekit_feed_client::thread::client_sender;
-use crate::config::*;
+use crate::{config::*, feed::client_sender, transfer::write};
 
 macro_rules! template {
     ($template:expr, $($k:expr => $v:expr),*, $(,)?) => {
@@ -115,10 +114,9 @@ impl Room {
     }
 
     pub fn record(&self) -> impl Future<Output = ()> {
-        use livekit_stream_get::{flv};
         let config = self.config.record.as_ref().unwrap();
         match config.mode {
-            RecordMode::FlvRaw => flv::download(self.http_client.clone(), self.id(), {
+            RecordMode::FlvRaw => crate::flv::download(self.http_client.clone(), self.id(), {
                 let mut path = config.path.clone();
                 path.push(format!("{}.flv", self.record_file_name()));
                 path

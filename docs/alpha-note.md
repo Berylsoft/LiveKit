@@ -148,41 +148,4 @@ livekit的主程序和feedrec工具（之后会介绍）会记录所有开启的
 
 本模块采用sled这个纯rust实现的现代键值存储引擎来存储原始数据，目前版本锁定为0.34.7。sled的存储是一个文件夹，有以下内容：db是数据，conf是数据库配置，snap（大概）是上次的memcache索引，blobs文件夹（大概）是存放较大的value（在我们的场景下一般为空）。主程序每个房间组（之后会解释）一个存储，feedrec所有房间一个存储。使用**完整房间号的字符串**作为键命名空间，**以毫秒为单位的64位unix timestamp**作为键，包原始二进制数据作为值。需要特别注意的是sled的memcache的会占用一部分内存，目前的设置是最大16MB，这会构成可执行文件运行时内存占用的一部分。
 
-## livekit-feed-client
-
-信息流client封装库。
-
-| module | description |
-|--------|-------------|
-| thread | 当前的基于线程的client实现 |
-
-稳定性：已有代码基本稳定（也没啥可不稳定的）。目前的线程实现（其实就是加上了发解析后event的channel的feed-storage rec线程）只是临时解决方案，之后会重构为actor。
-
-## livekit-stream-get
-
-直播流拉取与记录库。
-
-| module | description |
-|--------|-------------|
-| config | 配置常量 |
-| url | 解析并构造url |
-| flv | flv录制实现 |
-
-稳定性：直播流信息解析基本稳定。**录制目前还是残废，连自动开始录制都没有**。录制线程实现只是临时解决方案，之后会重构为actor。
-
-## livekit-stream-parse
-
-直播流解析与修复库。
-
-规划中，暂时为空。
-
 ## livekit (lib)
-
-主程序与所有功能的封装库。
-
-| module | description |
-|--------|-------------|
-| config | 配置文件的schema |
-| room | 目前所有功能的封装形式（Room结构体） |
-
-稳定性：目前的Room结构体只是临时解决方案，之后会重构为actor。

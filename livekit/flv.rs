@@ -1,8 +1,7 @@
 use std::path::PathBuf;
 use tokio::{fs::File, io::AsyncWriteExt};
 use futures::{Stream, StreamExt};
-use livekit_api::{client::{HttpClient, ReqwestError}, stream::PlayInfo};
-use crate::url::StreamInfo;
+use livekit_api::{client::{HttpClient, ReqwestError}, stream::{PlayInfo, StreamInfo}};
 
 pub async fn get_stream(client: &HttpClient, url: String) -> Option<impl Stream<Item = Result<bytes::Bytes, ReqwestError>>> {
     println!("{}", url);

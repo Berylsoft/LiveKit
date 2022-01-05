@@ -15,5 +15,3 @@ pub mod package;
 pub mod stream;
 #[cfg(feature = "schema")]
 pub mod schema;
-#[cfg(feature = "transfer")]
-pub mod transfer;

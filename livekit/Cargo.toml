@@ -19,6 +19,7 @@ path = "main.rs"
 [dependencies]
 env_logger = "0.9"
 rand = "0.8"
+bytes = "1.1"
 chrono = "0.4"
 log = "0.4"
 # serde
@@ -32,11 +33,9 @@ async-channel = "1.6"
 # actix = "0.10"
 # actix-rt = "1.1"
 # project
-livekit-api = { path = "../api", features = ["info"] }
+livekit-api = { path = "../api", features = ["info", "stream"] }
 livekit-feed = { path = "../feed" }
 livekit-feed-storage = { path = "../feed-storage" }
-livekit-feed-client = { path = "../feed-client" }
-livekit-stream-get = { path = "../stream-get" }
 
 log4rs = { version = "1.0", features = ["all_components"] }
 structopt = "0.3"
