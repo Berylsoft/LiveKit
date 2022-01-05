@@ -1,4 +1,4 @@
-use std::{io::Write, fs::File};
+use std::{io::{Write, Result as IoResult}, fs::File};
 use serde::{Serialize, Deserialize};
 use crate::schema::Event;
 
@@ -8,19 +8,20 @@ pub enum OutputKind {
     NdJson,
 }
 
-pub fn write(writer: &mut File, kind: &OutputKind, event: &Event) {
+pub fn write(writer: &mut File, kind: &OutputKind, event: &Event) -> IoResult<()> {
     if let OutputKind::Debug = kind {} else {
         if let Event::Unimplemented | Event::Ignored = event {
-            return
+            return Ok(());
         }
     }
     match kind {
         OutputKind::Debug => {
-            write!(writer, "{:?}", event).unwrap();
+            write!(writer, "{:?}", event)?;
         },
         OutputKind::NdJson => {
-            serde_json::to_writer(&*writer, event).unwrap();
+            serde_json::to_writer(&*writer, event)?;
         },
     }
-    writeln!(writer).unwrap();
+    writeln!(writer)?;
+    Ok(())
 }

@@ -36,6 +36,14 @@ error_conv_impl!(
     EncodePostBody => serde_urlencoded::ser::Error,
 );
 
+impl std::fmt::Display for RestApiError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl std::error::Error for RestApiError {}
+
 pub type RestApiResult<Data> = Result<Data, RestApiError>;
 
 #[derive(Clone, Serialize, Deserialize)]

@@ -3,7 +3,7 @@ use rand::{Rng, thread_rng as rng};
 use tokio::spawn;
 use futures::Future;
 use async_channel::{unbounded as channel, Receiver};
-use livekit_api::{client::HttpClient, info::{RoomInfo, UserInfo}};
+use livekit_api::{client::{HttpClient, RestApiResult}, info::{RoomInfo, UserInfo}};
 use livekit_feed::{payload::Payload, schema::Event, transfer::write};
 use livekit_feed_storage::{Db, open_storage};
 use livekit_feed_client::thread::client_sender;
@@ -28,22 +28,22 @@ pub struct Room {
 }
 
 impl Room {
-    pub async fn init(sroomid: u32, config: &Config, db: &Db, http_client: HttpClient, http_client2: HttpClient) -> Self {
-        let info = RoomInfo::call(&http_client, sroomid).await.unwrap();
+    pub async fn init(sroomid: u32, config: &Config, db: &Db, http_client: HttpClient, http_client2: HttpClient) -> RestApiResult<Self> {
+        let info = RoomInfo::call(&http_client, sroomid).await?;
         let roomid = info.room_id;
-        let user_info = UserInfo::call(&http_client, roomid).await.unwrap();
+        let user_info = UserInfo::call(&http_client, roomid).await?;
         let (sender, receiver) = channel();
         let storage = open_storage(&db, roomid).unwrap();
         spawn(client_sender(roomid, http_client2, storage, sender));
 
-        Room {
+        Ok(Room {
             roomid,
             info,
             user_info,
             receiver,
             config: config.clone(),
             http_client,
-        }
+        })
     }
 
     pub fn id(&self) -> u32 {
@@ -62,9 +62,10 @@ impl Room {
         &self.user_info
     }
 
-    pub async fn update_info(&mut self) {
-        self.info = RoomInfo::call(&self.http_client, self.roomid).await.unwrap();
-        self.user_info = UserInfo::call(&self.http_client, self.roomid).await.unwrap();
+    pub async fn update_info(&mut self) -> RestApiResult<()> {
+        self.info = RoomInfo::call(&self.http_client, self.roomid).await?;
+        self.user_info = UserInfo::call(&self.http_client, self.roomid).await?;
+        Ok(())
     }
 
     pub fn record_file_name(&self) -> String {
@@ -99,13 +100,15 @@ impl Room {
         let config = self.config.dump.as_ref().unwrap();
         let kind = config.kind.clone();
         let receiver = self.subscribe();
-        let mut path = config.path.clone();
-        path.push(format!("{}.txt", self.id()));
-        let mut file = OpenOptions::new().write(true).create(true).append(true).open(path).unwrap();
+        let mut file = OpenOptions::new().write(true).create(true).append(true).open({
+            let mut path = config.path.clone();
+            path.push(format!("{}.txt", self.id()));
+            path
+        }).expect("opening dump file error");
         async move {
             while let Ok(payload) = receiver.recv().await {
                 for event in Event::from_raw(payload.payload) {
-                    write(&mut file, &kind, &event);
+                    write(&mut file, &kind, &event).expect("writing to dump file error");
                 }
             }
         }
