@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use serde::{Serialize, Deserialize};
 use livekit_api::client::{Access, HttpClient};
-use crate::transfer::OutputKind;
+use crate::dump::OutputKind;
 
 pub const ROOM_INFO_UPDATE_INTERVAL_SEC: u64 = 600;
 
@@ -9,11 +9,11 @@ pub const STREAM_DEFAULT_FILE_TEMPLATE: &str = "{roomid}-{date}-{time}{ms}-{titl
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Groups {
-    pub group: Vec<Group>,
+    pub group: Vec<GroupConfig>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
-pub struct Group {
+pub struct GroupConfig {
     pub config: Config,
     pub rooms: Vec<i64>,
 }

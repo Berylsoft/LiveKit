@@ -1,12 +1,10 @@
-use std::fs::OpenOptions;
 use rand::{Rng, thread_rng as rng};
-use tokio::spawn;
-use futures::Future;
-use async_channel::{unbounded as channel, Receiver};
+use tokio::{spawn, fs};
+use async_channel::{Sender, Receiver};
 use livekit_api::{client::{HttpClient, RestApiResult}, info::{RoomInfo, UserInfo}};
-use livekit_feed::{payload::Payload, schema::Event};
-use livekit_feed_storage::{Db, open_storage};
-use crate::{config::*, feed::client_sender, transfer::write};
+use livekit_feed::schema::Event as FeedEvent;
+use livekit_feed_storage::{Db, open_db};
+use crate::config::*;
 
 macro_rules! template {
     ($template:expr, $($k:expr => $v:expr),*, $(,)?) => {
@@ -17,32 +15,82 @@ macro_rules! template {
     };
 }
 
+pub enum Event {
+    Feed(FeedEvent),
+}
+
+pub struct Group {
+    pub(crate) config: Config,
+    pub(crate) http_client: HttpClient,
+    pub(crate) http_client2: HttpClient,
+    pub(crate) db: Db,
+}
+
+impl Group {
+    pub async fn init(config: Config, http_client2: &HttpClient) -> Group {
+        if let Some(dump_config) = &config.dump {
+            fs::create_dir_all(&dump_config.path).await.expect("creating dump directory error");
+        }
+        if let Some(record_config) = &config.record {
+            fs::create_dir_all(&record_config.path).await.expect("creating record directory error");
+        }
+
+        Group {
+            http_client: HttpConfig::build(config.http.clone()).await,
+            http_client2: http_client2.clone(),
+            db: open_db(&config.storage.path).expect("opening storage error"),
+            config,
+        }
+    }
+
+    pub async fn spawn(&self, msroomid: i64) {
+        if msroomid >= 0 {
+            let sroomid = msroomid.try_into().unwrap();
+            Room::init(sroomid, self).await.expect("fetching room status error");
+        }
+    }
+}
+
 pub struct Room {
-    roomid: u32,
-    info: RoomInfo,
-    user_info: UserInfo,
-    receiver: Receiver<Payload>,
-    config: Config,
-    http_client: HttpClient,
+    pub(crate) roomid: u32,
+    pub(crate) info: RoomInfo,
+    pub(crate) user_info: UserInfo,
+    pub(crate) config: Config,
+    pub(crate) http_client: HttpClient,
+    pub(crate) tx: Sender<Event>,
+    pub(crate) rx: Receiver<Event>,
 }
 
 impl Room {
-    pub async fn init(sroomid: u32, config: &Config, db: &Db, http_client: HttpClient, http_client2: HttpClient) -> RestApiResult<Self> {
+    pub async fn init(sroomid: u32, group: &Group) -> RestApiResult<()> {
+        let http_client = group.http_client.clone();
         let info = RoomInfo::call(&http_client, sroomid).await?;
         let roomid = info.room_id;
         let user_info = UserInfo::call(&http_client, roomid).await?;
-        let (sender, receiver) = channel();
-        let storage = open_storage(&db, roomid).unwrap();
-        spawn(client_sender(roomid, http_client2, storage, sender));
+        let (tx, rx) = async_channel::unbounded();
 
-        Ok(Room {
-            roomid,
+        let _self = Room {
+            roomid: info.room_id,
             info,
             user_info,
-            receiver,
-            config: config.clone(),
+            config: group.config.clone(),
             http_client,
-        })
+            tx,
+            rx,
+        };
+
+        spawn(_self.feed_client(group).await);
+
+        if let Some(t) = _self.dump().await {
+            spawn(t);
+        }
+
+        if let Some(t) = _self.simple_record().await {
+            spawn(t);
+        }
+
+        // Ok(_self)
+        Ok(())
     }
 
     pub fn id(&self) -> u32 {
@@ -90,38 +138,5 @@ impl Room {
             "{area}"    => self.info.area_name,
         )
     }
-
-    pub fn subscribe(&self) -> Receiver<Payload> {
-        self.receiver.clone()
-    }
-
-    pub async fn dump(&self) -> impl Future<Output = ()> {
-        let config = self.config.dump.as_ref().unwrap();
-        let kind = config.kind.clone();
-        let receiver = self.subscribe();
-        let mut file = OpenOptions::new().write(true).create(true).append(true).open({
-            let mut path = config.path.clone();
-            path.push(format!("{}.txt", self.id()));
-            path
-        }).expect("opening dump file error");
-        async move {
-            while let Ok(payload) = receiver.recv().await {
-                for event in Event::from_raw(payload.payload) {
-                    write(&mut file, &kind, &event);
-                }
-            }
-        }
-    }
-
-    pub fn record(&self) -> impl Future<Output = ()> {
-        let config = self.config.record.as_ref().unwrap();
-        match config.mode {
-            RecordMode::FlvRaw => crate::flv::download(self.http_client.clone(), self.id(), {
-                let mut path = config.path.clone();
-                path.push(format!("{}.flv", self.record_file_name()));
-                path
-            }),
-            _ => unimplemented!(),
-        }
-    }
 }
+
