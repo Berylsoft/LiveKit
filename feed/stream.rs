@@ -6,11 +6,12 @@ use tokio::{
     io::{Error as IoError, AsyncRead, AsyncWriteExt, ReadBuf},
     net::{tcp::OwnedReadHalf as TcpStreamReceiver},
 };
-use tokio_tungstenite::{connect_async as connect_ws_stream, tungstenite::{protocol::Message, Error as WsError}};
+use tokio_tungstenite::{connect_async as connect_ws_stream, tungstenite::protocol::Message};
 use livekit_api::feed::HostsInfo;
 use crate::{config::*, payload::Payload, package::Package};
 
-type WsStreamReceiver = futures::stream::SplitStream<tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<TcpStream>>>;
+pub type WsStreamReceiver = futures::stream::SplitStream<tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<TcpStream>>>;
+pub use tokio_tungstenite::tungstenite::Error as WsError;
 
 pub struct FeedStream<T> {
     roomid: u32,

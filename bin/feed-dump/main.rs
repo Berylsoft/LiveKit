@@ -23,12 +23,12 @@ struct Record {
 }
 
 fn record<Au8: AsRef<[u8]>>(file: &mut File, kv: (Au8, Au8)) {
-    let payload = Payload::from_kv(kv);
-    let line = serde_json::to_string(&Record {
-        time: payload.time,
-        payloads: Package::decode(payload.payload).unwrap().into_json().unwrap(),
+    let Payload { time, payload } = Payload::from_kv(kv);
+    serde_json::to_writer(&*file, &Record {
+        time,
+        payloads: Package::decode(payload).unwrap().into_json().unwrap(),
     }).unwrap();
-    writeln!(file, "{}", line).unwrap();
+    writeln!(file).unwrap();
 }
 
 fn main() {
