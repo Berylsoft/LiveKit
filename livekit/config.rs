@@ -1,24 +1,34 @@
 use std::path::PathBuf;
 use serde::{Serialize, Deserialize};
-use livekit_api::client::{Access, HttpClient};
-use crate::dump::OutputKind;
+use livekit_api::client::Access;
 
+pub const INIT_INTERVAL_MS: u64 = 100;
 pub const ROOM_INFO_UPDATE_INTERVAL_SEC: u64 = 600;
 
 pub const STREAM_DEFAULT_FILE_TEMPLATE: &str = "{roomid}-{date}-{time}{ms}-{title}";
 
-#[derive(Serialize, Deserialize, Clone)]
-pub struct Groups {
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct GlobalConfig {
     pub group: Vec<GroupConfig>,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct GroupConfig {
     pub config: Config,
     pub rooms: Vec<i64>,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct Config {
+    pub storage: StorageConfig,
+    pub http: Option<HttpConfig>,
+    pub dump: Option<DumpConfig>,
+    pub record: Option<RecordConfig>,
+}
+
+// region: record
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum RecordMode {
     FlvRaw,
     FlvRawWithProperEnd,
@@ -29,14 +39,14 @@ pub enum RecordMode {
     HlsReformed, // may or cannot
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(tag = "type")]
 pub enum RecordFragmentMode {
     ByTime { per_min: u32 },
     BySize { per_mb: u32 },
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct RecordConfig {
     pub mode: RecordMode,
     pub qn: Option<Vec<i32>>,
@@ -45,36 +55,39 @@ pub struct RecordConfig {
     pub fragment: Option<RecordFragmentMode>,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+// endregion
+
+// region: http
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct HttpConfig {
-    access: Option<Access>,
-    proxy: Option<String>,
+    pub access: Option<Access>,
+    pub proxy: Option<String>,
 }
 
-impl HttpConfig {
-    pub async fn build(config: Option<HttpConfig>) -> HttpClient {
-        match config {
-            Some(HttpConfig { access, proxy }) => HttpClient::new(access, proxy).await,
-            None => HttpClient::new(None, None).await,
-        }
-    }
+// endregion
+
+// region: dump
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub enum DumpKind {
+    Debug,
+    NdJson,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct DumpConfig {
     pub path: PathBuf,
-    pub kind: OutputKind,
+    pub kind: DumpKind,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+// endregion
+
+// region: storage
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct StorageConfig {
     pub path: PathBuf,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
-pub struct Config {
-    pub storage: StorageConfig,
-    pub http: Option<HttpConfig>,
-    pub dump: Option<DumpConfig>,
-    pub record: Option<RecordConfig>,
-}
+// endregion

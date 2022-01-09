@@ -1,8 +1,9 @@
 use std::path::PathBuf;
+use rand::{Rng, thread_rng as rng};
 use structopt::StructOpt;
 use tokio::{signal, fs};
-use livekit_api::client::HttpClient;
-use livekit::{config::*, room::Group};
+use tiny_tokio_actor::*;
+use livekit::{config::*, Group, GlobalEvent, command};
 
 #[derive(StructOpt)]
 struct Args {
@@ -15,16 +16,23 @@ async fn main() {
     env_logger::init();
 
     let config = fs::read_to_string(Args::from_args().config_path).await.expect("loading config error");
-    let Groups { group } = toml::from_str(config.as_str()).expect("parsing config error");
+    let GlobalConfig { group } = toml::from_str(config.as_str()).expect("parsing config error");
 
-    let http_client2 = HttpClient::new_bare().await;
+    let system = ActorSystem::new("system", EventBus::<GlobalEvent>::new(1000));
 
-    for GroupConfig { config, rooms } in group {
-        let group = Group::init(config, &http_client2).await;
-        for msroomid in rooms {
-            group.spawn(msroomid).await;
-        }
-    }
+    let mut group = group.into_iter();
+    let GroupConfig { config, rooms } = group.next().unwrap();
+    matches!(group.next(), None);
+
+    let group = Group::new(config).await;
+    let group_handle = system.create_actor(
+        format!("group-{}", rng().gen::<u128>()).as_str(),
+        group
+    ).await.unwrap();
+    group_handle.ask(command::AddRooms{ msroomids: rooms }).await.unwrap().unwrap();
+    println!("{}", group_handle.ask(command::DumpStatus).await.unwrap().unwrap());
+    println!("{:?}", group_handle.ask(command::DumpConfig).await.unwrap().unwrap());
 
     signal::ctrl_c().await.unwrap();
+    group_handle.ask(command::CloseAll).await.unwrap().unwrap();
 }
