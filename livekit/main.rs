@@ -3,7 +3,7 @@ use rand::{Rng, thread_rng as rng};
 use structopt::StructOpt;
 use tokio::{signal, fs};
 use tiny_tokio_actor::*;
-use livekit::{config::*, Group, GlobalEvent, command};
+use livekit::{config::*, GlobalEvent, group::{self, Group}};
 
 #[derive(StructOpt)]
 struct Args {
@@ -29,10 +29,10 @@ async fn main() {
         format!("group-{}", rng().gen::<u128>()).as_str(),
         group
     ).await.unwrap();
-    group_handle.ask(command::AddRooms{ msroomids: rooms }).await.unwrap().unwrap();
-    println!("{}", group_handle.ask(command::DumpStatus).await.unwrap().unwrap());
-    println!("{:?}", group_handle.ask(command::DumpConfig).await.unwrap().unwrap());
+    group_handle.ask(group::command::AddRooms { msroomids: rooms }).await.unwrap().unwrap();
+    println!("{}", group_handle.ask(group::command::DumpStatus).await.unwrap().unwrap());
+    println!("{:?}", group_handle.ask(group::command::DumpConfig).await.unwrap().unwrap());
 
     signal::ctrl_c().await.unwrap();
-    group_handle.ask(command::CloseAll).await.unwrap().unwrap();
+    group_handle.ask(group::command::CloseAll).await.unwrap().unwrap();
 }
