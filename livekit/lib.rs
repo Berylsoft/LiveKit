@@ -29,4 +29,5 @@ pub struct GlobalEvent(String);
 impl tiny_tokio_actor::SystemEvent for GlobalEvent {}
 
 pub mod config;
+pub mod info;
 pub mod group;

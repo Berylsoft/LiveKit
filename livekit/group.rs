@@ -22,7 +22,7 @@ pub(crate) struct RoomHandles {
 }
 
 impl RoomHandles {
-    fn off(self, roomid: u32) {
+    fn close(self, roomid: u32) {
         println!("{} handles now off", roomid);
     }
 }
@@ -30,7 +30,7 @@ impl RoomHandles {
 pub struct Group {
     pub(crate) rooms: HashMap<u32, Option<RoomHandles>>,
     pub(crate) http_client: HttpClient,
-    // pub(crate) http_client2: HttpClient,
+    pub(crate) http_client2: HttpClient,
     // pub(crate) db: Db,
     pub(crate) config: Config,
 }
@@ -50,7 +50,7 @@ impl Group {
                 Some(HttpConfig { access, proxy }) => HttpClient::new(access, proxy).await,
                 None => HttpClient::new(None, None).await,
             },
-            // http_client2: HttpClient::new_bare().await,
+            http_client2: HttpClient::new_bare().await,
             // db: open_db(&config.storage.path).expect("opening storage error"),
             config,
         }
@@ -85,7 +85,7 @@ impl Handler<GlobalEvent, command::AddRooms> for Group {
                 },
                 (Some(Some(_)), false) => {
                     let prev = self.rooms.insert(roomid, None);
-                    prev.unwrap().unwrap().off(roomid);
+                    prev.unwrap().unwrap().close(roomid);
                 },
                 (Some(None), false) | (Some(Some(_)), true) => { },
             }
@@ -124,7 +124,7 @@ impl Handler<GlobalEvent, command::CloseAll> for Group {
         let rooms = std::mem::replace(&mut self.rooms, HashMap::new());
         for (roomid, handles) in rooms {
             if let Some(handles) = handles {
-                handles.off(roomid);
+                handles.close(roomid);
             }
         }
         Ok(())
