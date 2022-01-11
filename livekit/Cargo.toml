@@ -22,6 +22,7 @@ rand = "0.8"
 bytes = "1.1"
 chrono = "0.4"
 log = "0.4"
+structopt = "0.3"
 # serde
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -30,15 +31,10 @@ toml = "0.5"
 futures = "0.3"
 tokio = { version = "1", features = ["full"] }
 async-channel = "1.6"
-# actix = "0.10"
-# actix-rt = "1.1"
 # project
 livekit-api = { path = "../api", features = ["info", "stream"] }
 livekit-feed = { path = "../feed" }
 livekit-feed-storage = { path = "../feed-storage" }
-
-log4rs = { version = "1.0", features = ["all_components"] }
-structopt = "0.3"
 
 [dev-dependencies]
 hex-literal = "0.3"

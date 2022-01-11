@@ -46,7 +46,7 @@ impl std::error::Error for RestApiError {}
 
 pub type RestApiResult<Data> = Result<Data, RestApiError>;
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Access {
     pub uid: u32,
     pub key: String,

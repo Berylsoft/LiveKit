@@ -1,33 +1,24 @@
-use std::io::{Write, BufWriter};
 use tokio::{io::AsyncWriteExt, fs::OpenOptions};
 use futures::Future;
-use serde::{Serialize, Deserialize};
 use livekit_feed::schema::Event as FeedEvent;
-use crate::room::{Room, Event};
+use crate::{config::DumpKind, room::{Room, Event}};
 
-#[derive(Serialize, Deserialize, Clone)]
-pub enum OutputKind {
-    Debug,
-    NdJson,
-}
-
-pub fn write(kind: &OutputKind, event: &FeedEvent) -> Vec<u8> {
-    let mut writer = BufWriter::new(Vec::new());
-    if let OutputKind::Debug = kind {} else {
-        if let FeedEvent::Unimplemented | FeedEvent::Ignored = event {
-            return writer.into_inner().unwrap();
+pub fn write(kind: &DumpKind, event: &FeedEvent) -> String {
+    let mut output = String::new();
+    if let DumpKind::Debug = kind {} else {
+        if let FeedEvent::Unimplemented | FeedEvent::Ignored = event {} else {
+            output.push_str(match kind {
+                DumpKind::Debug => {
+                    format!("{:?}", event)
+                },
+                DumpKind::NdJson => {
+                    serde_json::to_string(event).unwrap()
+                },
+            }.as_str());
         }
     }
-    match kind {
-        OutputKind::Debug => {
-            write!(writer, "{:?}", event).unwrap();
-        },
-        OutputKind::NdJson => {
-            serde_json::to_writer(&mut writer, event).unwrap();
-        },
-    }
-    writeln!(writer).unwrap();
-    writer.into_inner().unwrap()
+    output.push_str("\n");
+    output
 }
 
 impl Room {
@@ -43,7 +34,7 @@ impl Room {
 
             Some(async move {
                 while let Ok(Event::Feed(event)) = rx.recv().await {
-                    file.write_all(write(&kind, &event).as_slice()).await.expect("writing to dump file error");
+                    file.write_all(write(&kind, &event).as_bytes()).await.expect("writing to dump file error");
                 }
             })
         } else {

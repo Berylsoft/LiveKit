@@ -15,7 +15,7 @@ async fn main() {
     env_logger::init();
 
     let config = fs::read_to_string(Args::from_args().config_path).await.expect("loading config error");
-    let Groups { group } = toml::from_str(config.as_str()).expect("parsing config error");
+    let GlobalConfig { group } = toml::from_str(config.as_str()).expect("parsing config error");
 
     let http_client2 = HttpClient::new_bare().await;
 
