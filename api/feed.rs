@@ -1,5 +1,11 @@
-use serde::Deserialize;
+use serde::{Serialize, Deserialize};
 use crate::client::{HttpClient, RestApiResult};
+use crate::client::{RestApi, RestApiRequestKind};
+
+#[derive(Serialize)]
+pub struct GetHostsInfo {
+    pub roomid: u32,
+}
 
 #[derive(Deserialize)]
 pub struct HostsInfo {
@@ -15,7 +21,6 @@ pub struct HostInfo {
     pub wss_port: u16,
 }
 
-// TODO (consider) macro
 impl HostsInfo {
     #[inline]
     pub async fn call(client: &HttpClient, roomid: u32) -> RestApiResult<Self> {
@@ -23,5 +28,20 @@ impl HostsInfo {
             "/xlive/web-room/v1/index/getDanmuInfo?id={}&type=0",
             roomid
         )).await
+    }
+}
+
+impl RestApi for GetHostsInfo {
+    type Response = HostsInfo;
+
+    fn kind(&self) -> RestApiRequestKind {
+        RestApiRequestKind::Get
+    }
+
+    fn path(&self) -> String {
+        format!(
+            "/xlive/web-room/v1/index/getDanmuInfo?id={}&type=0",
+            self.roomid
+        )
     }
 }

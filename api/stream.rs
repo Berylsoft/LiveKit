@@ -1,7 +1,8 @@
-use serde::Deserialize;
+use serde::{Serialize, Deserialize};
 use serde_json::Value as JsonValue;
 use rand::{seq::IteratorRandom, thread_rng as rng};
 use crate::client::{HttpClient, RestApiResult};
+use crate::client::{RestApi, RestApiRequestKind};
 
 /*
 
@@ -80,6 +81,28 @@ pub struct PlayInfo {
     pub playurl_info: Option<JsonValue>,
 }
 
+#[derive(Serialize)]
+pub struct GetPlayInfo {
+    pub roomid: u32,
+    pub qn: Qn,
+}
+
+impl RestApi for GetPlayInfo {
+    type Response = PlayInfo;
+
+    fn kind(&self) -> RestApiRequestKind {
+        RestApiRequestKind::Get
+    }
+
+    fn path(&self) -> String {
+        format!(
+            "/xlive/web-room/v2/index/getRoomPlayInfo?room_id={}&protocol=0,1&format=0,1,2&codec=0,1&qn={}&platform=web&ptype=8",
+            self.roomid,
+            self.qn.0,
+        )
+    }
+}
+
 impl PlayInfo {
     #[inline]
     pub async fn call(client: &HttpClient, roomid: u32, qn: i32) -> RestApiResult<Self> {
@@ -96,7 +119,7 @@ fn to<De: serde::de::DeserializeOwned>(value: &JsonValue) -> Option<De>
     De::deserialize(value).ok()
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Serialize)]
 pub struct Qn(i32);
 
 impl From<i32> for Qn {

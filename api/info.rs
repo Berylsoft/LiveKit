@@ -1,5 +1,26 @@
-use serde::Deserialize;
+use serde::{Serialize, Deserialize};
 use crate::client::{HttpClient, RestApiResult};
+use crate::client::{RestApi, RestApiRequestKind};
+
+#[derive(Serialize)]
+pub struct GetRoomInfo {
+    pub sroomid: u32,
+}
+
+impl RestApi for GetRoomInfo {
+    type Response = RoomInfo;
+
+    fn kind(&self) -> RestApiRequestKind {
+        RestApiRequestKind::Get
+    }
+
+    fn path(&self) -> String {
+        format!(
+            "/room/v1/Room/get_info?id={}",
+            self.sroomid,
+        )
+    }
+}
 
 #[derive(Clone, Deserialize)]
 pub struct RoomInfo {
@@ -51,6 +72,26 @@ pub struct UserInfoLevel {
 pub struct UserInfo {
     pub info: UserInfoInfo,
     pub level: UserInfoLevel,
+}
+
+#[derive(Serialize)]
+pub struct GetUserInfo {
+    pub sroomid: u32,
+}
+
+impl RestApi for GetUserInfo {
+    type Response = UserInfo;
+
+    fn kind(&self) -> RestApiRequestKind {
+        RestApiRequestKind::Get
+    }
+
+    fn path(&self) -> String {
+        format!(
+            "/live_user/v1/UserInfo/get_anchor_in_room?roomid={}",
+            self.sroomid,
+        )
+    }
 }
 
 impl UserInfo {

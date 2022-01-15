@@ -108,11 +108,24 @@ impl Access {
     }
 }
 
+pub enum RestApiRequestKind {
+    Get,
+    PostWithoutForm,
+    PostWithForm,
+}
+
 #[derive(Deserialize)]
-pub struct RestApiResponse<Data> {
+pub struct RestApiResponse<Data> { // Data: DeserializeOwned
     pub code: i32,
     pub data: Data,
     pub message: String,
+}
+
+pub trait RestApi: Serialize {
+    type Response: DeserializeOwned;
+
+    fn kind(&self) -> RestApiRequestKind;
+    fn path(&self) -> String;
 }
 
 #[derive(Clone)]
@@ -183,12 +196,26 @@ impl HttpClient {
         }
     }
 
+    pub async fn calln<Req: RestApi>(&self, req: &Req) -> RestApiResult<Req::Response> {
+        match req.kind() {
+            RestApiRequestKind::Get => {
+                self.call(req.path()).await
+            },
+            RestApiRequestKind::PostWithoutForm => {
+                self.call_post(req.path(), Option::<&Req>::None).await
+            },
+            RestApiRequestKind::PostWithForm => {
+                self.call_post(req.path(), Option::<&Req>::Some(req)).await
+            },
+        }
+    }
+
     pub async fn call<Data: DeserializeOwned, Str: AsRef<str>>(&self, path: Str) -> RestApiResult<Data>
     {
         self.proc_call(self.client.get(self.url(path)).send().await?).await
     }
 
-    pub async fn call_post<Data: DeserializeOwned, Form: Serialize, Str: AsRef<str>>(&self, path: Str, form: Option<Form>) -> RestApiResult<Data>
+    pub async fn call_post<Data: DeserializeOwned, Form: Serialize, Str: AsRef<str>>(&self, path: Str, form: Option<&Form>) -> RestApiResult<Data>
     {
         let csrf = self.csrf()?;
 
