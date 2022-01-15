@@ -7,7 +7,7 @@ pub async fn get_stream(client: &HttpClient, url: String) -> Option<impl Stream<
     println!("{}", url);
     let resp = client.get(url).await.unwrap();
     match resp.status().as_u16() {
-        200 => return Some(resp.bytes_stream()),
+        200 => return Some(resp.into_body()),
         404 => return None,
         301 | 302 | 307 | 308 => panic!("{}", resp.headers().get("Location").unwrap().to_str().unwrap()),
         status => panic!("{}", status),
@@ -26,9 +26,10 @@ impl Room {
             };
 
             macro_rules! x {
-                ($qn:expr) => {
-                    StreamInfo::parse(&client.call(&GetPlayInfo { roomid: self.id(), qn: Qn($qn)}).await.unwrap().playurl_info.unwrap()).unwrap().flv_avc
-                };
+                ($qn:expr) => {{
+                    let playinfo = client.call(&GetPlayInfo { roomid: self.id(), qn: Qn($qn)}).await.unwrap();
+                    StreamInfo::parse(&playinfo.playurl_info.unwrap()).unwrap().flv_avc
+                }};
             }
             let stream_info = {
                 let stream_info = x!(10000);

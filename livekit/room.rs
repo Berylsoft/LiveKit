@@ -86,9 +86,9 @@ impl Room {
             spawn(t);
         }
 
-        // if let Some(t) = _self.simple_record().await {
-        //     spawn(t);
-        // }
+        if let Some(t) = _self.simple_record().await {
+            spawn(t);
+        }
 
         // Ok(_self)
         Ok(())
