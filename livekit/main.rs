@@ -1,7 +1,6 @@
 use std::path::PathBuf;
 use structopt::StructOpt;
 use tokio::{signal, fs};
-use livekit_api::client::HttpClient;
 use livekit::{config::*, room::Group};
 
 #[derive(StructOpt)]
@@ -17,10 +16,8 @@ async fn main() {
     let config = fs::read_to_string(Args::from_args().config_path).await.expect("loading config error");
     let GlobalConfig { group } = toml::from_str(config.as_str()).expect("parsing config error");
 
-    let http_client2 = HttpClient::new_bare();
-
     for GroupConfig { config, rooms } in group {
-        let group = Group::init(config, &http_client2).await;
+        let group = Group::init(config).await;
         for msroomid in rooms {
             group.spawn(msroomid).await;
         }

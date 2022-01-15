@@ -22,12 +22,11 @@ pub enum Event {
 pub struct Group {
     pub(crate) config: Config,
     pub(crate) http_client: HttpClient,
-    pub(crate) http_client2: HttpClient,
     pub(crate) db: Db,
 }
 
 impl Group {
-    pub async fn init(config: Config, http_client2: &HttpClient) -> Group {
+    pub async fn init(config: Config) -> Group {
         if let Some(dump_config) = &config.dump {
             fs::create_dir_all(&dump_config.path).await.expect("creating dump directory error");
         }
@@ -40,7 +39,6 @@ impl Group {
                 Some(HttpConfig { access, proxy }) => HttpClient::new(access, proxy),
                 None => HttpClient::new_bare(),
             },
-            http_client2: http_client2.clone(),
             db: open_db(&config.storage.path).expect("opening storage error"),
             config,
         }

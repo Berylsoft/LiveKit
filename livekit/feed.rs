@@ -22,7 +22,7 @@ impl Room {
     pub async fn feed_client(&self, group: &Group) -> impl Future<Output = ()> {
         let roomid = self.roomid;
         let storage = open_storage(&group.db, roomid).unwrap();
-        let http_client = group.http_client2.clone();
+        let http_client = group.http_client.clone();
         let tx = self.tx.clone();
 
         async move {
