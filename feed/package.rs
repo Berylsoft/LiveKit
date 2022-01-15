@@ -130,14 +130,18 @@ impl Package {
 
     fn unpack<Au8: AsRef<[u8]>>(pack: Au8) -> PackageCodecResult<Self> {
         let pack = pack.as_ref();
-        let pack_length = pack.len();
+        let total_length = pack.len();
         let mut unpacked = Vec::new();
         let mut offset = 0;
-        while offset < pack_length {
+        while offset < total_length {
             let length_buf = pack[offset..offset + 4].try_into()?;
             let length: usize = u32::from_be_bytes(length_buf).try_into()?;
             unpacked.push(Package::decode(&pack[offset..offset + length])?);
             offset += length;
+            println!("{} {}", offset, total_length);
+        }
+        if offset != total_length {
+            return Err(PackageCodecError::UnpackLeak);
         }
         Ok(Package::Multi(unpacked))
     }
@@ -193,6 +197,7 @@ macro_rules! error_conv_impl {
             $(
                 $variant($error),
             )*
+            UnpackLeak,
             UnknownType(Head),
             NotEncodable,
         }
