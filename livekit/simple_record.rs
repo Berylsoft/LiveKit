@@ -1,6 +1,6 @@
 use tokio::{fs::File, io::AsyncWriteExt};
 use futures::{Future, Stream, StreamExt};
-use livekit_api::{client::{HttpClient, ReqwestError}, stream::{PlayInfo, StreamInfo}};
+use livekit_api::{client::{HttpClient, ReqwestError}, stream::{GetPlayInfo, StreamInfo, Qn}};
 use crate::{config::*, room::Room};
 
 pub async fn get_stream(client: &HttpClient, url: String) -> Option<impl Stream<Item = Result<bytes::Bytes, ReqwestError>>> {
@@ -27,7 +27,7 @@ impl Room {
 
             macro_rules! x {
                 ($qn:expr) => {
-                    StreamInfo::parse(&PlayInfo::call(&client, self.id(), $qn).await.unwrap().playurl_info.unwrap()).unwrap().flv_avc
+                    StreamInfo::parse(&client.call(&GetPlayInfo { roomid: self.id(), qn: Qn($qn)}).await.unwrap().playurl_info.unwrap()).unwrap().flv_avc
                 };
             }
             let stream_info = {

@@ -110,8 +110,7 @@ impl Access {
 
 pub enum RestApiRequestKind {
     Get,
-    PostWithoutForm,
-    PostWithForm,
+    Post(bool),
 }
 
 #[derive(Deserialize)]
@@ -183,66 +182,50 @@ impl HttpClient {
         }
     }
 
-    pub async fn proc_call<Data: DeserializeOwned>(&self, resp: Response) -> RestApiResult<Data>
-    {
+    pub async fn call<Req: RestApi>(&self, req: &Req) -> RestApiResult<Req::Response> {
+        let resp = match req.kind() {
+            RestApiRequestKind::Get => {
+                self.client
+                    .get(self.url(req.path()))
+                    .send().await?
+            },
+            RestApiRequestKind::Post(form) => {
+                let csrf = self.csrf()?;
+
+                let body = if form {
+                    format!(
+                        "{}&csrf={}&csrf_token={}",
+                        serde_urlencoded::to_string(req)?,
+                        csrf,
+                        csrf
+                    )
+                } else {
+                    format!(
+                        "csrf={}&csrf_token={}",
+                        csrf,
+                        csrf
+                    )
+                };
+
+                self.client
+                    .post(self.url(req.path()))
+                    .header(
+                        header::CONTENT_TYPE,
+                        HeaderValue::from_static("application/x-www-form-urlencoded"),
+                    )
+                    .body(body)
+                    .send().await?
+            },
+        };
         let status = resp.status().as_u16();
         let text = resp.text().await?;
         if status != 200 { return Err(RestApiError::HttpFailure(status, text)) };
-        let parsed: RestApiResponse<Data> = serde_json::from_str(text.as_str())?;
+        let parsed: RestApiResponse<Req::Response> = serde_json::from_str(text.as_str())?;
         match parsed.code {
             0 => Ok(parsed.data),
             412 => Err(RestApiError::RateLimited(text)),
             code => Err(RestApiError::Failure(code, text)),
         }
-    }
-
-    pub async fn calln<Req: RestApi>(&self, req: &Req) -> RestApiResult<Req::Response> {
-        match req.kind() {
-            RestApiRequestKind::Get => {
-                self.call(req.path()).await
-            },
-            RestApiRequestKind::PostWithoutForm => {
-                self.call_post(req.path(), Option::<&Req>::None).await
-            },
-            RestApiRequestKind::PostWithForm => {
-                self.call_post(req.path(), Option::<&Req>::Some(req)).await
-            },
-        }
-    }
-
-    pub async fn call<Data: DeserializeOwned, Str: AsRef<str>>(&self, path: Str) -> RestApiResult<Data>
-    {
-        self.proc_call(self.client.get(self.url(path)).send().await?).await
-    }
-
-    pub async fn call_post<Data: DeserializeOwned, Form: Serialize, Str: AsRef<str>>(&self, path: Str, form: Option<&Form>) -> RestApiResult<Data>
-    {
-        let csrf = self.csrf()?;
-
-        let body = match form {
-            Some(_form) => format!(
-                "{}&csrf={}&csrf_token={}",
-                serde_urlencoded::to_string(_form)?,
-                csrf,
-                csrf
-            ),
-            None => format!(
-                "csrf={}&csrf_token={}",
-                csrf,
-                csrf
-            )
-        };
-
-        self.proc_call(
-            self.client
-                .post(self.url(path))
-                .header(
-                    header::CONTENT_TYPE,
-                    HeaderValue::from_static("application/x-www-form-urlencoded"),
-                )
-                .body(body)
-                .send().await?
-        ).await
     }
 
     pub fn clone_raw(&self) -> Client {

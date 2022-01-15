@@ -33,7 +33,7 @@ async fn main() {
                 }
             };
             let send = SendDanmaku::new(roomid, msg, rnd, emoji);
-            println!("{:?}", send.call(&client).await);
+            println!("{:?}", client.call(&send).await);
         }
     }
 }

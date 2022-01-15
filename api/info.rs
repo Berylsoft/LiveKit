@@ -1,5 +1,4 @@
 use serde::{Serialize, Deserialize};
-use crate::client::{HttpClient, RestApiResult};
 use crate::client::{RestApi, RestApiRequestKind};
 
 #[derive(Serialize)]
@@ -43,16 +42,6 @@ pub struct RoomInfo {
     pub tags: String,
 }
 
-impl RoomInfo {
-    #[inline]
-    pub async fn call(client: &HttpClient, sroomid: u32) -> RestApiResult<Self> {
-        client.call(format!(
-            "/room/v1/Room/get_info?id={}",
-            sroomid
-        )).await
-    }
-}
-
 #[derive(Clone, Deserialize)]
 pub struct UserInfoInfo {
     pub uname: String,
@@ -76,7 +65,7 @@ pub struct UserInfo {
 
 #[derive(Serialize)]
 pub struct GetUserInfo {
-    pub sroomid: u32,
+    pub roomid: u32,
 }
 
 impl RestApi for GetUserInfo {
@@ -89,17 +78,7 @@ impl RestApi for GetUserInfo {
     fn path(&self) -> String {
         format!(
             "/live_user/v1/UserInfo/get_anchor_in_room?roomid={}",
-            self.sroomid,
+            self.roomid,
         )
-    }
-}
-
-impl UserInfo {
-    #[inline]
-    pub async fn call(client: &HttpClient, roomid: u32) -> RestApiResult<Self> {
-        client.call(format!(
-            "/live_user/v1/UserInfo/get_anchor_in_room?roomid={}",
-            roomid,
-        )).await
     }
 }

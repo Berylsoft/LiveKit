@@ -1,7 +1,7 @@
 use rand::{Rng, thread_rng as rng};
 use tokio::{spawn, fs};
 use async_channel::{Sender, Receiver};
-use livekit_api::{client::{HttpClient, RestApiResult}, info::{RoomInfo, UserInfo}};
+use livekit_api::{client::{HttpClient, RestApiResult}, info::{RoomInfo, UserInfo, GetRoomInfo, GetUserInfo}};
 use livekit_feed::schema::Event as FeedEvent;
 use livekit_feed_storage::{Db, open_db};
 use crate::config::*;
@@ -67,9 +67,9 @@ pub struct Room {
 impl Room {
     pub async fn init(sroomid: u32, group: &Group) -> RestApiResult<()> {
         let http_client = group.http_client.clone();
-        let info = RoomInfo::call(&http_client, sroomid).await?;
+        let info = http_client.call(&GetRoomInfo{ sroomid }).await?;
         let roomid = info.room_id;
-        let user_info = UserInfo::call(&http_client, roomid).await?;
+        let user_info = http_client.call(&GetUserInfo{ roomid }).await?;
         let (tx, rx) = async_channel::unbounded();
 
         let _self = Room {
@@ -113,8 +113,8 @@ impl Room {
     }
 
     pub async fn update_info(&mut self) -> RestApiResult<()> {
-        self.info = RoomInfo::call(&self.http_client, self.roomid).await?;
-        self.user_info = UserInfo::call(&self.http_client, self.roomid).await?;
+        self.info = self.http_client.call(&GetRoomInfo{ sroomid: self.roomid }).await?;
+        self.user_info = self.http_client.call(&GetUserInfo{ roomid: self.roomid }).await?;
         Ok(())
     }
 

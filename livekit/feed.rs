@@ -1,6 +1,6 @@
 use tokio::time::{sleep, Duration};
 use futures::{Future, StreamExt};
-use livekit_api::feed::HostsInfo;
+use livekit_api::feed::GetHostsInfo;
 use livekit_feed::{config::*, stream::FeedStream, schema::Event as FeedEvent};
 use livekit_feed_storage::{open_storage, insert_payload};
 use crate::room::{Room, Event, Group};
@@ -28,7 +28,7 @@ impl Room {
         async move {
             loop {
                 let hosts_info = unwrap_or_continue!(
-                    HostsInfo::call(&http_client, roomid).await,
+                    http_client.call(&GetHostsInfo { roomid }).await,
                     |err| log::warn!("[{: >10}] get hosts error {:?}", roomid, err)
                 );
 

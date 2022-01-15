@@ -1,6 +1,6 @@
 use tokio::time::{sleep, Duration};
 use futures::{Future, StreamExt};
-use livekit_api::{client::HttpClient, feed::HostsInfo};
+use livekit_api::{client::HttpClient, feed::GetHostsInfo};
 use livekit_feed::{config::*, stream::FeedStream};
 use crate::{sled::Db, open_storage, insert_payload};
 
@@ -24,7 +24,7 @@ pub fn rec(roomid: u32, http_client: &HttpClient, db: &Db) -> impl Future<Output
     async move {
         loop {
             let hosts_info = unwrap_or_continue!(
-                HostsInfo::call(&http_client, roomid).await,
+                http_client.call(&GetHostsInfo { roomid }).await,
                 |err| log::warn!("[{: >10}] get hosts error {:?}", roomid, err)
             );
 

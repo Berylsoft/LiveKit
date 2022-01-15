@@ -1,5 +1,4 @@
 use serde::{Serialize, Deserialize};
-use crate::client::{HttpClient, RestApiResult};
 use crate::client::{RestApi, RestApiRequestKind};
 
 #[derive(Serialize)]
@@ -27,11 +26,6 @@ pub struct SentDanmakuModeInfo {
 }
 
 impl SendDanmaku {
-    #[inline]
-    pub async fn call(&self, client: &HttpClient) -> RestApiResult<SentDanmaku> {
-        client.call_post("/msg/send", Some(self)).await
-    }
-
     pub fn new(roomid: u32, msg: String, rnd: i64, emoji: bool) -> SendDanmaku {
         SendDanmaku {
             bubble: 0,
@@ -50,7 +44,7 @@ impl RestApi for SendDanmaku {
     type Response = SentDanmaku;
 
     fn kind(&self) -> RestApiRequestKind {
-        RestApiRequestKind::PostWithForm
+        RestApiRequestKind::Post(true)
     }
 
     fn path(&self) -> String {
