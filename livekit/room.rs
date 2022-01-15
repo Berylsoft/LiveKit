@@ -37,8 +37,8 @@ impl Group {
 
         Group {
             http_client: match config.http.clone() {
-                Some(HttpConfig { access, proxy }) => HttpClient::new(access, proxy).await,
-                None => HttpClient::new(None, None).await,
+                Some(HttpConfig { access, proxy }) => HttpClient::new(access, proxy),
+                None => HttpClient::new_bare(),
             },
             http_client2: http_client2.clone(),
             db: open_db(&config.storage.path).expect("opening storage error"),
@@ -88,9 +88,9 @@ impl Room {
             spawn(t);
         }
 
-        if let Some(t) = _self.simple_record().await {
-            spawn(t);
-        }
+        // if let Some(t) = _self.simple_record().await {
+        //     spawn(t);
+        // }
 
         // Ok(_self)
         Ok(())

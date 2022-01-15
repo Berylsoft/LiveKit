@@ -1,6 +1,11 @@
 use serde::{Serialize, Deserialize, de::DeserializeOwned};
-use reqwest::{Client, header::{self, HeaderValue, HeaderMap}, Response, IntoUrl};
-pub use reqwest::Error as ReqwestError;
+use hyper::{
+    Client, client::connect::HttpConnector,
+    header::{self, HeaderValue, HeaderMap},
+    Request, Response, Body,
+};
+pub use hyper::{Error as HttpError, Result as HttpResult};
+use hyper_rustls::{HttpsConnector, HttpsConnectorBuilder};
 
 pub const REFERER: &str = "https://live.bilibili.com/";
 pub const API_HOST: &str = "https://api.live.bilibili.com";
@@ -31,7 +36,8 @@ macro_rules! error_conv_impl {
 
 error_conv_impl!(
     RestApiError,
-    Network        => reqwest::Error,
+    Network        => HttpError,
+    ParseString    => std::string::FromUtf8Error,
     Parse          => serde_json::Error,
     EncodePostBody => serde_urlencoded::ser::Error,
 );
@@ -109,8 +115,9 @@ impl Access {
 }
 
 pub enum RestApiRequestKind {
+    BareGet,
     Get,
-    Post(bool),
+    Post { form: bool },
 }
 
 #[derive(Deserialize)]
@@ -127,44 +134,54 @@ pub trait RestApi: Serialize {
     fn path(&self) -> String;
 }
 
+pub type Connector = HttpsConnector<HttpConnector>;
+
+pub type InnerClient = Client<Connector>;
+
 #[derive(Clone)]
 pub struct HttpClient {
-    client: Client,
+    client: InnerClient,
     access: Option<Access>,
     proxy: Option<String>,
 }
 
 impl HttpClient {
-    pub async fn new(access: Option<Access>, proxy: Option<String>) -> Self {
-        let mut headers = HeaderMap::new();
+    pub fn build_connector() -> Connector {
+        HttpsConnectorBuilder::new()
+            .with_webpki_roots()
+            .https_only()
+            .enable_http1()
+            .build()
+    }
+
+    pub fn set_headers(&self, headers: &mut HeaderMap) {
         headers.insert(header::REFERER, HeaderValue::from_static(REFERER));
         headers.insert(header::ORIGIN, HeaderValue::from_static(REFERER));
         headers.insert(header::USER_AGENT, HeaderValue::from_static(WEB_USER_AGENT));
-        if let Some(_access) = &access {
+        if let Some(_access) = &self.access {
             headers.insert(header::COOKIE, {
                 let mut cookie = HeaderValue::from_str(_access.as_cookie().as_str()).unwrap();
                 cookie.set_sensitive(true);
                 cookie
             });
         }
+    }
+
+    pub fn new(access: Option<Access>, proxy: Option<String>) -> Self {
         Self {
-            client: Client::builder().default_headers(headers).build().unwrap(),
+            client: Client::builder().build(HttpClient::build_connector()),
             access,
             proxy,
         }
     }
 
-    pub async fn new_bare() -> Self {
-        Self {
-            client: Client::new(),
-            access: None,
-            proxy: None,
-        }
+    pub fn new_bare() -> Self {
+        HttpClient::new(None, None)
     }
 
     #[inline]
-    pub async fn get<Url: IntoUrl>(&self, url: Url) -> reqwest::Result<Response> {
-        self.client.get(url).send().await
+    pub async fn get(&self, url: String) -> HttpResult<Response<Body>> {
+        self.client.get(url.parse().unwrap()).await
     }
 
     #[inline]
@@ -183,13 +200,19 @@ impl HttpClient {
     }
 
     pub async fn call<Req: RestApi>(&self, req: &Req) -> RestApiResult<Req::Response> {
-        let resp = match req.kind() {
-            RestApiRequestKind::Get => {
-                self.client
-                    .get(self.url(req.path()))
-                    .send().await?
+        let req = match req.kind() {
+            RestApiRequestKind::BareGet => {
+                Request::get(self.url(req.path())).body(Body::empty())
             },
-            RestApiRequestKind::Post(form) => {
+            RestApiRequestKind::Get => {
+                let mut _req = Request::get(self.url(req.path()));
+    
+                let headers = _req.headers_mut().unwrap();
+                self.set_headers(headers);
+
+                _req.body(Body::empty())
+            },
+            RestApiRequestKind::Post { form } => {
                 let csrf = self.csrf()?;
 
                 let body = if form {
@@ -207,28 +230,32 @@ impl HttpClient {
                     )
                 };
 
-                self.client
-                    .post(self.url(req.path()))
-                    .header(
-                        header::CONTENT_TYPE,
-                        HeaderValue::from_static("application/x-www-form-urlencoded"),
-                    )
-                    .body(body)
-                    .send().await?
+                let mut _req = Request::post(self.url(req.path()));
+
+                let headers = _req.headers_mut().unwrap();
+                headers.insert(
+                    header::CONTENT_TYPE,
+                    HeaderValue::from_static("application/x-www-form-urlencoded"),
+                );
+                self.set_headers(headers);
+
+                _req.body(Body::from(body))
             },
-        };
+        }.unwrap( );
+        let resp = self.client.request(req).await?;
         let status = resp.status().as_u16();
-        let text = resp.text().await?;
-        if status != 200 { return Err(RestApiError::HttpFailure(status, text)) };
-        let parsed: RestApiResponse<Req::Response> = serde_json::from_str(text.as_str())?;
+        let bytes = hyper::body::to_bytes(resp.into_body()).await?;
+        if status != 200 { return Err(RestApiError::HttpFailure(status, hex::encode(bytes))) };
+        let text = std::str::from_utf8(bytes.as_ref()).unwrap( );
+        let parsed: RestApiResponse<Req::Response> = serde_json::from_str(text)?;
         match parsed.code {
             0 => Ok(parsed.data),
-            412 => Err(RestApiError::RateLimited(text)),
-            code => Err(RestApiError::Failure(code, text)),
+            412 => Err(RestApiError::RateLimited(text.to_owned())),
+            code => Err(RestApiError::Failure(code, text.to_owned())),
         }
     }
 
-    pub fn clone_raw(&self) -> Client {
+    pub fn clone_raw(&self) -> InnerClient {
         self.client.clone()
     }
 }

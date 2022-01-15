@@ -44,7 +44,7 @@ impl RestApi for SendDanmaku {
     type Response = SentDanmaku;
 
     fn kind(&self) -> RestApiRequestKind {
-        RestApiRequestKind::Post(true)
+        RestApiRequestKind::Post { form: true }
     }
 
     fn path(&self) -> String {

@@ -24,7 +24,7 @@ impl RestApi for GetHostsInfo {
     type Response = HostsInfo;
 
     fn kind(&self) -> RestApiRequestKind {
-        RestApiRequestKind::Get
+        RestApiRequestKind::BareGet
     }
 
     fn path(&self) -> String {

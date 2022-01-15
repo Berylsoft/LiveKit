@@ -17,7 +17,7 @@ async fn main() {
     let config = fs::read_to_string(Args::from_args().config_path).await.expect("loading config error");
     let GlobalConfig { group } = toml::from_str(config.as_str()).expect("parsing config error");
 
-    let http_client2 = HttpClient::new_bare().await;
+    let http_client2 = HttpClient::new_bare();
 
     for GroupConfig { config, rooms } in group {
         let group = Group::init(config, &http_client2).await;

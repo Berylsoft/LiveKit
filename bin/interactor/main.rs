@@ -22,7 +22,7 @@ async fn main() {
     let Args { access_path, payload } = Args::from_args();
     let access: Access = serde_json::from_str(fs::read_to_string(access_path).await.unwrap().as_str()).unwrap();
     let payload: Payload = serde_json::from_str(payload.as_str()).unwrap();
-    let client = HttpClient::new(Some(access), None).await;
+    let client = HttpClient::new(Some(access), None);
     match payload {
         Payload::Danmaku { roomid, msg, rnd, emoji } => {
             let rnd = match rnd {

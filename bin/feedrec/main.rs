@@ -51,7 +51,7 @@ async fn main() {
         log4rs::init_config(log_config(log_path, log_debug)).unwrap();
     }
     let db = open_db(storage_path).unwrap();
-    let http_client = HttpClient::new_bare().await;
+    let http_client = HttpClient::new_bare();
     for roomid in roomid_list.split(",").map(|roomid| roomid.parse::<u32>().unwrap()) {
         spawn(rec(roomid, &http_client, &db));
         sleep(Duration::from_millis(FEED_INIT_INTERVAL_MS)).await;

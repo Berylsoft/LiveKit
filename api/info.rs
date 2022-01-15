@@ -10,7 +10,7 @@ impl RestApi for GetRoomInfo {
     type Response = RoomInfo;
 
     fn kind(&self) -> RestApiRequestKind {
-        RestApiRequestKind::Get
+        RestApiRequestKind::BareGet
     }
 
     fn path(&self) -> String {
@@ -72,7 +72,7 @@ impl RestApi for GetUserInfo {
     type Response = UserInfo;
 
     fn kind(&self) -> RestApiRequestKind {
-        RestApiRequestKind::Get
+        RestApiRequestKind::BareGet
     }
 
     fn path(&self) -> String {
