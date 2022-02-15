@@ -138,7 +138,6 @@ impl Package {
             let length: usize = u32::from_be_bytes(length_buf).try_into()?;
             unpacked.push(Package::decode(&pack[offset..offset + length])?);
             offset += length;
-            println!("{} {}", offset, total_length);
         }
         if offset != total_length {
             return Err(PackageCodecError::UnpackLeak);

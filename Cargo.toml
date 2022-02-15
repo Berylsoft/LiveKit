@@ -7,4 +7,5 @@ members = [
     "bin/feedrec",
     "bin/feed-dump",
     "bin/interactor",
+    "bin/stream-url-builder",
 ]
