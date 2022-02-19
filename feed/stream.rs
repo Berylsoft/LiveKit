@@ -32,7 +32,7 @@ impl WsFeedStream {
         log::debug!("[{: >10}] (ws) sent: init", roomid);
 
         spawn(async move {
-            let heartbeat = Message::Binary(Package::HeartbeatRequest().encode().unwrap());
+            let heartbeat = Message::Binary(Package::HeartbeatRequest.encode().unwrap());
             let mut interval = time::interval(Duration::from_secs(FEED_HEARTBEAT_RATE_SEC));
             loop {
                 interval.tick().await;
@@ -100,7 +100,7 @@ impl TcpFeedStream {
         log::debug!("[{: >10}] (tcp) sent: init", roomid);
 
         spawn(async move {
-            let heartbeat = Package::HeartbeatRequest().encode().unwrap();
+            let heartbeat = Package::HeartbeatRequest.encode().unwrap();
             let mut interval = time::interval(Duration::from_secs(FEED_HEARTBEAT_RATE_SEC));
             loop {
                 interval.tick().await;

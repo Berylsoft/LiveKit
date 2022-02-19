@@ -167,15 +167,15 @@ impl HttpClient {
         }
     }
 
-    pub fn new(access: Option<Access>, proxy: Option<String>) -> Self {
-        Self {
+    pub fn new(access: Option<Access>, proxy: Option<String>) -> HttpClient {
+        HttpClient {
             client: Client::builder().build(HttpClient::build_connector()),
             access,
             proxy,
         }
     }
 
-    pub fn new_bare() -> Self {
+    pub fn new_bare() -> HttpClient {
         HttpClient::new(None, None)
     }
 

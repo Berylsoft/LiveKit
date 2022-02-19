@@ -17,7 +17,6 @@ pub const HEAD_LENGTH_SIZE: usize = 16;
 pub type HeadBuf = [u8; HEAD_LENGTH_SIZE];
 
 #[derive(Debug, BinRead, BinWrite)]
-#[br(assert(head_length == HEAD_LENGTH, "unexpected head length: {}", head_length))]
 pub struct Head {
     pub length: u32,
     pub head_length: u16,
@@ -27,8 +26,8 @@ pub struct Head {
 }
 
 impl Head {
-    pub fn new(msg_type: u32, payload_length: u32) -> Self {
-        Self {
+    pub fn new(msg_type: u32, payload_length: u32) -> Head {
+        Head {
             length: HEAD_LENGTH_32 + payload_length,
             head_length: HEAD_LENGTH,
             proto_ver: 1,
@@ -42,17 +41,27 @@ impl Head {
 pub enum Package {
     InitRequest(String),
     InitResponse(String),
-    HeartbeatRequest(),
+    HeartbeatRequest,
     HeartbeatResponse(u32),
     Json(String),
     Multi(Vec<Package>),
 }
 
 impl Package {
-    pub fn decode<Au8: AsRef<[u8]>>(raw: Au8) -> PackageCodecResult<Self> {
+    pub fn decode<Au8: AsRef<[u8]>>(raw: Au8) -> PackageCodecResult<Package> {
         let raw = raw.as_ref();
         let (head, payload) = raw.split_at(HEAD_LENGTH_SIZE);
         let head = Head::decode(head)?;
+
+        let payload_length_head = head.length - HEAD_LENGTH_32;
+        let payload_length_acc: u32 = payload.len().try_into()?;
+        if payload_length_head != payload_length_acc {
+            return Err(PackageCodecError::IncorrectPayloadLength(payload_length_head, payload_length_acc));
+        }
+
+        if head.head_length != HEAD_LENGTH {
+            return Err(PackageCodecError::UnknownHead(head.head_length));
+        }
 
         // region: macros
 
@@ -90,7 +99,7 @@ impl Package {
             1 => match head.msg_type {
                 3 => Package::HeartbeatResponse(u32!()),
                 8 => Package::InitResponse(string!()),
-                2 => Package::HeartbeatRequest(),
+                2 => Package::HeartbeatRequest,
                 7 => Package::InitRequest(string!()),
                 _ => unknown_type!(),
             },
@@ -101,7 +110,7 @@ impl Package {
 
     pub fn encode(self) -> PackageCodecResult<Vec<u8>> {
         Ok(match self {
-            Package::HeartbeatRequest() => Head::new(2, 0).encode()?,
+            Package::HeartbeatRequest => Head::new(2, 0).encode()?,
             Package::InitRequest(payload) => {
                 let payload = payload.into_bytes();
                 [
@@ -113,7 +122,7 @@ impl Package {
         })
     }
 
-    pub fn create_init_request(roomid: u32, platform: String, key: String) -> Self {
+    pub fn create_init_request(roomid: u32, platform: String, key: String) -> Package {
         Package::InitRequest(
             serde_json::to_string(
                 &InitRequest {
@@ -128,7 +137,7 @@ impl Package {
         )
     }
 
-    fn unpack<Au8: AsRef<[u8]>>(pack: Au8) -> PackageCodecResult<Self> {
+    fn unpack<Au8: AsRef<[u8]>>(pack: Au8) -> PackageCodecResult<Package> {
         let pack = pack.as_ref();
         let total_length = pack.len();
         let mut unpacked = Vec::new();
@@ -199,6 +208,8 @@ macro_rules! error_conv_impl {
             UnpackLeak,
             UnknownType(Head),
             NotEncodable,
+            IncorrectPayloadLength(u32, u32),
+            UnknownHead(u16),
         }
 
         $(
@@ -213,11 +224,11 @@ macro_rules! error_conv_impl {
 
 error_conv_impl!(
     PackageCodecError,
-    IoError            => std::io::Error,
-    StringCodecError   => std::string::FromUtf8Error,
-    BytesSilceError    => std::array::TryFromSliceError,
-    NumberConvertError => std::num::TryFromIntError,
-    BytesCodecError    => binrw::Error,
+    IoError          => std::io::Error,
+    StringCodecError => std::string::FromUtf8Error,
+    BytesSilceError  => std::array::TryFromSliceError,
+    SizeConvertError => std::num::TryFromIntError,
+    BytesCodecError  => binrw::Error,
 );
 
 pub type PackageCodecResult<T> = Result<T, PackageCodecError>;
@@ -238,11 +249,11 @@ mod tests {
 
     #[test]
     fn test_head() {
-        let raw = HEAD_INIT_REQUEST;
+        let raw = HEAD_INIT_REQUEST.to_vec();
 
         let head = Head::decode(&raw).unwrap();
-        assert_eq!(raw.to_vec(), head.encode().unwrap());
-        assert_eq!(raw.to_vec(), Head::new(7, 0xf9 - HEAD_LENGTH_32).encode().unwrap());
+        assert_eq!(raw, head.encode().unwrap());
+        assert_eq!(raw, Head::new(7, 0xf9 - HEAD_LENGTH_32).encode().unwrap());
 
         assert_eq!(head.length, 0xf9);
         assert_eq!(head.head_length, HEAD_LENGTH);
@@ -301,5 +312,25 @@ mod tests {
                 pkg_json!("d"),
             ]
         );
+    }
+
+    #[test]
+    fn incorrect_heartbeat_response_len() {
+        macro_rules! encode {
+            ($len:literal, $vec:expr) => {
+                [
+                    Head::new(3, $len).encode().unwrap(),
+                    $vec.to_vec(),
+                ].concat()
+            };
+        }
+
+        let more = encode!(5, [0x00, 0x00, 0x00, 0xff, 0x00]);
+        let less = encode!(3, [0x00, 0x00, 0xff]);
+        let non_align = encode!(3, [0x00, 0x00, 0x00, 0xff]);
+
+        assert!(matches!(Package::decode(more), Err(PackageCodecError::BytesSilceError(_))));
+        assert!(matches!(Package::decode(less), Err(PackageCodecError::BytesSilceError(_))));
+        assert!(matches!(Package::decode(non_align), Err(PackageCodecError::IncorrectPayloadLength(_, _))));
     }
 }
