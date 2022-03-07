@@ -65,7 +65,7 @@ pub struct UserInfo {
 
 #[derive(Serialize)]
 pub struct GetUserInfo {
-    pub roomid: u32,
+    pub sroomid: u32,
 }
 
 impl RestApi for GetUserInfo {
@@ -78,7 +78,38 @@ impl RestApi for GetUserInfo {
     fn path(&self) -> String {
         format!(
             "/live_user/v1/UserInfo/get_anchor_in_room?roomid={}",
-            self.roomid,
+            self.sroomid,
         )
     }
+}
+
+#[derive(Serialize)]
+pub struct GetExtRoomInfo {
+    pub sroomid: u32,
+}
+
+impl RestApi for GetExtRoomInfo {
+    type Response = ExtRoomInfo;
+
+    fn kind(&self) -> RestApiRequestKind {
+        RestApiRequestKind::BareGet
+    }
+
+    fn path(&self) -> String {
+        format!(
+            "/xlive/web-room/v1/index/getH5InfoByRoom?room_id={}",
+            self.sroomid,
+        )
+    }
+}
+
+#[derive(Clone, Deserialize)]
+pub struct ExtRoomInfo {
+    pub watched_show: WatchedInfo,
+}
+
+#[derive(Clone, Deserialize)]
+pub struct WatchedInfo {
+    pub switch: bool,
+    pub num: u32,
 }

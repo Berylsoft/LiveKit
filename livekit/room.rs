@@ -67,7 +67,7 @@ impl Room {
         let http_client = group.http_client.clone();
         let info = http_client.call(&GetRoomInfo{ sroomid }).await?;
         let roomid = info.room_id;
-        let user_info = http_client.call(&GetUserInfo{ roomid }).await?;
+        let user_info = http_client.call(&GetUserInfo{ sroomid: roomid }).await?;
         let (tx, rx) = async_channel::unbounded();
 
         let _self = Room {
@@ -112,7 +112,7 @@ impl Room {
 
     pub async fn update_info(&mut self) -> RestApiResult<()> {
         self.info = self.http_client.call(&GetRoomInfo{ sroomid: self.roomid }).await?;
-        self.user_info = self.http_client.call(&GetUserInfo{ roomid: self.roomid }).await?;
+        self.user_info = self.http_client.call(&GetUserInfo{ sroomid: self.roomid }).await?;
         Ok(())
     }
 
