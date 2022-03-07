@@ -9,7 +9,13 @@ use hyper_rustls::{HttpsConnector, HttpsConnectorBuilder};
 
 pub const REFERER: &str = "https://live.bilibili.com/";
 pub const API_HOST: &str = "https://api.live.bilibili.com";
-pub const WEB_USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.45 Safari/537.36";
+pub const WEB_USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/99.0.4844.51 Safari/537.36";
+
+#[derive(Debug)]
+pub enum RestApiFailureCode {
+    FromHttp(u16),
+    FromApi { code: i32, message: String },
+}
 
 macro_rules! error_conv_impl {
     ($name:ident, $($variant:ident => $error:ty),*, $(,)?) => {
@@ -18,9 +24,11 @@ macro_rules! error_conv_impl {
             $(
                 $variant($error),
             )*
-            HttpFailure(u16, String),
-            RateLimited(String),
-            Failure(i32, String),
+            Failure {
+                code: RestApiFailureCode,
+                payload: String,
+                rate_limited: bool,
+            },
             PostWithoutAccess,
         }
 
@@ -79,6 +87,12 @@ impl Access {
             };
         }
 
+        macro_rules! occupy {
+            ($name:ident, $value:expr) => {{
+                if let Some(_) = $name.replace($value) { return None };
+            }};
+        }
+
         seat!(uid, u32);
         seat!(key, String);
         seat!(csrf, String);
@@ -87,17 +101,10 @@ impl Access {
             let (k, v) = split_into_kv(pair.trim(), '=')?;
             let (k, v) = (k.trim(), v.trim());
 
-            macro_rules! occupy {
-                ($name:ident) => {{
-                    if let Some(_) = &$name { return None };
-                    $name = Some(v.parse().ok()?);
-                }};
-            }
-
             match k {
-                K_UID => occupy!(uid),
-                K_KEY => occupy!(key),
-                K_CSRF => occupy!(csrf),
+                K_UID => occupy!(uid, v.parse().ok()?),
+                K_KEY => occupy!(key, v.to_owned()),
+                K_CSRF => occupy!(csrf, v.to_owned()),
                 _ => { },
             }
         }
@@ -245,13 +252,28 @@ impl HttpClient {
         let resp = self.client.request(req).await?;
         let status = resp.status().as_u16();
         let bytes = hyper::body::to_bytes(resp.into_body()).await?;
-        if status != 200 { return Err(RestApiError::HttpFailure(status, hex::encode(bytes))) };
         let text = std::str::from_utf8(bytes.as_ref()).unwrap( );
-        let parsed: RestApiResponse<Req::Response> = serde_json::from_str(text)?;
-        match parsed.code {
-            0 => Ok(parsed.data),
-            412 => Err(RestApiError::RateLimited(text.to_owned())),
-            code => Err(RestApiError::Failure(code, text.to_owned())),
+        if status == 200 {
+            let RestApiResponse {
+                code,
+                message,
+                data
+            } = serde_json::from_str::<RestApiResponse<Req::Response>>(text)?;
+            if code == 0 {
+                Ok(data)
+            } else {
+                Err(RestApiError::Failure {
+                    code: RestApiFailureCode::FromApi { code, message },
+                    payload: text.to_owned(),
+                    rate_limited: code == -412,
+                })
+            }
+        } else {
+            Err(RestApiError::Failure {
+                code: RestApiFailureCode::FromHttp(status),
+                payload: text.to_owned(),
+                rate_limited: status == 412,
+            })
         }
     }
 
