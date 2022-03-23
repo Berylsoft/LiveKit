@@ -279,6 +279,7 @@ pub enum InteractKind {
     Enter,
     Follow,
     Share,
+    SpecialFollow,
 }
 
 impl InteractKind {
@@ -288,6 +289,7 @@ impl InteractKind {
             1 => InteractKind::Enter,
             2 => InteractKind::Follow,
             3 => InteractKind::Share,
+            4 => InteractKind::SpecialFollow,
             _ => unreachable!(),
         })
     }

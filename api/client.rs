@@ -69,10 +69,7 @@ pub struct Access {
 
 fn split_into_kv(pair: &str, pat: char) -> Option<(&str, &str)> {
     // ref: https://doc.servo.org/src/cookie/parse.rs.html#108-111
-    match pair.find(pat) {
-        Some(i) => Some((&pair[..i], &pair[(i + 1)..])),
-        None => None,
-    }
+    pair.find(pat).map(|i| (&pair[..i], &pair[(i + 1)..]))
 }
 
 const K_UID: &str = "DedeUserID";
