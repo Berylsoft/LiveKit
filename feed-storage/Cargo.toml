@@ -17,7 +17,7 @@ hex = "0.4"
 log = "0.4"
 futures = "0.3"
 tokio = { version = "1", features = ["full"] }
-sled = "0.34.7"
+async-kvdump = { git = "https://github.com/Berylsoft/KVDump" }
 livekit-api = { path = "../api" }
 livekit-feed = { path = "../feed" }
 

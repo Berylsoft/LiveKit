@@ -1,13 +1,4 @@
-pub fn now() -> u64 {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis().try_into().unwrap()
-}
-
-pub fn crc32(raw: &[u8]) -> u32 {
-    let mut hasher = crc32fast::Hasher::new();
-    hasher.update(raw);
-    hasher.finalize()
-}
+use crate::util::*;
 
 #[derive(Debug)]
 pub struct KeyWithHash(u64, u32);
@@ -58,18 +49,16 @@ impl Payload {
         }
     }
 
-    pub fn from_kv<Au8: AsRef<[u8]>>(kv: (Au8, Au8)) -> Payload {
-        let v = kv.0.as_ref();
-
+    pub fn from_kv(key: Box<[u8]>, value: Box<[u8]>) -> Payload {
         Payload {
-            time: match Key::from(kv.1.as_ref()).unwrap() {
+            time: match Key::from(&key).unwrap() {
                 Key::WithHash(KeyWithHash(time, hash)) => {
-                    assert_eq!(hash, crc32(v));
+                    assert_eq!(hash, crc32(&value));
                     time
                 },
                 Key::WithoutHash(time) => time,
             },
-            payload: v.to_vec(),
+            payload: value.to_vec(),
         }
     }
 

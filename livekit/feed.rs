@@ -21,7 +21,7 @@ macro_rules! unwrap_or_continue {
 impl Room {
     pub async fn feed_client(&self, group: &Group) -> impl Future<Output = ()> {
         let roomid = self.roomid;
-        let storage = open_storage(&group.db, roomid).unwrap();
+        let storage = open_storage(&group.db, roomid);
         let http_client = group.http_client.clone();
         let tx = self.tx.clone();
 
@@ -41,7 +41,7 @@ impl Room {
 
                 while let Some(may_payload) = stream.next().await {
                     if let Some(payload) = may_payload {
-                        insert_payload(&storage, &payload);
+                        insert_payload(&storage, &payload).await;
                         for event in FeedEvent::from_raw(payload.payload) {
                             tx.send(Event::Feed(event)).await.unwrap();
                         }

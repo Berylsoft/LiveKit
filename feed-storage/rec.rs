@@ -2,7 +2,7 @@ use tokio::time::{sleep, Duration};
 use futures::{Future, StreamExt};
 use livekit_api::{client::HttpClient, feed::GetHostsInfo};
 use livekit_feed::{config::*, stream::FeedStream};
-use crate::{sled::Db, open_storage, insert_payload};
+use crate::{async_kvdump::Db, open_storage, insert_payload};
 
 macro_rules! unwrap_or_continue {
     ($res:expr, $or:expr) => {
@@ -19,7 +19,7 @@ macro_rules! unwrap_or_continue {
 
 pub fn rec(roomid: u32, http_client: &HttpClient, db: &Db) -> impl Future<Output = ()> {
     let http_client = http_client.clone();
-    let storage = open_storage(&db, roomid).unwrap();
+    let storage = open_storage(&db, roomid);
 
     async move {
         loop {
@@ -37,7 +37,7 @@ pub fn rec(roomid: u32, http_client: &HttpClient, db: &Db) -> impl Future<Output
 
             while let Some(may_payload) = stream.next().await {
                 if let Some(payload) = may_payload {
-                    insert_payload(&storage, &payload);
+                    insert_payload(&storage, &payload).await;
                 }
             }
 

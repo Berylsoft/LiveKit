@@ -1,7 +1,7 @@
 use structopt::StructOpt;
 use std::{path::PathBuf, io::Write, fs::{File, OpenOptions}};
 use livekit_feed::{payload::Payload, package::Package};
-use livekit_feed_storage::{open_db, open_storage};
+use kvdump::{Reader, KV, Row};
 
 #[derive(StructOpt)]
 struct Args {
@@ -11,9 +11,6 @@ struct Args {
     storage_path: PathBuf,
     #[structopt(short = "o", long, parse(from_os_str))]
     export_path: PathBuf,
-    // #[cfg(feature = "rocks")]
-    #[structopt(long)]
-    rocks_ver: Option<String>,
 }
 
 #[derive(serde::Serialize)]
@@ -22,8 +19,8 @@ struct Record {
     payloads: serde_json::Value,
 }
 
-fn record<Au8: AsRef<[u8]>>(file: &mut File, kv: (Au8, Au8)) {
-    let Payload { time, payload } = Payload::from_kv(kv);
+fn record(file: &mut File, key: Box<[u8]>, value: Box<[u8]>) {
+    let Payload { time, payload } = Payload::from_kv(key, value);
     serde_json::to_writer(&*file, &Record {
         time,
         payloads: Package::decode(payload).unwrap().into_json().unwrap(),
@@ -32,28 +29,16 @@ fn record<Au8: AsRef<[u8]>>(file: &mut File, kv: (Au8, Au8)) {
 }
 
 fn main() {
-    let Args { roomid, storage_path, export_path, rocks_ver } = Args::from_args();
+    let Args { roomid, storage_path, export_path } = Args::from_args();
 
     let mut file = OpenOptions::new().write(true).create(true).append(true).open(export_path).unwrap();
-
-    if let Some(rocks_ver) = rocks_ver {
-        #[cfg(feature = "rocks")]
-        {
-            let storage = rocksdb::DB::open_default(format!("{}/{}-{}", storage_path, roomid, rocks_ver)).unwrap();
-            for kv in storage.iterator(rocksdb::IteratorMode::Start) {
-                record(&mut file, kv);
+    let db = OpenOptions::new().read(true).open(storage_path).unwrap();
+    let mut reader = Reader::init(db).unwrap();
+    while let Some(kv) = reader.next() {
+        if let Row::KV(KV { scope, key, value }) = kv.unwrap() {
+            if scope.as_ref() == roomid.to_be_bytes() {
+                record(&mut file, key, value);
             }
-        }
-        #[cfg(not(feature = "rocks"))]
-        {
-            let _ = rocks_ver;
-            panic!("complied without rocksdb");
-        }
-    } else {
-        let db = open_db(storage_path).unwrap();
-        let storage = open_storage(&db, roomid).unwrap();
-        for kv in storage.iter() {
-            record(&mut file, kv.unwrap());
         }
     }
 }
