@@ -1,6 +1,3 @@
-use binrw::{BinRead, BinWrite};
-use bytes_codec::{BytesDecodeExt, BytesEncodeExt};
-
 #[derive(Debug, serde::Serialize)]
 pub struct InitRequest {
     pub uid: u32,
@@ -16,7 +13,7 @@ pub const HEAD_LENGTH_32: u32 = 16;
 pub const HEAD_LENGTH_SIZE: usize = 16;
 pub type HeadBuf = [u8; HEAD_LENGTH_SIZE];
 
-#[derive(Debug, BinRead, BinWrite)]
+#[derive(Debug)]
 pub struct Head {
     pub length: u32,
     pub head_length: u16,
@@ -26,6 +23,49 @@ pub struct Head {
 }
 
 impl Head {
+    // TODO proc macro
+
+    pub fn decode(raw: &[u8]) -> Head {
+        assert_eq!(raw.len(), HEAD_LENGTH_SIZE);
+        macro_rules! fields_impl {
+            ($($x:ident, $type:ty, $size:expr;)*) => {
+                let mut offset: usize = 0;
+                $(
+                    let $x = <$type>::from_be_bytes(raw[offset..offset + $size].try_into().unwrap());
+                    offset += $size;
+                )*
+                assert_eq!(offset, HEAD_LENGTH_SIZE);
+            };
+        }
+        fields_impl!(
+            length,      u32, 4;
+            head_length, u16, 2;
+            proto_ver,   u16, 2;
+            msg_type,    u32, 4;
+            seq,         u32, 4;
+        );
+        Head { length, head_length, proto_ver, msg_type, seq }
+    }
+
+    pub fn encode(&self) -> Box<[u8]> {
+        macro_rules! fields_impl {
+            ($($x:ident,)*) => {
+                [
+                    $(
+                        self.$x.to_be_bytes().as_slice(),
+                    )*
+                ].concat().into_boxed_slice()
+            };
+        }
+        fields_impl!(
+            length,
+            head_length,
+            proto_ver,
+            msg_type,
+            seq,
+        )
+    }
+
     pub fn new(msg_type: u32, payload_length: u32) -> Head {
         Head {
             length: HEAD_LENGTH_32 + payload_length,
@@ -48,10 +88,10 @@ pub enum Package {
 }
 
 impl Package {
-    pub fn decode<Au8: AsRef<[u8]>>(raw: Au8) -> PackageCodecResult<Package> {
+    pub fn decode<B: AsRef<[u8]>>(raw: B) -> PackageCodecResult<Package> {
         let raw = raw.as_ref();
         let (head, payload) = raw.split_at(HEAD_LENGTH_SIZE);
-        let head = Head::decode(head)?;
+        let head = Head::decode(head);
 
         let payload_length_head = head.length - HEAD_LENGTH_32;
         let payload_length_acc: u32 = payload.len().try_into()?;
@@ -108,28 +148,27 @@ impl Package {
         })
     }
 
-    pub fn encode(self) -> PackageCodecResult<Vec<u8>> {
+    pub fn encode(self) -> PackageCodecResult<Box<[u8]>> {
         Ok(match self {
-            Package::HeartbeatRequest => Head::new(2, 0).encode()?,
+            Package::HeartbeatRequest => Head::new(2, 0).encode(),
             Package::InitRequest(payload) => {
-                let payload = payload.into_bytes();
                 [
-                    Head::new(7, payload.len().try_into()?).encode()?,
-                    payload,
-                ].concat()
+                    Head::new(7, payload.len().try_into()?).encode().as_ref(),
+                    payload.as_bytes(),
+                ].concat().into_boxed_slice()
             },
             _ => return Err(PackageCodecError::NotEncodable),
         })
     }
 
-    pub fn create_init_request(roomid: u32, platform: String, key: String) -> Package {
+    pub fn create_init_request(roomid: u32, key: String) -> Package {
         Package::InitRequest(
             serde_json::to_string(
                 &InitRequest {
                     uid: 0,
                     roomid,
                     protover: 3,
-                    platform,
+                    platform: "web".to_owned(),
                     r#type: 2,
                     key,
                 }
@@ -137,7 +176,7 @@ impl Package {
         )
     }
 
-    fn unpack<Au8: AsRef<[u8]>>(pack: Au8) -> PackageCodecResult<Package> {
+    fn unpack<B: AsRef<[u8]>>(pack: B) -> PackageCodecResult<Package> {
         let pack = pack.as_ref();
         let total_length = pack.len();
         let mut unpacked = Vec::new();
@@ -228,7 +267,6 @@ error_conv_impl!(
     StringCodecError => std::string::FromUtf8Error,
     BytesSilceError  => std::array::TryFromSliceError,
     SizeConvertError => std::num::TryFromIntError,
-    BytesCodecError  => binrw::Error,
 );
 
 pub type PackageCodecResult<T> = Result<T, PackageCodecError>;
@@ -249,11 +287,11 @@ mod tests {
 
     #[test]
     fn test_head() {
-        let raw = HEAD_INIT_REQUEST.to_vec();
+        let raw = HEAD_INIT_REQUEST;
 
-        let head = Head::decode(&raw).unwrap();
-        assert_eq!(raw, head.encode().unwrap());
-        assert_eq!(raw, Head::new(7, 0xf9 - HEAD_LENGTH_32).encode().unwrap());
+        let head = Head::decode(&raw);
+        assert_eq!(raw, head.encode().as_ref());
+        assert_eq!(raw, Head::new(7, 0xf9 - HEAD_LENGTH_32).encode().as_ref());
 
         assert_eq!(head.length, 0xf9);
         assert_eq!(head.head_length, HEAD_LENGTH);
@@ -282,7 +320,7 @@ mod tests {
 
     #[test]
     fn test_init_request() {
-        let init = Package::create_init_request(TEST_ROOMID, "web".to_owned(), "key".to_owned());
+        let init = Package::create_init_request(TEST_ROOMID, "key".to_owned());
         match &init {
             Package::InitRequest(payload) => assert!(payload.starts_with(PACKAGE_INIT_BEGINNING)),
             _ => unreachable!(),
@@ -319,8 +357,8 @@ mod tests {
         macro_rules! encode {
             ($len:literal, $vec:expr) => {
                 [
-                    Head::new(3, $len).encode().unwrap(),
-                    $vec.to_vec(),
+                    Head::new(3, $len).encode(),
+                    Box::new($vec),
                 ].concat()
             };
         }

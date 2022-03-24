@@ -4,7 +4,7 @@ use rand::{seq::SliceRandom, thread_rng as rng};
 use tokio::{spawn, time::{self, Duration}, net::TcpStream};
 use tokio::{
     io::{Error as IoError, AsyncRead, AsyncWriteExt, ReadBuf},
-    net::{tcp::OwnedReadHalf as TcpStreamReceiver},
+    net::tcp::OwnedReadHalf as TcpStreamReceiver,
 };
 use tokio_tungstenite::{connect_async as connect_ws_stream, tungstenite::protocol::Message};
 use livekit_api::feed::HostsInfo;
@@ -20,19 +20,24 @@ pub struct FeedStream<T> {
 
 pub type WsFeedStream = FeedStream<WsStreamReceiver>;
 
+#[inline]
+fn wrap_ws_message(bytes: Box<[u8]>) -> Message {
+    Message::Binary(bytes.to_vec())
+}
+
 impl WsFeedStream {
-    pub async fn connect_ws(roomid: u32, hosts_info: HostsInfo) -> Result<Self, WsError> {
+    pub async fn connect_ws(roomid: u32, hosts_info: HostsInfo) -> Result<WsFeedStream, WsError> {
         let host = hosts_info.host_list.choose(&mut rng()).unwrap();
         let (stream, _) = connect_ws_stream(format!("wss://{}:{}/sub", host.host, host.wss_port)).await?;
         let (mut tx, rx) = stream.split();
         log::debug!("[{: >10}] (ws) connected", roomid);
 
-        let init = Message::Binary(Package::create_init_request(roomid, "web".to_owned(), hosts_info.token).encode().unwrap());
+        let init = wrap_ws_message(Package::create_init_request(roomid, hosts_info.token).encode().unwrap());
         tx.send(init).await?;
         log::debug!("[{: >10}] (ws) sent: init", roomid);
 
         spawn(async move {
-            let heartbeat = Message::Binary(Package::HeartbeatRequest.encode().unwrap());
+            let heartbeat = wrap_ws_message(Package::HeartbeatRequest.encode().unwrap());
             let mut interval = time::interval(Duration::from_secs(FEED_HEARTBEAT_RATE_SEC));
             loop {
                 interval.tick().await;
@@ -44,10 +49,7 @@ impl WsFeedStream {
             }
         });
 
-        Ok(Self {
-            roomid,
-            rx,
-        })
+        Ok(WsFeedStream { roomid, rx })
     }
 }
 
@@ -59,7 +61,7 @@ impl Stream for WsFeedStream {
             Some(Ok(message)) => Some(match message {
                 Message::Binary(payload) => {
                     log::debug!("[{: >10}] (ws) recv: message {}", self.roomid, payload.len());
-                    Some(Payload::new(payload))
+                    Some(Payload::new(payload.into_boxed_slice()))
                 },
                 Message::Ping(payload) => {
                     if payload.is_empty() {
@@ -89,14 +91,14 @@ impl Stream for WsFeedStream {
 pub type TcpFeedStream = FeedStream<TcpStreamReceiver>;
 
 impl TcpFeedStream {
-    pub async fn connect_tcp(roomid: u32, hosts_info: HostsInfo) -> Result<Self, IoError> {
+    pub async fn connect_tcp(roomid: u32, hosts_info: HostsInfo) -> Result<TcpFeedStream, IoError> {
         let host = hosts_info.host_list.choose(&mut rng()).unwrap();
         let stream = TcpStream::connect((host.host.as_str(), host.port)).await?;
         let (rx, mut tx) = stream.into_split();
         log::debug!("[{: >10}] (tcp) connected", roomid);
 
-        let init = Package::create_init_request(roomid, "web".to_owned(), hosts_info.token).encode().unwrap();
-        tx.write_all(init.as_slice()).await?;
+        let init = Package::create_init_request(roomid, hosts_info.token).encode().unwrap();
+        tx.write_all(init.as_ref()).await?;
         log::debug!("[{: >10}] (tcp) sent: init", roomid);
 
         spawn(async move {
@@ -104,7 +106,7 @@ impl TcpFeedStream {
             let mut interval = time::interval(Duration::from_secs(FEED_HEARTBEAT_RATE_SEC));
             loop {
                 interval.tick().await;
-                if let Err(error) = tx.write_all(heartbeat.as_slice()).await {
+                if let Err(error) = tx.write_all(heartbeat.as_ref()).await {
                     log::warn!("[{: >10}] (tcp) stop sending: (heartbeat-thread) caused by {:?}", roomid, error);
                     break;
                 }
@@ -112,10 +114,7 @@ impl TcpFeedStream {
             }
         });
 
-        Ok(Self {
-            roomid,
-            rx,
-        })
+        Ok(TcpFeedStream { roomid, rx })
     }
 }
 
@@ -128,9 +127,9 @@ impl Stream for TcpFeedStream {
 
         Poll::Ready(match ready!(Pin::new(&mut self.rx).poll_read(cx, &mut readbuf)) {
             Ok(()) => Some({
-                let payload = readbuf.filled().to_vec();
+                let payload = readbuf.filled();
                 log::debug!("[{: >10}] (tcp) recv: message {}", self.roomid, payload.len());
-                Some(Payload::new(payload))
+                Some(Payload::new(Box::from(payload)))
             }),
             Err(error) => {
                 log::warn!("[{: >10}] (tcp) close: caused by {:?}", self.roomid, error);

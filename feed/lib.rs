@@ -4,6 +4,9 @@ pub mod config {
     pub const FEED_RETRY_INTERVAL_MS: u64 = 5000;
     pub const FEED_INIT_RETRY_INTERVAL_SEC: u64 = 5;
     pub const FEED_TCP_BUFFER_SIZE: usize = 1024 * 8;
+    pub const FEED_STORAGE_IDENT: &str = "livekit-feed-raw";
+    pub const FEED_STORAGE_SCOPE_LEN: u32 = 4;
+    pub const FEED_STORAGE_KEY_LEN: u32 = 12;
 }
 
 pub mod util {
@@ -20,9 +23,10 @@ pub mod util {
 }
 
 pub mod payload;
-#[cfg(feature = "package")]
 pub mod package;
-#[cfg(feature = "stream")]
-pub mod stream;
 #[cfg(feature = "schema")]
 pub mod schema;
+#[cfg(feature = "storage")]
+pub mod storage;
+#[cfg(feature = "stream")]
+pub mod stream;

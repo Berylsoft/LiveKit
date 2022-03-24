@@ -1,20 +1,20 @@
 pub use async_kvdump;
 pub use self::async_kvdump::{Db, Scope};
 
-use std::fs;
 use self::async_kvdump::*;
-use livekit_feed::{util::now, payload::Payload};
-
-pub const CONFIG_IDENT: &str = "livekit-feed-raw";
-pub const CONFIG_SIZES: Sizes = Sizes { scope: Some(4), key: Some(12), value: None };
+use crate::{config::*, util::now, payload::Payload};
 
 pub fn open_db<P: AsRef<std::path::Path>>(path: P) -> Result<Db> {
-    fs::create_dir_all(&path)?;
+    std::fs::create_dir_all(&path)?;
     let mut path = path.as_ref().to_owned();
     path.push(now().to_string());
     let config = Config {
-        ident: Box::from(CONFIG_IDENT.as_bytes()),
-        sizes: CONFIG_SIZES.clone()
+        ident: Box::from(FEED_STORAGE_IDENT.as_bytes()),
+        sizes: Sizes {
+            scope: Some(FEED_STORAGE_SCOPE_LEN),
+            key: Some(FEED_STORAGE_KEY_LEN),
+            value: None,
+        }
     };
     Db::init(path, config)
 }
@@ -29,7 +29,7 @@ fn roomid_of(storage: &Scope) -> u32 {
 
 pub async fn insert_payload(storage: &Scope, payload: &Payload) {
     let key = payload.get_key();
-    match storage.write_kv(key.encode(), payload.payload.as_slice()).await {
+    match storage.write_kv(key.encode(), payload.payload.as_ref()).await {
         Ok(()) => { },
         Err(err) => panic!(
             "[{: >10}] (storage) FATAL: insert error: {:?} key={:?} val(hex)={}",
@@ -37,8 +37,3 @@ pub async fn insert_payload(storage: &Scope, payload: &Payload) {
         ),
     }
 }
-
-#[cfg(feature = "rec")]
-mod rec;
-#[cfg(feature = "rec")]
-pub use rec::rec;

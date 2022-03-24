@@ -18,4 +18,3 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 kvdump = { git = "https://github.com/Berylsoft/KVDump" }
 livekit-feed = { path = "../../feed" }
-livekit-feed-storage = { path = "../../feed-storage" }

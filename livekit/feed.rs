@@ -1,8 +1,7 @@
 use tokio::time::{sleep, Duration};
 use futures::{Future, StreamExt};
 use livekit_api::feed::GetHostsInfo;
-use livekit_feed::{config::*, stream::FeedStream, schema::Event as FeedEvent};
-use livekit_feed_storage::{open_storage, insert_payload};
+use livekit_feed::{config::*, stream::FeedStream, schema::Event as FeedEvent, storage::{open_storage, insert_payload}};
 use crate::room::{Room, Event, Group};
 
 macro_rules! unwrap_or_continue {

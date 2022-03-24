@@ -8,8 +8,8 @@ use log4rs::{
 use structopt::StructOpt;
 use tokio::{spawn, signal, time::{sleep, Duration}};
 use livekit_api::client::HttpClient;
-use livekit_feed::config::*;
-use livekit_feed_storage::{open_db, rec};
+use livekit_feed::{config::*, storage::open_db};
+use livekit_feedrec::rec;
 
 pub fn log_config(path: PathBuf, debug: bool) -> Config {
     Config::builder()

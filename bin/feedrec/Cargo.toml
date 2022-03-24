@@ -8,16 +8,20 @@ repository = "https://github.com/Berylsoft/LiveKit"
 # description
 # readme
 
+[lib]
+name = "livekit_feedrec"
+path = "lib.rs"
+
 [[bin]]
 name = "feedrec"
 path = "main.rs"
 
 [dependencies]
-tokio = { version = "1", features = ["full"] }
+hex = "0.4"
 log = "0.4"
 log4rs = { version = "1.0", default-features = false, features = ["all_components"] }
 structopt = "0.3"
-# project
+futures = "0.3"
+tokio = { version = "1", features = ["full"] }
 livekit-api = { path = "../../api" }
-livekit-feed = { path = "../../feed" }
-livekit-feed-storage = { path = "../../feed-storage", features = ["rec"] }
+livekit-feed = { path = "../../feed", features = ["storage", "stream"] }

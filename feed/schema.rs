@@ -1,6 +1,5 @@
 use serde::{Serialize, Deserialize, de::DeserializeOwned};
 use serde_json::{Value as JsonValue, Result as JsonResult};
-#[cfg(feature = "package")]
 use crate::package::Package;
 
 // region: (util)
@@ -503,8 +502,7 @@ impl Event {
         })
     }
 
-    #[cfg(feature = "package")]
-    fn from_pacakge(package: &Package) -> JsonResult<Event> {
+        fn from_pacakge(package: &Package) -> JsonResult<Event> {
         Ok(match package {
             Package::Json(payload) => Event::parse(payload)?,
             Package::HeartbeatResponse(payload) => Event::Popularity(*payload),
@@ -513,8 +511,7 @@ impl Event {
         })
     }
 
-    #[cfg(feature = "package")]
-    pub fn from_raw<Au8: AsRef<[u8]>>(raw: Au8) -> Vec<Event> {
+        pub fn from_raw<B: AsRef<[u8]>>(raw: B) -> Vec<Event> {
         let raw = raw.as_ref();
         let mut events = Vec::new();
 

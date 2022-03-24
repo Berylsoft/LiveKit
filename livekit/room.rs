@@ -2,8 +2,7 @@ use rand::{Rng, thread_rng as rng};
 use tokio::{spawn, fs};
 use async_channel::{Sender, Receiver};
 use livekit_api::{client::{HttpClient, RestApiResult}, info::{RoomInfo, UserInfo, GetRoomInfo, GetUserInfo}};
-use livekit_feed::schema::Event as FeedEvent;
-use livekit_feed_storage::{Db, open_db};
+use livekit_feed::{schema::Event as FeedEvent, storage::{Db, open_db}};
 use crate::config::*;
 
 macro_rules! template {
