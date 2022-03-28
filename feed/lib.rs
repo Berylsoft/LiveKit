@@ -14,12 +14,12 @@ pub mod util {
         use std::time::{SystemTime, UNIX_EPOCH};
         SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis().try_into().unwrap()
     }
-    
+
     pub fn crc32(raw: &[u8]) -> u32 {
         let mut hasher = crc32fast::Hasher::new();
         hasher.update(raw);
         hasher.finalize()
-    }    
+    }
 }
 
 pub mod payload;

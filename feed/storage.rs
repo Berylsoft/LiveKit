@@ -1,21 +1,25 @@
 pub use async_kvdump;
-pub use self::async_kvdump::{Db, Scope};
+pub use self::async_kvdump::{Db, Scope, KV};
 
 use self::async_kvdump::*;
 use crate::{config::*, util::now, payload::Payload};
 
-pub fn open_db<P: AsRef<std::path::Path>>(path: P) -> Result<Db> {
-    std::fs::create_dir_all(&path)?;
-    let mut path = path.as_ref().to_owned();
-    path.push(now().to_string());
-    let config = Config {
+pub fn config() -> Config {
+    Config {
         ident: Box::from(FEED_STORAGE_IDENT.as_bytes()),
         sizes: Sizes {
             scope: Some(FEED_STORAGE_SCOPE_LEN),
             key: Some(FEED_STORAGE_KEY_LEN),
             value: None,
         }
-    };
+    }
+}
+
+pub fn open_db<P: AsRef<std::path::Path>>(path: P) -> Result<Db> {
+    std::fs::create_dir_all(&path)?;
+    let mut path = path.as_ref().to_owned();
+    path.push(now().to_string());
+    let config = config();
     Db::init(path, config)
 }
 

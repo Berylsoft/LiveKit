@@ -22,6 +22,16 @@ impl Key {
             hash: u32::from_be_bytes(hash.try_into().unwrap()),
         }
     }
+
+    #[inline]
+    pub fn time(&self) -> u64 {
+        self.time
+    }
+
+    #[inline]
+    pub fn hash(&self) -> u32 {
+        self.hash
+    }
 }
 
 pub struct Payload {
@@ -37,8 +47,8 @@ impl Payload {
         }
     }
 
-    pub fn from_kv(key: Box<[u8]>, value: Box<[u8]>) -> Payload {
-        let Key { time, hash } = Key::decode(&key);
+    pub fn from_kv<B: AsRef<[u8]>>(key: B, value: Box<[u8]>) -> Payload {
+        let Key { time, hash } = Key::decode(key.as_ref());
         assert_eq!(hash, crc32(&value));
         Payload {
             time,
@@ -46,10 +56,11 @@ impl Payload {
         }
     }
 
-    pub fn from_nonhash_kv(key: Box<[u8]>, value: Box<[u8]>) -> Payload {
+    pub fn from_nonhash_kv<B: AsRef<[u8]>>(key: B, value: Box<[u8]>) -> Payload {
+        let key = key.as_ref();
         assert_eq!(key.len(), 8);
         Payload {
-            time: u64::from_be_bytes(key.as_ref().try_into().unwrap()),
+            time: u64::from_be_bytes(key.try_into().unwrap()),
             payload: value,
         }
     }
