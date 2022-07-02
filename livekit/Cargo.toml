@@ -3,7 +3,7 @@ name = "livekit"
 version = "0.3.0"
 edition = "2021"
 authors = ["stackinspector"]
-license = "Apache-2.0"
+license = "MPL-2.0"
 repository = "https://github.com/Berylsoft/LiveKit"
 # description
 # readme
