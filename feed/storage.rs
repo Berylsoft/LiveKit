@@ -17,10 +17,7 @@ pub fn config() -> Config {
 
 pub fn open_db<P: AsRef<std::path::Path>>(path: P) -> Result<Db> {
     std::fs::create_dir_all(&path)?;
-    let mut path = path.as_ref().to_owned();
-    path.push(now().to_string());
-    let config = config();
-    Db::init(path, config)
+    Db::init(path.as_ref().join(now().to_string()), config())
 }
 
 pub fn open_storage(db: &Db, roomid: u32) -> Scope {

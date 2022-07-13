@@ -9,7 +9,7 @@ use hyper_rustls::{HttpsConnector, HttpsConnectorBuilder};
 
 pub const REFERER: &str = "https://live.bilibili.com/";
 pub const API_HOST: &str = "https://api.live.bilibili.com";
-pub const WEB_USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/99.0.4844.51 Safari/537.36";
+pub const WEB_USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 Safari/537.36";
 
 #[derive(Debug)]
 pub enum RestApiFailureCode {

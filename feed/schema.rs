@@ -5,9 +5,10 @@ use crate::package::Package;
 // region: (util)
 
 // same as `serde_json::from_value`, but takes reference
-pub fn to<De: DeserializeOwned>(value: &JsonValue) -> JsonResult<De>
+#[inline]
+pub fn to<D: DeserializeOwned>(value: &JsonValue) -> JsonResult<D>
 {
-    De::deserialize(value)
+    D::deserialize(value)
 }
 
 pub fn numbool(value: &JsonValue) -> JsonResult<bool> {
@@ -23,13 +24,13 @@ pub fn numbool(value: &JsonValue) -> JsonResult<bool> {
 
 /*
 
-pub fn inline_json<De: DeserializeOwned>(value: &JsonValue) -> JsonResult<De>
+pub fn inline_json<D: DeserializeOwned>(value: &JsonValue) -> JsonResult<D>
 {
     let json: String = to(value)?;
     Ok(serde_json::from_str(json.as_str())?)
 }
 
-pub fn inline_json_opt<De: DeserializeOwned>(value: &JsonValue) -> JsonResult<Option<De>>
+pub fn inline_json_opt<D: DeserializeOwned>(value: &JsonValue) -> JsonResult<Option<D>>
 {
     let json: String = to(value)?;
     if json == "{}" {
@@ -41,7 +42,7 @@ pub fn inline_json_opt<De: DeserializeOwned>(value: &JsonValue) -> JsonResult<Op
 
 */
 
-pub fn may_inline_json_opt<De: DeserializeOwned>(value: &JsonValue) -> JsonResult<Option<De>>
+pub fn may_inline_json_opt<D: DeserializeOwned>(value: &JsonValue) -> JsonResult<Option<D>>
 {
     match value.as_str() {
         None => Ok(Some(to(value)?)),
@@ -80,7 +81,7 @@ pub fn string_color_to_u32(value: &JsonValue) -> JsonResult<u32> {
         let string = {
             assert_eq!(string.len(), 7);
             let mut c = string.chars();
-            assert_eq!(c.next(), Some('/'));
+            assert_eq!(c.next(), Some('#'));
             format!("00{}", c.as_str())
         };
         let mut buf = [0u8; 4];
@@ -400,6 +401,16 @@ impl SuperChat {
 
 // endregion
 
+// region: Views
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Views {
+    pub enabled: bool,
+    pub views: u32,
+}
+
+// endregion
+
 // region: RoomStat
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -435,6 +446,7 @@ pub enum Event {
     Gift(Gift),
     GuardBuy(GuardBuy),
     SuperChat(SuperChat),
+    Views(Views),
 
     RoomStat(RoomStat),
     RoomInfoChange(RoomInfoDiff),
@@ -541,7 +553,8 @@ impl Event {
 
 #[cfg(test)]
 mod tests {
-    use super::Event;
+    use serde_json::json;
+    use super::*;
 
     #[test]
     fn unknown_cmd() {
@@ -550,5 +563,11 @@ mod tests {
             Event::Unknown { raw } => assert_eq!(raw, RAW),
             _ => unreachable!(),
         }
+    }
+
+    #[test]
+    fn test_string_color_to_u32() {
+        assert_eq!(string_color_to_u32(&json!(42)).unwrap(), 42);
+        assert_eq!(string_color_to_u32(&json!("#424242")).unwrap(), 4342338);
     }
 }
