@@ -1,0 +1,30 @@
+[package]
+name = "livekit-feed-reprod"
+version = "0.3.0"
+edition = "2021"
+authors = ["stackinspector"]
+license = "MPL-2.0"
+repository = "https://github.com/Berylsoft/LiveKit"
+# description
+# readme
+
+[lib]
+name = "livekit_feed_reprod"
+path = "lib.rs"
+
+[[bin]]
+name = "feed-reprod"
+path = "main.rs"
+
+[dependencies]
+hex = "0.4"
+log = "0.4"
+log4rs = { version = "1.0", default-features = false, features = ["all_components"] }
+structopt = "0.3"
+futures = "0.3"
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+tokio-tungstenite = { version = "0.17", features = ["rustls-tls-webpki-roots"] }
+async-channel = "1.6"
+livekit-api = { path = "../../api" }
+livekit-feed = { path = "../../feed", features = ["storage", "stream"] }

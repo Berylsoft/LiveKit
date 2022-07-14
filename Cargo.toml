@@ -6,6 +6,7 @@ members = [
     "livekit",
     "bin/feedrec",
     "bin/feed-dump",
+    "bin/feed-reprod",
     "bin/interactor",
     "bin/stream-url-builder",
 ]
