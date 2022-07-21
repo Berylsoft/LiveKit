@@ -23,7 +23,7 @@ impl RestApi for GetRoomInfo {
 
 #[derive(Clone, Deserialize)]
 pub struct RoomInfo {
-    pub uid: u32,
+    pub uid: u64,
     pub room_id: u32,
     pub short_id: u32,
     pub live_status: u8,

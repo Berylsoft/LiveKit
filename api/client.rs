@@ -62,7 +62,7 @@ pub type RestApiResult<Data> = Result<Data, RestApiError>;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Access {
-    pub uid: u32,
+    pub uid: u64,
     pub key: String,
     pub csrf: String,
 }
@@ -90,7 +90,7 @@ impl Access {
             }};
         }
 
-        seat!(uid, u32);
+        seat!(uid, u64);
         seat!(key, String);
         seat!(csrf, String);
 

@@ -1,6 +1,6 @@
 #[derive(Debug, serde::Serialize)]
 pub struct InitRequest {
-    pub uid: u32,
+    pub uid: u64,
     pub roomid: u32,
     pub protover: u8,
     pub platform: String,
