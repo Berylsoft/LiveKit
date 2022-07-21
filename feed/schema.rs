@@ -158,7 +158,7 @@ impl Medal {
 
 #[derive(Debug, Serialize)]
 pub struct User {
-    pub uid: u32,
+    pub uid: u64,
     pub uname: String,
     pub live_user_level: u8,
     pub admin: bool,
@@ -269,7 +269,7 @@ impl Danmaku {
 pub struct Interact {
     kind: InteractKind,
     time: i64, // sec
-    uid: u32,
+    uid: u64,
     uname: String,
     medal: Option<Medal>,
 }
@@ -314,7 +314,7 @@ impl Interact {
 #[derive(Debug, Serialize)]
 pub struct Gift {
     time: i64, // sec
-    uid: u32,
+    uid: u64,
     uname: String,
     uface: String,
     id: i32,
@@ -345,7 +345,7 @@ impl Gift {
 #[derive(Debug, Serialize)]
 pub struct GuardBuy {
     time: i64, // sec
-    uid: u32,
+    uid: u64,
     uname: String,
     count: u32,
     guard_level: u8,
@@ -409,6 +409,16 @@ pub struct Views {
     pub views: u32,
 }
 
+impl Views {
+    fn from(raw: &JsonValue) -> JsonResult<Self> {
+        Ok(Views {
+            // TODO
+            enabled: true,
+            views: to(&raw["num"])?,
+        })
+    }
+}
+
 // endregion
 
 // region: RoomStat
@@ -454,16 +464,16 @@ pub enum Event {
     LiveStart,
     LiveEnd,
 
-    Unimplemented,
-    Ignored,
-    Unknown { raw: String },
+    Unimplemented { raw: JsonValue },
+    Ignored { raw: JsonValue },
+    Unknown { raw: JsonValue },
 
     ParseError { raw: String, error: String },
     CodecError { raw: String, error: String },
 }
 
 impl Event {
-    pub fn parse<Str: AsRef<str>>(raw: Str) -> JsonResult<Event> {
+    pub fn parse<S: AsRef<str>>(raw: S) -> JsonResult<Event> {
         let _raw = raw.as_ref();
 
         let raw: JsonValue = serde_json::from_str(_raw)?;
@@ -475,6 +485,7 @@ impl Event {
             "SEND_GIFT" => Event::Gift(Gift::from(&raw["data"])?),
             "GUARD_BUY" => Event::GuardBuy(GuardBuy::from(&raw["data"])?),
             "SUPER_CHAT_MESSAGE" => Event::SuperChat(SuperChat::from(&raw["data"], &raw["user_info"])?),
+            "WATCHED_CHANGE" => Event::Views(Views::from(&raw["data"])?),
 
             "ROOM_REAL_TIME_MESSAGE_UPDATE" => Event::RoomStat(to(&raw["data"])?),
             "ROOM_CHANGE" => Event::RoomInfoChange(to(&raw["data"])?),
@@ -497,7 +508,7 @@ impl Event {
             | "ANCHOR_LOT_CHECKSTATUS"
             | "ANCHOR_LOT_START"
             | "ANCHOR_LOT_END"
-            | "ANCHOR_LOT_AWARD" => Event::Unimplemented,
+            | "ANCHOR_LOT_AWARD" => Event::Unimplemented { raw },
 
             "STOP_LIVE_ROOM_LIST"
             | "HOT_RANK_CHANGED"
@@ -508,9 +519,9 @@ impl Event {
             | "NOTICE_MSG"
             | "ONLINE_RANK_TOP3"
             | "HOT_RANK_SETTLEMENT"
-            | "HOT_RANK_SETTLEMENT_V2" => Event::Ignored,
+            | "HOT_RANK_SETTLEMENT_V2" => Event::Ignored { raw },
 
-            _ => Event::Unknown { raw: _raw.to_owned() },
+            _ => Event::Unknown { raw },
         })
     }
 

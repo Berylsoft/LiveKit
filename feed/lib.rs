@@ -15,11 +15,7 @@ pub mod util {
         SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis().try_into().unwrap()
     }
 
-    pub fn crc32(raw: &[u8]) -> u32 {
-        let mut hasher = crc32fast::Hasher::new();
-        hasher.update(raw);
-        hasher.finalize()
-    }
+    pub use crc32fast::hash as crc32;
 }
 
 pub mod payload;

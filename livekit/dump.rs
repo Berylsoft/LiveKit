@@ -6,7 +6,7 @@ use crate::{config::DumpKind, room::{Room, Event}};
 pub fn write(kind: &DumpKind, event: &FeedEvent) -> String {
     let mut output = String::new();
     if let DumpKind::Debug = kind {} else {
-        if let FeedEvent::Unimplemented | FeedEvent::Ignored = event {} else {
+        if let FeedEvent::Unimplemented { .. } | FeedEvent::Ignored { .. } = event {} else {
             output.push_str(match kind {
                 DumpKind::Debug => {
                     format!("{:?}", event)
