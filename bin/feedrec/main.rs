@@ -1,36 +1,10 @@
 use std::path::PathBuf;
-use log::LevelFilter;
-use log4rs::{
-    append::file::FileAppender,
-    config::{Appender, Config, Root},
-    encode::json::JsonEncoder,
-};
 use structopt::StructOpt;
 use tokio::{spawn, signal, time::{sleep, Duration}};
 use livekit_api::client::HttpClient;
 use livekit_feed::{config::*, storage::open_db};
 use livekit_feedrec::rec;
-
-pub fn log_config(path: PathBuf, debug: bool) -> Config {
-    Config::builder()
-        .appender(
-            Appender::builder().build(
-                "logfile",
-                Box::new(
-                    FileAppender::builder()
-                        .encoder(Box::new(JsonEncoder::new()))
-                        .build(path)
-                        .unwrap(),
-                ),
-            ),
-        )
-        .build(
-            Root::builder()
-                .appender("logfile")
-                .build(if debug { LevelFilter::Debug } else { LevelFilter::Info }),
-        )
-        .unwrap()
-}
+use livekit_log_config::{log4rs, log_config};
 
 #[derive(StructOpt)]
 struct Args {

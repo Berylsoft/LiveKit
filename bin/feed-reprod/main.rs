@@ -1,36 +1,10 @@
 use std::path::PathBuf;
-use log::LevelFilter;
-use log4rs::{
-    append::file::FileAppender,
-    config::{Appender, Config, Root},
-    encode::json::JsonEncoder,
-};
 use structopt::StructOpt;
 use tokio::{spawn, signal, net::TcpListener};
 use livekit_api::client::HttpClient;
-use livekit_feed::{storage::open_db};
+use livekit_feed::storage::open_db;
 use livekit_feed_reprod::{rec, conn};
-
-pub fn log_config(path: PathBuf, debug: bool) -> Config {
-    Config::builder()
-        .appender(
-            Appender::builder().build(
-                "logfile",
-                Box::new(
-                    FileAppender::builder()
-                        .encoder(Box::new(JsonEncoder::new()))
-                        .build(path)
-                        .unwrap(),
-                ),
-            ),
-        )
-        .build(
-            Root::builder()
-                .appender("logfile")
-                .build(if debug { LevelFilter::Debug } else { LevelFilter::Info }),
-        )
-        .unwrap()
-}
+use livekit_log_config::{log4rs, log_config};
 
 #[derive(StructOpt)]
 struct Args {
@@ -58,7 +32,7 @@ async fn main() {
     spawn(thread);
     let socket = TcpListener::bind(("0.0.0.0", port)).await.unwrap();
     while let Ok((stream, _)) = socket.accept().await {
-        tokio::spawn(conn(stream, event_rx.clone()));
+        spawn(conn(stream, event_rx.clone()));
     }
     signal::ctrl_c().await.unwrap();
 }

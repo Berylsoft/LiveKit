@@ -1,0 +1,17 @@
+[package]
+name = "livekit-log-config"
+version = "0.3.0"
+edition = "2021"
+authors = ["stackinspector"]
+license = "MPL-2.0"
+repository = "https://github.com/Berylsoft/LiveKit"
+# description
+# readme
+
+[lib]
+name = "livekit_log_config"
+path = "lib.rs"
+
+[dependencies]
+log = "0.4"
+log4rs = { version = "1.0", default-features = false, features = ["all_components"] }

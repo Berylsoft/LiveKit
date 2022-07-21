@@ -4,6 +4,7 @@ members = [
     "api",
     "feed",
     "livekit",
+    "bin/log-config",
     "bin/feedrec",
     "bin/feed-dump",
     "bin/feed-reprod",
