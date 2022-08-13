@@ -65,7 +65,7 @@ pub struct PlayUrlInfo {
 pub struct PlayInfo {
     // pub room_id: u32,
     // pub short_id: u32,
-    // pub uid: u32,
+    // pub uid: u64,
     // pub is_hidden: bool,
     // pub is_locked: bool,
     // pub is_portrait: bool,
@@ -102,9 +102,9 @@ impl RestApi for GetPlayInfo {
     }
 }
 
-fn to<De: serde::de::DeserializeOwned>(value: &JsonValue) -> Option<De>
+fn to<D: serde::de::DeserializeOwned>(value: &JsonValue) -> Option<D>
 {
-    De::deserialize(value).ok()
+    D::deserialize(value).ok()
 }
 
 #[derive(Debug, PartialEq, Serialize)]

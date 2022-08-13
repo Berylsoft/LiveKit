@@ -197,7 +197,7 @@ pub struct InitResponse {
 }
 
 impl InitResponse {
-    pub fn parse<Str: AsRef<str>>(raw: Str) -> JsonResult<Event> {
+    pub fn parse<S: AsRef<str>>(raw: S) -> JsonResult<Event> {
         Ok(Event::InitResponse(serde_json::from_str::<InitResponse>(raw.as_ref())?.code))
     }
 }
