@@ -4,7 +4,7 @@ use tokio::{spawn, time::{self, Duration}, net::TcpStream};
 // for TcpFeedStream
 use tokio::{io::{Error as IoError, AsyncRead, AsyncWriteExt, ReadBuf}, net::tcp::OwnedReadHalf as TcpStreamRx};
 // for WsFeedStream
-use tokio_tungstenite::{connect_async as connect_ws_stream, tungstenite::{protocol::Message, Error as WsError}};
+use tokio_tungstenite::{connect_async as connect_ws_stream, tungstenite::{protocol::Message, Error as WsError, http::Uri}};
 use crate::{package::Package, schema::InitRequest};
 
 // for FeedStream
@@ -35,6 +35,11 @@ impl Payload {
     }
 }
 
+#[inline]
+fn create_init_request(roomid: u32, token: String) -> Package {
+    Package::InitRequest(serde_json::to_string(&InitRequest::new_web_without_uid(roomid, token)).unwrap())
+}
+
 pub struct FeedStream<T> {
     roomid: u32,
     rx: T,
@@ -44,18 +49,22 @@ type WsStreamRx = futures::stream::SplitStream<tokio_tungstenite::WebSocketStrea
 pub type WsFeedStream = FeedStream<WsStreamRx>;
 
 #[inline]
+fn create_ws_url(host: String, port: u16) -> Uri {
+    Uri::builder()
+        .scheme("wss")
+        .authority(concat_string::concat_string!(host, port.to_string()))
+        .path_and_query("/sub")
+        .build().unwrap()
+}
+
+#[inline]
 fn wrap_ws_message(bytes: Box<[u8]>) -> Message {
     Message::Binary(bytes.to_vec())
 }
 
-#[inline]
-fn create_init_request(roomid: u32, token: String) -> Package {
-    Package::InitRequest(serde_json::to_string(&InitRequest::new_web_without_uid(roomid, token)).unwrap())
-}
-
 impl WsFeedStream {
     pub async fn connect_ws(host: String, port: u16, roomid: u32, token: String) -> Result<WsFeedStream, WsError> {
-        let (stream, _) = connect_ws_stream(format!("wss://{}:{}/sub", host, port)).await?;
+        let (stream, _) = connect_ws_stream(create_ws_url(host, port)).await?;
         let (mut tx, rx) = stream.split();
         log::debug!("[{: >10}] (ws) connected", roomid);
 
