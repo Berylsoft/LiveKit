@@ -1,0 +1,26 @@
+[package]
+name = "livekit-feed"
+version = "0.4.0"
+edition = "2021"
+authors = ["stackinspector"]
+license = "MPL-2.0"
+repository = "https://github.com/Berylsoft/LiveKit"
+# description
+# readme
+
+[lib]
+name = "livekit_feed"
+path = "lib.rs"
+
+[dependencies]
+hex = "0.4"
+brotli-decompressor = "2.3"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+log = "0.4"
+futures = "0.3"
+tokio = { version = "1", features = ["rt", "time", "sync", "net"] }
+tokio-tungstenite = { version = "0.17", features = ["rustls-tls-webpki-roots"] }
+
+[dev-dependencies]
+hex-literal = "0.3"
