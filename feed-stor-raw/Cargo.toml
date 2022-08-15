@@ -1,0 +1,19 @@
+[package]
+name = "livekit-feed-stor-raw"
+version = "0.4.0"
+edition = "2021"
+authors = ["stackinspector"]
+license = "MPL-2.0"
+
+[lib]
+name = "livekit_feed_stor_raw"
+path = "lib.rs"
+
+[dependencies]
+hex = "0.4"
+crc32fast = "1.3"
+futures = "0.3"
+tokio = { version = "1", features = ["rt"] }
+bmrng = "0.5"
+kvdump = { git = "https://github.com/Berylsoft/KVDump" }
+livekit-feed = { path = "../feed" }

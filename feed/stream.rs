@@ -16,7 +16,7 @@ pub const TCP_BUFFER_SIZE: usize = 1024 * 8;
 pub const RETRY_INTERVAL_MS: u64 = 5000;
 pub const INIT_RETRY_INTERVAL_SEC: u64 = 5;
 
-fn now() -> u64 {
+pub fn now() -> u64 {
     use std::time::{SystemTime, UNIX_EPOCH};
     SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis().try_into().unwrap()
 }
