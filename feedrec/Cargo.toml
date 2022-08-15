@@ -1,0 +1,27 @@
+[package]
+name = "livekit-feedrec"
+version = "0.4.0"
+edition = "2021"
+authors = ["stackinspector"]
+license = "MPL-2.0"
+repository = "https://github.com/Berylsoft/LiveKit"
+# description
+# readme
+
+[[bin]]
+name = "feedrec"
+path = "main.rs"
+
+[dependencies]
+hex = "0.4"
+rand = "0.8"
+log = "0.4"
+log4rs = { version = "1.0", default-features = false, features = ["all_components"] }
+structopt = "0.3"
+serde = { version = "1.0", features = ["derive"] }
+futures = "0.3"
+tokio = { version = "1", features = ["full"] }
+bilibili-restapi-model = { git = "https://github.com/Berylsoft/bilibili-restapi" }
+bilibili-restapi-client = { git = "https://github.com/Berylsoft/bilibili-restapi" }
+livekit-feed = { path = "../feed" }
+livekit-feed-stor-raw = { path = "../feed-stor-raw" }
