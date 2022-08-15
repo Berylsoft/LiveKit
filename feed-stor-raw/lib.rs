@@ -33,7 +33,7 @@ impl Key {
     pub fn from_payload(payload: &Payload) -> Key {
         Key {
             time: payload.time,
-            hash: crc32(payload.payload.as_ref()),
+            hash: crc32(&payload.payload),
         }
     }
 
@@ -107,7 +107,7 @@ impl RoomWriter {
             key: key.encode(),
             value: payload.payload.clone(),
         })).await.unwrap_or_else(|_| Err(Error::AsyncFileClosed)).map_err(|err| format!(
-            "[{: >10}] (storage) FATAL: insert error: {:?} key={:?} val(hex)={}",
+            "[{: >10}] (stor-raw) FATAL: insert error: {:?} key={:?} val(hex)={}",
             self.roomid, err, key, hex::encode(&payload.payload),
         ))
     }

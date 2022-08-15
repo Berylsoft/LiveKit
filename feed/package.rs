@@ -143,7 +143,7 @@ impl Package {
             Package::HeartbeatRequest => Head::new(2, 0).encode(),
             Package::InitRequest(payload) => {
                 [
-                    Head::new(7, payload.len().try_into()?).encode().as_ref(),
+                    &Head::new(7, payload.len().try_into()?).encode(),
                     payload.as_bytes(),
                 ].concat().into_boxed_slice()
             },

@@ -9,11 +9,11 @@ use crate::{package::Package, schema::InitRequest};
 
 // for FeedStream
 pub const HEARTBEAT_RATE_SEC: u64 = 30;
-pub const INIT_INTERVAL_MS: u64 = 100;
 pub const TCP_BUFFER_SIZE: usize = 1024 * 8;
 
 // for outer control flow
 pub const RETRY_INTERVAL_MS: u64 = 5000;
+pub const INIT_INTERVAL_MS: u64 = 100;
 pub const INIT_RETRY_INTERVAL_SEC: u64 = 5;
 
 pub fn now() -> u64 {
@@ -37,7 +37,7 @@ impl Payload {
 
 #[inline]
 fn create_init_request(roomid: u32, token: String) -> Package {
-    Package::InitRequest(serde_json::to_string(&InitRequest::new_web_without_uid(roomid, token)).unwrap())
+    Package::InitRequest(serde_json::to_string(&InitRequest::new_v3_web_without_uid(roomid, token)).unwrap())
 }
 
 pub struct FeedStream<T> {
@@ -49,7 +49,7 @@ type WsStreamRx = futures::stream::SplitStream<tokio_tungstenite::WebSocketStrea
 pub type WsFeedStream = FeedStream<WsStreamRx>;
 
 #[inline]
-fn create_ws_url(host: String, port: u16) -> Uri {
+fn create_ws_url(host: &str, port: u16) -> Uri {
     Uri::builder()
         .scheme("wss")
         .authority(concat_string::concat_string!(host, port.to_string()))
@@ -63,7 +63,7 @@ fn wrap_ws_message(bytes: Box<[u8]>) -> Message {
 }
 
 impl WsFeedStream {
-    pub async fn connect_ws(host: String, port: u16, roomid: u32, token: String) -> Result<WsFeedStream, WsError> {
+    pub async fn connect_ws(host: &str, port: u16, roomid: u32, token: String) -> Result<WsFeedStream, WsError> {
         let (stream, _) = connect_ws_stream(create_ws_url(host, port)).await?;
         let (mut tx, rx) = stream.split();
         log::debug!("[{: >10}] (ws) connected", roomid);
@@ -127,13 +127,13 @@ impl Stream for WsFeedStream {
 pub type TcpFeedStream = FeedStream<TcpStreamRx>;
 
 impl TcpFeedStream {
-    pub async fn connect_tcp(host: String, port: u16, roomid: u32, token: String) -> Result<TcpFeedStream, IoError> {
+    pub async fn connect_tcp(host: &str, port: u16, roomid: u32, token: String) -> Result<TcpFeedStream, IoError> {
         let stream = TcpStream::connect((host, port)).await?;
         let (rx, mut tx) = stream.into_split();
         log::debug!("[{: >10}] (tcp) connected", roomid);
 
         let init = create_init_request(roomid, token).encode().unwrap();
-        tx.write_all(init.as_ref()).await?;
+        tx.write_all(&init).await?;
         log::debug!("[{: >10}] (tcp) sent: init", roomid);
 
         spawn(async move {
@@ -141,7 +141,7 @@ impl TcpFeedStream {
             let mut interval = time::interval(Duration::from_secs(HEARTBEAT_RATE_SEC));
             loop {
                 interval.tick().await;
-                if let Err(error) = tx.write_all(heartbeat.as_ref()).await {
+                if let Err(error) = tx.write_all(&heartbeat).await {
                     log::warn!("[{: >10}] (tcp) stop sending: (heartbeat-thread) caused by {:?}", roomid, error);
                     break;
                 }

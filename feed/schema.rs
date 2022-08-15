@@ -107,7 +107,7 @@ pub struct InitRequest {
 }
 
 impl InitRequest {
-    pub fn new_web_without_uid(roomid: u32, token: String) -> InitRequest {
+    pub fn new_v3_web_without_uid(roomid: u32, token: String) -> InitRequest {
         InitRequest {
             uid: 0,
             roomid,
@@ -610,7 +610,7 @@ mod tests {
 
     #[test]
     fn test_init_request() {
-        let init = InitRequest::new_web_without_uid(TEST_ROOMID, "key".to_owned());
+        let init = InitRequest::new_v3_web_without_uid(TEST_ROOMID, "key".to_owned());
         let init = serde_json::to_string(&init).unwrap();
         assert!(init.starts_with(PACKAGE_INIT_BEGINNING));
         assert_eq!(init.len(), 94 - 16);
