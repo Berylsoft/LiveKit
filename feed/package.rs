@@ -216,17 +216,11 @@ impl Package {
 // endregion
 
 macro_rules! error_conv_impl {
-    ($name:ident, $($variant:ident => $error:ty),*, $(,)?) => {
+    {$name:ident {$($extra:tt)+} conv {$($variant:ident => $error:ty),*,}} => {
         #[derive(Debug)]
         pub enum $name {
-            $(
-                $variant($error),
-            )*
-            UnpackLeak,
-            UnknownType(Head),
-            NotEncodable,
-            IncorrectPayloadLength(u32, u32),
-            UnknownHead(u16),
+            $($variant($error),)*
+            $($extra)+
         }
 
         $(
@@ -239,13 +233,22 @@ macro_rules! error_conv_impl {
     };
 }
 
-error_conv_impl!(
-    PackageCodecError,
-    IoError          => std::io::Error,
-    StringCodecError => std::string::FromUtf8Error,
-    BytesSilceError  => std::array::TryFromSliceError,
-    SizeConvertError => std::num::TryFromIntError,
-);
+error_conv_impl! {
+    PackageCodecError
+    {
+        UnpackLeak,
+        UnknownType(Head),
+        NotEncodable,
+        IncorrectPayloadLength(u32, u32),
+        UnknownHead(u16),
+    }
+    conv {
+        IoError          => std::io::Error,
+        StringCodecError => std::string::FromUtf8Error,
+        BytesSilceError  => std::array::TryFromSliceError,
+        SizeConvertError => std::num::TryFromIntError,
+    }
+}
 
 impl std::fmt::Display for PackageCodecError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
