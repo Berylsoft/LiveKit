@@ -74,7 +74,6 @@ use api::GetHostsInfo;
 // endregion
 
 use std::path::PathBuf;
-use structopt::StructOpt;
 use rand::{seq::SliceRandom, thread_rng as rng};
 
 use futures::{Future, StreamExt};
@@ -135,21 +134,26 @@ fn rec(roomid: u32, api_client: &Client, writer: &Writer) -> impl Future<Output 
 
 // endregion
 
-#[derive(StructOpt)]
+/// Berylsoft LiveKit feedrec
+#[derive(argh::FromArgs)]
 struct Args {
-    #[structopt(short = "r", long)]
+    /// comma-separated list of roomid (no short id)
+    #[argh(option, short = 'r')]
     roomid_list: String,
-    #[structopt(short = "s", long, parse(from_os_str))]
+    /// feed raw storage directory path
+    #[argh(option, short = 's')]
     stor_path: PathBuf,
-    #[structopt(short = "l", long, parse(from_os_str))]
+    /// log file path and name
+    #[argh(option, short = 'l')]
     log_path: Option<PathBuf>,
-    #[structopt(long)]
+    /// set log level to debug (default is info)
+    #[argh(switch)]
     log_debug: bool,
 }
 
 #[tokio::main]
 async fn main() {
-    let Args { roomid_list, stor_path, log_path, log_debug } = Args::from_args();
+    let Args { roomid_list, stor_path, log_path, log_debug } = argh::from_env();
     if let Some(log_path) = log_path {
         log4rs::init_config(log_config(log_path, log_debug)).expect("FATAL: error during init logger");
     }

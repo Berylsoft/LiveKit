@@ -17,7 +17,7 @@ hex = "0.4"
 rand = "0.8"
 log = "0.4"
 log4rs = { version = "1.0", default-features = false, features = ["all_components"] }
-structopt = "0.3"
+argh = "0.1"
 serde = { version = "1.0", features = ["derive"] }
 futures = "0.3"
 tokio = { version = "1", features = ["full"] }
