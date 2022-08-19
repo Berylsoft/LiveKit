@@ -1,22 +1,24 @@
-use argh::FromArgs;
-use livekit::cmd::feed_dump;
+use livekit::cmd::*;
 
-#[derive(FromArgs)]
 /// Berylsoft Livekit
+#[derive(argh::FromArgs)]
 struct Args {
     #[argh(subcommand)]
     inner: Commands,
 }
 
-#[derive(FromArgs)]
+#[derive(argh::FromArgs)]
 #[argh(subcommand)]
+#[allow(non_camel_case_types)]
 enum Commands {
-    FeedDump(feed_dump::Args),
+    feed_dump(feed_dump::Args),
+    interact(interact::Args),
 }
 
 #[tokio::main]
 async fn main() {
     match argh::from_env::<Args>().inner {
-        Commands::FeedDump(args) => feed_dump::main(args),
+        Commands::feed_dump(args) => feed_dump::main(args),
+        Commands::interact(args) => interact::main(args).await,
     }
 }

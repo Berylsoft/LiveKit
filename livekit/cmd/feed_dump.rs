@@ -2,9 +2,9 @@ use std::{path::PathBuf, io::Write, fs::{self, OpenOptions}};
 use livekit_feed::package::{Package, JsonPackage};
 use livekit_feed_stor_raw::{kvdump::{self, Row, KV}, crc32, Key};
 
+/// export feed raw storage to jsonl file
 #[derive(argh::FromArgs)]
 #[argh(subcommand, name = "feed-dump")]
-/// export feed raw storage to jsonl file
 pub struct Args {
     /// feed raw storage directory path
     #[argh(option, short = 'i')]
