@@ -110,7 +110,7 @@ fn rec(roomid: u32, api_client: &Client, writer: &Writer) -> impl Future<Output 
                 |err| log::warn!("[{: >10}] get hosts error {:?}", roomid, err)
             );
 
-            let host = hosts_info.host_list.choose(&mut rng()).unwrap();
+            let host = hosts_info.host_list.choose(&mut rng()).expect("FATAL: empty host list");
             let mut stream = unwrap_or_continue!(
                 FeedStream::connect_ws(&host.host, host.wss_port, roomid, hosts_info.token).await,
                 |err| log::warn!("[{: >10}] error during connecting {:?}", roomid, err)
@@ -151,13 +151,13 @@ struct Args {
 async fn main() {
     let Args { roomid_list, stor_path, log_path, log_debug } = Args::from_args();
     if let Some(log_path) = log_path {
-        log4rs::init_config(log_config(log_path, log_debug)).unwrap();
+        log4rs::init_config(log_config(log_path, log_debug)).expect("FATAL: error during init logger");
     }
-    let writer = Writer::open(stor_path).unwrap();
+    let writer = Writer::open(stor_path).expect("FATAL: error during init feed raw storage");
     let api_client = Client::new_bare();
-    for roomid in roomid_list.split(",").map(|roomid| roomid.parse::<u32>().unwrap()) {
+    for roomid in roomid_list.split(",").map(|roomid| roomid.parse::<u32>().expect("FATAL: invaild roomid")) {
         spawn(rec(roomid, &api_client, &writer));
         sleep(Duration::from_millis(INIT_INTERVAL_MS)).await;
     }
-    signal::ctrl_c().await.unwrap();
+    signal::ctrl_c().await.expect("FATAL: error during setting ctrl-c listener");
 }
