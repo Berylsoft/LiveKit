@@ -187,33 +187,28 @@ impl Package {
 // region: to_json
 
 use serde::Serialize;
-use serde_json::{Value as JsonValue, Result as JsonResult, json as json_value};
+use serde_json::{Value as JsonValue, Result as JsonResult};
 
 #[derive(Debug, Serialize)]
-enum PackageType {
-    InitRequest,
-    InitResponse,
+#[serde(tag = "type", content = "payload")]
+pub enum JsonPackage {
+    InitRequest(JsonValue),
+    InitResponse(JsonValue),
     HeartbeatRequest,
-    HeartbeatResponse,
-    Json,
-    Multi,
-}
-
-#[derive(Debug, Serialize)]
-struct JsonPackage {
-    r#type: PackageType,
-    payload: JsonValue,
+    HeartbeatResponse(u32),
+    Json(JsonValue),
+    Multi(Vec<JsonPackage>),
 }
 
 impl Package {
-    pub fn to_json(&self) -> JsonResult<JsonValue> {
-        serde_json::to_value(match self {
-            Package::InitRequest(s) => JsonPackage { r#type: PackageType::InitRequest, payload: serde_json::from_str(s)? },
-            Package::InitResponse(s) => JsonPackage { r#type: PackageType::InitResponse, payload: serde_json::from_str(s)? },
-            Package::HeartbeatRequest => JsonPackage { r#type: PackageType::HeartbeatRequest, payload: json_value!(null) },
-            Package::HeartbeatResponse(n) => JsonPackage { r#type: PackageType::HeartbeatResponse, payload: json_value!(n) },
-            Package::Json(s) => JsonPackage { r#type: PackageType::Json, payload: serde_json::from_str(s)? },
-            Package::Multi(v) => JsonPackage { r#type: PackageType::Multi, payload: serde_json::to_value(v.into_iter().map(|p| p.to_json()).collect::<JsonResult<Vec<_>>>()?)? },
+    pub fn to_json(&self) -> JsonResult<JsonPackage> {
+        Ok(match self {
+            Package::InitRequest(s) => JsonPackage::InitRequest(serde_json::from_str(s)?),
+            Package::InitResponse(s) => JsonPackage::InitResponse(serde_json::from_str(s)?),
+            Package::HeartbeatRequest => JsonPackage::HeartbeatRequest,
+            Package::HeartbeatResponse(n) => JsonPackage::HeartbeatResponse(*n),
+            Package::Json(s) => JsonPackage::Json(serde_json::from_str(s)?),
+            Package::Multi(v) => JsonPackage::Multi(v.iter().map(|p| p.to_json()).collect::<JsonResult<Vec<_>>>()?)
         })
     }
 }
