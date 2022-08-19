@@ -1,0 +1,25 @@
+[package]
+name = "livekit"
+version = "0.4.0"
+edition = "2021"
+authors = ["stackinspector"]
+license = "MPL-2.0"
+repository = "https://github.com/Berylsoft/LiveKit"
+# description
+# readme
+
+[lib]
+name = "livekit"
+path = "lib.rs"
+
+[[bin]]
+name = "livekit"
+path = "main.rs"
+
+[dependencies]
+argh = "0.1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+livekit-feed = { path = "../feed" }
+livekit-feed-stor-raw = { path = "../feed-stor-raw" }

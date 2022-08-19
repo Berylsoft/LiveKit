@@ -9,8 +9,8 @@ pub const SIZES: Sizes = Sizes { scope: Some(4), key: Some(12), value: None };
 
 #[derive(Debug)]
 pub struct Key {
-    time: u64,
-    hash: u32,
+    pub time: u64,
+    pub hash: u32,
 }
 
 impl Key {
@@ -35,16 +35,6 @@ impl Key {
             time: payload.time,
             hash: crc32(&payload.payload),
         }
-    }
-
-    #[inline]
-    pub fn time(&self) -> u64 {
-        self.time
-    }
-
-    #[inline]
-    pub fn hash(&self) -> u32 {
-        self.hash
     }
 }
 
