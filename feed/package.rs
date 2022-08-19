@@ -184,6 +184,42 @@ impl Package {
     }
 }
 
+// region: to_json
+
+use serde::Serialize;
+use serde_json::{Value as JsonValue, Result as JsonResult, json as json_value};
+
+#[derive(Debug, Serialize)]
+enum PackageType {
+    InitRequest,
+    InitResponse,
+    HeartbeatRequest,
+    HeartbeatResponse,
+    Json,
+    Multi,
+}
+
+#[derive(Debug, Serialize)]
+struct JsonPackage {
+    r#type: PackageType,
+    payload: JsonValue,
+}
+
+impl Package {
+    pub fn to_json(&self) -> JsonResult<JsonValue> {
+        serde_json::to_value(match self {
+            Package::InitRequest(s) => JsonPackage { r#type: PackageType::InitRequest, payload: serde_json::from_str(s)? },
+            Package::InitResponse(s) => JsonPackage { r#type: PackageType::InitResponse, payload: serde_json::from_str(s)? },
+            Package::HeartbeatRequest => JsonPackage { r#type: PackageType::HeartbeatRequest, payload: json_value!(null) },
+            Package::HeartbeatResponse(n) => JsonPackage { r#type: PackageType::HeartbeatResponse, payload: json_value!(n) },
+            Package::Json(s) => JsonPackage { r#type: PackageType::Json, payload: serde_json::from_str(s)? },
+            Package::Multi(v) => JsonPackage { r#type: PackageType::Multi, payload: serde_json::to_value(v.into_iter().map(|p| p.to_json()).collect::<JsonResult<Vec<_>>>()?)? },
+        })
+    }
+}
+
+// endregion
+
 macro_rules! error_conv_impl {
     ($name:ident, $($variant:ident => $error:ty),*, $(,)?) => {
         #[derive(Debug)]
