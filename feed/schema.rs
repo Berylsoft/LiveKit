@@ -586,26 +586,26 @@ impl Event {
 
 #[cfg(test)]
 mod tests {
-    use serde_json::json;
+    use serde_json::json as json_value;
     use super::*;
 
     const TEST_ROOMID: u32 = 10308958;
-
     const PACKAGE_INIT_BEGINNING: &str = "{\"uid\":0,\"roomid\":10308958,\"protover\":3,\"platform\":\"web\",\"type\":2,\"key\":\"";
 
     #[test]
     fn test_unknown_cmd() {
-        const RAW: &str = "{\"cmd\":\"RUST_YYDS\"}";
-        match Event::parse(RAW).unwrap() {
-            Event::Unknown { raw } => assert_eq!(raw, RAW),
+        let raw = "{\"cmd\":\"RUST_YYDS\"}";
+        let value = json_value!({"cmd":"RUST_YYDS"});
+        match Event::parse(raw).unwrap() {
+            Event::Unknown { raw } => assert_eq!(raw, value),
             _ => unreachable!(),
         }
     }
 
     #[test]
     fn test_string_color_to_u32() {
-        assert_eq!(string_color_to_u32(&json!(42)).unwrap(), 42);
-        assert_eq!(string_color_to_u32(&json!("#424242")).unwrap(), 4342338);
+        assert_eq!(string_color_to_u32(&json_value!(42)).unwrap(), 42);
+        assert_eq!(string_color_to_u32(&json_value!("#424242")).unwrap(), 4342338);
     }
 
     #[test]
