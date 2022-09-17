@@ -83,21 +83,21 @@ impl Package {
         let (head, payload) = raw.split_at(HEAD_LENGTH_SIZE);
         let head = Head::decode(head);
 
+        if head.head_length != HEAD_LENGTH {
+            return Err(PackageCodecError::UnknownHeadLength(head.head_length));
+        }
+
         let payload_length_head = head.length - HEAD_LENGTH_32;
         let payload_length_acc: u32 = payload.len().try_into()?;
         if payload_length_head != payload_length_acc {
-            return Err(PackageCodecError::IncorrectPayloadLength(payload_length_head, payload_length_acc));
-        }
-
-        if head.head_length != HEAD_LENGTH {
-            return Err(PackageCodecError::UnknownHead(head.head_length));
+            return Err(PackageCodecError::IncorrectPayloadLength { head: payload_length_head, acc: payload_length_acc });
         }
 
         // region: macros
 
         macro_rules! unknown_type {
             () => {
-                return Err(PackageCodecError::UnknownType(head))
+                return Err(PackageCodecError::UnknownPayloadType(head))
             };
         }
 
@@ -163,7 +163,7 @@ impl Package {
             offset += length;
         }
         if offset != total_length {
-            return Err(PackageCodecError::UnpackLeak);
+            return Err(PackageCodecError::UnpackLeak { offset, total_length });
         }
         Ok(Package::Multi(unpacked))
     }
@@ -236,11 +236,11 @@ macro_rules! error_conv_impl {
 error_conv_impl! {
     PackageCodecError
     {
-        UnpackLeak,
-        UnknownType(Head),
+        UnknownHeadLength(u16),
+        IncorrectPayloadLength { head: u32, acc: u32 },
+        UnpackLeak { offset: usize, total_length: usize },
+        UnknownPayloadType(Head),
         NotEncodable,
-        IncorrectPayloadLength(u32, u32),
-        UnknownHead(u16),
     }
     conv {
         IoError          => std::io::Error,
@@ -346,6 +346,6 @@ mod tests {
 
         assert!(matches!(Package::decode(more), Err(PackageCodecError::BytesSilceError(_))));
         assert!(matches!(Package::decode(less), Err(PackageCodecError::BytesSilceError(_))));
-        assert!(matches!(Package::decode(non_align), Err(PackageCodecError::IncorrectPayloadLength(_, _))));
+        assert!(matches!(Package::decode(non_align), Err(PackageCodecError::IncorrectPayloadLength { .. })));
     }
 }
