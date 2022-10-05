@@ -152,8 +152,8 @@ pub struct Medal {
 
 impl Medal {
     fn from_danmaku(raw: &JsonValue) -> JsonResult<Option<Self>> {
-        let medal: Vec<JsonValue> = to(&raw)?;
-        if medal.len() == 0 {
+        let medal: Vec<JsonValue> = to(raw)?;
+        if medal.is_empty() {
             Ok(None)
         } else {
             Ok(Some(Medal {
@@ -174,7 +174,7 @@ impl Medal {
 
     fn from_common(medal: &JsonValue) -> JsonResult<Option<Self>> {
         let name: String = to(&medal["medal_name"])?;
-        if name.len() == 0 {
+        if name.is_empty() {
             Ok(None)
         } else {
             Ok(Some(Medal {

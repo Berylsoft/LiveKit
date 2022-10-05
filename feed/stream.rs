@@ -57,23 +57,24 @@ fn create_ws_url(host: &str, port: u16) -> Uri {
         .build().unwrap()
 }
 
-#[inline]
-fn wrap_ws_message(bytes: Box<[u8]>) -> Message {
-    Message::Binary(bytes.to_vec())
-}
-
 impl WsFeedStream {
     pub async fn connect_ws(host: &str, port: u16, roomid: u32, token: String) -> Result<WsFeedStream, WsError> {
         let (stream, _) = connect_ws_stream(create_ws_url(host, port)).await?;
         let (mut tx, rx) = stream.split();
         log::debug!("[{: >10}] (ws) connected", roomid);
 
-        let init = wrap_ws_message(create_init_request(roomid, token).encode().unwrap());
+        macro_rules! message {
+            ($bytes:expr) => {
+                Message::Binary($bytes.to_vec())
+            };
+        }
+
+        let init = message!(create_init_request(roomid, token).encode().unwrap());
         tx.send(init).await?;
         log::debug!("[{: >10}] (ws) sent: init", roomid);
 
         spawn(async move {
-            let heartbeat = wrap_ws_message(Package::HeartbeatRequest.encode().unwrap());
+            let heartbeat = message!(Package::HeartbeatRequest.encode().unwrap());
             let mut interval = time::interval(Duration::from_secs(HEARTBEAT_RATE_SEC));
             loop {
                 interval.tick().await;

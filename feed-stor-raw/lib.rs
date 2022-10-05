@@ -4,7 +4,7 @@ use kvdump::{KV, Config, Sizes, Error, Result};
 pub use kvdump;
 use livekit_feed::stream::{Payload, now};
 
-pub const IDENT: &'static str = "livekit-feed-raw";
+pub const IDENT: &str = "livekit-feed-raw";
 pub const SIZES: Sizes = Sizes { scope: Some(4), key: Some(12), value: None };
 
 #[derive(Debug)]
@@ -81,7 +81,7 @@ impl Writer {
     }
 
     pub async fn write_hash(&self) -> Result<()> {
-        self.tx.send_receive(Request::Hash).await.unwrap_or_else(|_| Err(Error::AsyncFileClosed))
+        self.tx.send_receive(Request::Hash).await.unwrap_or(Err(Error::AsyncFileClosed))
     }
 }
 
@@ -96,7 +96,7 @@ impl RoomWriter {
             scope: Box::from(self.roomid.to_be_bytes()),
             key: key.encode(),
             value: payload.payload.clone(),
-        })).await.unwrap_or_else(|_| Err(Error::AsyncFileClosed)).map_err(|err| format!(
+        })).await.unwrap_or(Err(Error::AsyncFileClosed)).map_err(|err| format!(
             "[{: >10}] (stor-raw) FATAL: insert error: {:?} key={:?} val(hex)={}",
             self.roomid, err, key, hex::encode(&payload.payload),
         ))

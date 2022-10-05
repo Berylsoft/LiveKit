@@ -159,7 +159,7 @@ async fn main() {
     }
     let writer = Writer::open(stor_path).expect("FATAL: error during init feed raw storage");
     let api_client = Client::new_bare();
-    for roomid in roomid_list.split(",").map(|roomid| roomid.parse::<u32>().expect("FATAL: invaild roomid")) {
+    for roomid in roomid_list.split(',').map(|roomid| roomid.parse::<u32>().expect("FATAL: invaild roomid")) {
         spawn(rec(roomid, &api_client, &writer));
         sleep(Duration::from_millis(INIT_INTERVAL_MS)).await;
     }

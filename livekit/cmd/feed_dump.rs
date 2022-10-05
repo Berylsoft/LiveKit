@@ -26,15 +26,15 @@ struct Record {
 }
 
 pub fn main(Args { raw_stor_path, export_path, roomid_list }: Args) {
-    let roomid_list: Option<Vec<u32>> = roomid_list.map(|l| l.split(",").map(|roomid| roomid.parse::<u32>().expect("FATAL: invaild roomid")).collect());
+    let roomid_list: Option<Vec<u32>> = roomid_list.map(|l| l.split(',').map(|roomid| roomid.parse::<u32>().expect("FATAL: invaild roomid")).collect());
     let mut export_file = OpenOptions::new().write(true).create(true).append(true).open(export_path).unwrap();
 
     for entry in fs::read_dir(raw_stor_path).unwrap() {
         let entry = entry.unwrap();
         if entry.file_type().unwrap().is_file() {
             let kv_file = OpenOptions::new().read(true).open(entry.path()).unwrap();
-            let mut reader = kvdump::Reader::init(kv_file).unwrap();
-            while let Some(row) = reader.next() {
+            let reader = kvdump::Reader::init(kv_file).unwrap();
+            for row in reader {
                 match row.unwrap() {
                     Row::Hash(_) | Row::End => { },
                     Row::KV(KV { scope, key, value }) => {
