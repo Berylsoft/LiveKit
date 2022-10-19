@@ -13,7 +13,6 @@ name = "livekit_feed"
 path = "lib.rs"
 
 [dependencies]
-concat-string = "1.0"
 hex = "0.4"
 brotli-decompressor = "2.3"
 serde = { version = "1", features = ["derive"] }
@@ -22,6 +21,7 @@ log = "0.4"
 futures = "0.3"
 tokio = { version = "1", features = ["rt", "time", "sync", "net"] }
 tokio-tungstenite = { version = "0.17", features = ["rustls-tls-webpki-roots"] }
+macros = { git = "https://github.com/Berylsoft/rust-macros" }
 
 [dev-dependencies]
 hex-literal = "0.3"

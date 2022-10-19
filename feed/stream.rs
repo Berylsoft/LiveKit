@@ -52,7 +52,7 @@ pub type WsFeedStream = FeedStream<WsStreamRx>;
 fn create_ws_url(host: &str, port: u16) -> Uri {
     Uri::builder()
         .scheme("wss")
-        .authority(concat_string::concat_string!(host, ":", port.to_string()))
+        .authority(macros::concat_string!(host, ":", port.to_string()))
         .path_and_query("/sub")
         .build().unwrap()
 }

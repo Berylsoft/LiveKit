@@ -1,65 +1,23 @@
-pub const HEAD_LENGTH: u16 = 16;
-pub const HEAD_LENGTH_32: u32 = 16;
-pub const HEAD_LENGTH_SIZE: usize = 16;
-pub type HeadBuf = [u8; HEAD_LENGTH_SIZE];
 
-#[derive(Debug)]
-pub struct Head {
-    pub length: u32,
-    pub head_length: u16,
-    pub proto_ver: u16,
-    pub msg_type: u32,
-    pub seq: u32,
+macros::bin_struct! {
+    #[derive(Debug)]
+    pub struct Head {
+        pub length: u32,
+        pub head_length: u16,
+        pub proto_ver: u16,
+        pub msg_type: u32,
+        pub seq: u32,
+    }
 }
 
 impl Head {
-    // TODO proc macro
-
-    pub fn decode(raw: &[u8]) -> Head {
-        assert_eq!(raw.len(), HEAD_LENGTH_SIZE);
-        macro_rules! fields_impl {
-            ($($x:ident, $type:ty, $size:expr;)*) => {
-                let mut offset: usize = 0;
-                $(
-                    let $x = <$type>::from_be_bytes(raw[offset..offset + $size].try_into().unwrap());
-                    offset += $size;
-                )*
-                assert_eq!(offset, HEAD_LENGTH_SIZE);
-            };
-        }
-        fields_impl!(
-            length,      u32, 4;
-            head_length, u16, 2;
-            proto_ver,   u16, 2;
-            msg_type,    u32, 4;
-            seq,         u32, 4;
-        );
-        Head { length, head_length, proto_ver, msg_type, seq }
-    }
-
-    pub fn encode(&self) -> Box<[u8]> {
-        macro_rules! fields_impl {
-            ($($x:ident,)*) => {
-                [
-                    $(
-                        self.$x.to_be_bytes().as_slice(),
-                    )*
-                ].concat().into_boxed_slice()
-            };
-        }
-        fields_impl!(
-            length,
-            head_length,
-            proto_ver,
-            msg_type,
-            seq,
-        )
-    }
-
-    pub fn new(msg_type: u32, payload_length: u32) -> Head {
-        Head {
-            length: HEAD_LENGTH_32 + payload_length,
-            head_length: HEAD_LENGTH,
+    pub const SIZE_16: u16 = Self::SIZE as u16;
+    pub const SIZE_32: u32 = Self::SIZE as u32;
+    
+    pub fn new(msg_type: u32, payload_length: u32) -> Self {
+        Self {
+            length: Head::SIZE_32 + payload_length,
+            head_length: Head::SIZE_16,
             proto_ver: 1,
             msg_type,
             seq: 1,
@@ -80,14 +38,14 @@ pub enum Package {
 impl Package {
     pub fn decode<B: AsRef<[u8]>>(raw: B) -> PackageCodecResult<Package> {
         let raw = raw.as_ref();
-        let (head, payload) = raw.split_at(HEAD_LENGTH_SIZE);
-        let head = Head::decode(head);
+        let (head, payload) = raw.split_at(Head::SIZE);
+        let head = Head::from_bytes(head.try_into().unwrap());
 
-        if head.head_length != HEAD_LENGTH {
+        if head.head_length != Head::SIZE_16 {
             return Err(PackageCodecError::UnknownHeadLength(head.head_length));
         }
 
-        let payload_length_head = head.length - HEAD_LENGTH_32;
+        let payload_length_head = head.length - Head::SIZE_32;
         let payload_length_acc: u32 = payload.len().try_into()?;
         if payload_length_head != payload_length_acc {
             return Err(PackageCodecError::IncorrectPayloadLength { head: payload_length_head, acc: payload_length_acc });
@@ -140,10 +98,10 @@ impl Package {
 
     pub fn encode(self) -> PackageCodecResult<Box<[u8]>> {
         Ok(match self {
-            Package::HeartbeatRequest => Head::new(2, 0).encode(),
+            Package::HeartbeatRequest => Box::from(Head::new(2, 0).to_bytes()),
             Package::InitRequest(payload) => {
                 [
-                    &Head::new(7, payload.len().try_into()?).encode(),
+                    &Head::new(7, payload.len().try_into()?).to_bytes(),
                     payload.as_bytes(),
                 ].concat().into_boxed_slice()
             },
@@ -215,34 +173,16 @@ impl Package {
 
 // endregion
 
-macro_rules! error_conv_impl {
-    {$name:ident {$($extra:tt)+} conv {$($variant:ident => $error:ty),*,}} => {
-        #[derive(Debug)]
-        pub enum $name {
-            $($variant($error),)*
-            $($extra)+
-        }
-
-        $(
-            impl From<$error> for $name {
-                fn from(err: $error) -> $name {
-                    <$name>::$variant(err)
-                }
-            }
-        )*
-    };
-}
-
-error_conv_impl! {
-    PackageCodecError
-    {
+macros::error_enum! {
+    #[derive(Debug)]
+    PackageCodecError {
         UnknownHeadLength(u16),
         IncorrectPayloadLength { head: u32, acc: u32 },
         UnpackLeak { offset: usize, total_length: usize },
         UnknownPayloadType(Head),
         NotEncodable,
     }
-    conv {
+    convert {
         IoError          => std::io::Error,
         StringCodecError => std::string::FromUtf8Error,
         BytesSilceError  => std::array::TryFromSliceError,
@@ -267,23 +207,28 @@ mod tests {
 
     const _TEST_ROOMID: u32 = 10308958;
 
-    const HEAD_INIT_REQUEST: HeadBuf = hex!("0000 00f9 0010 0001 0000 0007 0000 0001");
-    const _HEAD_INIT_RESPONSE: HeadBuf = hex!("0000 001a 0010 0001 0000 0008 0000 0001");
-    const _HEAD_HEARTBEAT_REQUEST: HeadBuf = hex!("0000 001f 0010 0001 0000 0002 0000 0001");
-    const _HEAD_HEARTBEAT_RESPONSE: HeadBuf = hex!("0000 0014 0010 0001 0000 0003 0000 0000");
-    const _HEAD_JSON: HeadBuf = hex!("0000 00ff 0010 0000 0000 0005 0000 0000"); // simulated
-    const _HEAD_MULTI_JSON: HeadBuf = hex!("0000 03d5 0010 0003 0000 0005 0000 0000");
+    const HEAD_INIT_REQUEST: [u8; Head::SIZE] = hex!("0000 00f9 0010 0001 0000 0007 0000 0001");
+    const _HEAD_INIT_RESPONSE: [u8; Head::SIZE] = hex!("0000 001a 0010 0001 0000 0008 0000 0001");
+    const _HEAD_HEARTBEAT_REQUEST: [u8; Head::SIZE] = hex!("0000 001f 0010 0001 0000 0002 0000 0001");
+    const _HEAD_HEARTBEAT_RESPONSE: [u8; Head::SIZE] = hex!("0000 0014 0010 0001 0000 0003 0000 0000");
+    const _HEAD_JSON: [u8; Head::SIZE] = hex!("0000 00ff 0010 0000 0000 0005 0000 0000"); // simulated
+    const _HEAD_MULTI_JSON: [u8; Head::SIZE] = hex!("0000 03d5 0010 0003 0000 0005 0000 0000");
+
+    #[test]
+    fn head_size() {
+        assert_eq!(Head::SIZE, 16);
+    }
 
     #[test]
     fn test_head() {
         let raw = HEAD_INIT_REQUEST;
 
-        let head = Head::decode(&raw);
-        assert_eq!(raw, head.encode().as_ref());
-        assert_eq!(raw, Head::new(7, 0xf9 - HEAD_LENGTH_32).encode().as_ref());
+        let head = Head::from_bytes(raw);
+        assert_eq!(raw, head.to_bytes().as_slice());
+        assert_eq!(raw, Head::new(7, 0xf9 - Head::SIZE_32).to_bytes().as_slice());
 
         assert_eq!(head.length, 0xf9);
-        assert_eq!(head.head_length, HEAD_LENGTH);
+        assert_eq!(head.head_length, Head::SIZE_16);
         assert_eq!(head.proto_ver, 1);
         assert_eq!(head.msg_type, 7);
         assert_eq!(head.seq, 1);
@@ -334,8 +279,8 @@ mod tests {
         macro_rules! encode {
             ($len:literal, $vec:expr) => {
                 [
-                    Head::new(3, $len).encode(),
-                    Box::new($vec),
+                    Head::new(3, $len).to_bytes().as_slice(),
+                    $vec.as_slice(),
                 ].concat()
             };
         }
