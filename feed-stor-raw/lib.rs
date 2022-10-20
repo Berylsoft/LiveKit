@@ -1,5 +1,6 @@
 use std::{path::Path, fs::{self, OpenOptions}};
 pub use crc32fast::hash as crc32;
+use request_channel::{Req, ReqPayload, unbounded::{channel, ReqTx}};
 use kvdump::{KV, Config, Sizes, Error, Result};
 pub use kvdump;
 use livekit_feed::stream::{Payload, now};
@@ -44,15 +45,17 @@ enum Request {
     Hash,
 }
 
-type Tx = bmrng::unbounded::UnboundedRequestSender<Request, Result<()>>;
+impl Req for Request {
+    type Res = Result<()>;
+}
 
 pub struct Writer {
-    tx: Tx,
+    tx: ReqTx<Request>,
 }
 
 pub struct RoomWriter {
     roomid: u32,
-    tx: Tx,
+    tx: ReqTx<Request>,
 }
 
 impl Writer {
@@ -62,11 +65,11 @@ impl Writer {
         let file = OpenOptions::new().write(true).create_new(true).open(path)?;
         let config = Config { ident: Box::from(IDENT.as_bytes()), sizes: SIZES.clone() };
 
-        let (tx, mut rx) = bmrng::unbounded_channel::<Request, Result<()>>();
+        let (tx, mut rx) = channel::<Request>();
         let mut writer = kvdump::Writer::init(file, config)?;
         tokio::spawn(async move {
-            while let Ok((request, responder)) = rx.recv().await {
-                responder.respond(match request {
+            while let Ok(ReqPayload { req, res_tx }) = rx.recv().await {
+                res_tx.send(match req {
                     Request::KV(kv) => writer.write_kv(kv),
                     Request::Hash => writer.write_hash().map(|_| ()),
                 }).expect("FATAL: Channel closed when sending a response");
@@ -81,7 +84,7 @@ impl Writer {
     }
 
     pub async fn write_hash(&self) -> Result<()> {
-        self.tx.send_receive(Request::Hash).await.unwrap_or(Err(Error::AsyncFileClosed))
+        self.tx.send_recv(Request::Hash).await.unwrap_or(Err(Error::AsyncFileClosed))
     }
 }
 
@@ -92,7 +95,7 @@ impl RoomWriter {
 
     pub async fn insert_payload(&self, payload: &Payload) -> std::result::Result<(), String> {
         let key = Key::from_payload(payload);
-        self.tx.send_receive(Request::KV(KV {
+        self.tx.send_recv(Request::KV(KV {
             scope: Box::from(self.roomid.to_be_bytes()),
             key: key.encode(),
             value: payload.payload.clone(),
