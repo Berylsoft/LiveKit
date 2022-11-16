@@ -14,6 +14,6 @@ hex = "0.4"
 crc32fast = "1.3"
 futures = "0.3"
 tokio = { version = "1", features = ["rt"] }
-request-channel = { git = "https://github.com/Berylsoft/request-channel" }
+actor = { git = "https://github.com/Berylsoft/actor" }
 kvdump = { git = "https://github.com/Berylsoft/KVDump" }
 livekit-feed = { path = "../feed" }

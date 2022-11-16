@@ -1,6 +1,6 @@
-use std::{path::Path, fs::{self, OpenOptions}};
+use std::{path::Path, fs::{self, OpenOptions, File}};
 pub use crc32fast::hash as crc32;
-use request_channel::{Req, ReqPayload, unbounded::{channel, ReqTx}};
+use actor::{Executor, ReqTx, CloseHandle};
 use kvdump::{KV, Config, Sizes, Error, Result};
 pub use kvdump;
 use livekit_feed::stream::{Payload, now};
@@ -45,38 +45,42 @@ enum Request {
     Hash,
 }
 
-impl Req for Request {
+struct WriterContext {
+    writer: kvdump::Writer<File>,
+}
+
+impl Executor for WriterContext {
+    type Req = Request;
     type Res = Result<()>;
+
+    fn exec(&mut self, req: Self::Req) -> Self::Res {
+        match req {
+            Request::KV(kv) => self.writer.write_kv(kv),
+            Request::Hash => self.writer.write_hash().map(|_| ()),
+        }
+    }
 }
 
 pub struct Writer {
-    tx: ReqTx<Request>,
+    tx: ReqTx<WriterContext>,
 }
 
 pub struct RoomWriter {
     roomid: u32,
-    tx: ReqTx<Request>,
+    tx: ReqTx<WriterContext>,
 }
 
 impl Writer {
-    pub fn open<P: AsRef<Path>>(path: P) -> Result<Writer> {
-        fs::create_dir_all(&path)?;
-        let path = path.as_ref().join(now().to_string());
-        let file = OpenOptions::new().write(true).create_new(true).open(path)?;
-        let config = Config { ident: Box::from(IDENT.as_bytes()), sizes: SIZES.clone() };
-
-        let (tx, mut rx) = channel::<Request>();
-        let mut writer = kvdump::Writer::init(file, config)?;
-        tokio::spawn(async move {
-            while let Ok(ReqPayload { req, res_tx }) = rx.recv().await {
-                res_tx.send(match req {
-                    Request::KV(kv) => writer.write_kv(kv),
-                    Request::Hash => writer.write_hash().map(|_| ()),
-                }).expect("FATAL: Channel closed when sending a response");
-            }
-        });
-
-        Ok(Writer { tx })
+    pub fn open<P: AsRef<Path>>(path: P) -> Result<(Writer, CloseHandle)> {
+        let writer = {
+            fs::create_dir_all(&path)?;
+            let path = path.as_ref().join(now().to_string());
+            let file = OpenOptions::new().write(true).create_new(true).open(path)?;
+            let config = Config { ident: Box::from(IDENT.as_bytes()), sizes: SIZES.clone() };
+            kvdump::Writer::init(file, config)?
+        };
+        let (tx, close) = actor::spawn::<WriterContext>(WriterContext { writer });
+        Ok((Writer { tx }, close))
     }
 
     pub fn open_room(&self, roomid: u32) -> RoomWriter {
@@ -84,7 +88,7 @@ impl Writer {
     }
 
     pub async fn write_hash(&self) -> Result<()> {
-        self.tx.send_recv(Request::Hash).await.unwrap_or(Err(Error::AsyncFileClosed))
+        self.tx.request(Request::Hash).await.unwrap_or(Err(Error::AsyncFileClosed))
     }
 }
 
@@ -95,7 +99,7 @@ impl RoomWriter {
 
     pub async fn insert_payload(&self, payload: &Payload) -> std::result::Result<(), String> {
         let key = Key::from_payload(payload);
-        self.tx.send_recv(Request::KV(KV {
+        self.tx.request(Request::KV(KV {
             scope: Box::from(self.roomid.to_be_bytes()),
             key: key.encode(),
             value: payload.payload.clone(),
