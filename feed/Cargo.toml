@@ -22,6 +22,7 @@ futures = "0.3"
 tokio = { version = "1", features = ["rt", "time", "sync", "net"] }
 tokio-tungstenite = { version = "0.17", features = ["rustls-tls-webpki-roots"] }
 macros = { git = "https://github.com/Berylsoft/rust-macros" }
+byterepr = { git = "https://github.com/Berylsoft/byterepr" }
 
 [dev-dependencies]
 hex-literal = "0.3"

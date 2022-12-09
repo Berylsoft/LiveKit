@@ -1,5 +1,6 @@
+use byterepr::*;
 
-macros::bin_struct! {
+byterepr_struct! {
     #[derive(Debug)]
     pub struct Head {
         pub length: u32,
@@ -175,7 +176,7 @@ impl Package {
 
 macros::error_enum! {
     #[derive(Debug)]
-    PackageCodecError {
+    pub enum PackageCodecError {
         UnknownHeadLength(u16),
         IncorrectPayloadLength { head: u32, acc: u32 },
         UnpackLeak { offset: usize, total_length: usize },
