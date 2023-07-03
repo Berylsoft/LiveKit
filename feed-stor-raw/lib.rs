@@ -1,8 +1,8 @@
 use std::path::Path;
-use std::fs::{self, OpenOptions, File};
+use tokio::fs::{self, OpenOptions, File};
 pub use crc32fast::hash as crc32;
 mod actor;
-use actor::{Executor, ReqTx, CloseHandle};
+use actor::{ReqTx, CloseHandle};
 pub mod kvdump;
 use kvdump::{KV, Config, Sizes, Error, Result};
 use livekit_feed::stream::{Payload, now};
@@ -51,37 +51,38 @@ struct WriterContext {
     writer: kvdump::Writer<File>,
 }
 
-impl Executor for WriterContext {
-    type Req = Request;
-    type Res = Result<()>;
-
-    fn exec(&mut self, req: Self::Req) -> Self::Res {
+impl WriterContext {
+    async fn exec(&mut self, req: Request) -> Result<()> {
         match req {
-            Request::KV(kv) => self.writer.write_kv(kv),
-            Request::Hash => self.writer.write_hash().map(|_| ()),
+            Request::KV(kv) => self.writer.write_kv(kv).await,
+            Request::Hash => self.writer.write_hash().await.map(|_| ()),
         }
+    }
+
+    async fn close(mut self) {
+        self.writer.close().await.expect("FATAL: Error occurred during closing");
     }
 }
 
 pub struct Writer {
-    tx: ReqTx<WriterContext>,
+    tx: ReqTx,
 }
 
 pub struct RoomWriter {
     roomid: u32,
-    tx: ReqTx<WriterContext>,
+    tx: ReqTx,
 }
 
 impl Writer {
-    pub fn open<P: AsRef<Path>>(path: P) -> Result<(Writer, CloseHandle)> {
+    pub async fn open<P: AsRef<Path>>(path: P) -> Result<(Writer, CloseHandle)> {
         let writer = {
-            fs::create_dir_all(&path)?;
+            fs::create_dir_all(&path).await?;
             let path = path.as_ref().join(now().to_string());
-            let file = OpenOptions::new().write(true).create_new(true).open(path)?;
+            let file = OpenOptions::new().write(true).create_new(true).open(path).await?;
             let config = Config { ident: Box::from(IDENT.as_bytes()), sizes: SIZES.clone() };
-            kvdump::Writer::init(file, config)?
+            kvdump::Writer::init(file, config).await?
         };
-        let (tx, close) = actor::spawn::<WriterContext>(WriterContext { writer });
+        let (tx, close) = actor::spawn(WriterContext { writer });
         Ok((Writer { tx }, close))
     }
 

@@ -1,6 +1,6 @@
 pub const BS_IDENT: u32 = 0x42650000;
 
-use std::io::{self, Read, Write};
+use tokio::io::{self, AsyncWrite, AsyncWriteExt};
 use blake3::{Hasher, OUT_LEN as HASH_LEN};
 use foundations::{num_enum, usize_casting::*, error_enum};
 
@@ -17,60 +17,6 @@ macro_rules! check {
         }
     };
 }
-
-// endregion
-
-// region: helper traits
-
-trait ReadExt: Read {
-    fn read_bytes(&mut self, len: usize) -> Result<Box<[u8]>> {
-        let mut buf = vec![0; len];
-        self.read_exact(&mut buf)?;
-        Ok(buf.into_boxed_slice())
-    }
-
-    fn read_bytes_sized<const N: usize>(&mut self) -> Result<[u8; N]> {
-        let mut buf = [0; N];
-        self.read_exact(&mut buf)?;
-        Ok(buf)
-    }
-    
-    #[inline]
-    fn read_u8(&mut self) -> Result<u8> {
-        self.read_bytes_sized().map(u8::from_be_bytes)
-    }
-
-    #[inline]
-    fn read_u32(&mut self) -> Result<u32> {
-        self.read_bytes_sized().map(u32::from_be_bytes)
-    }
-
-    #[inline]
-    fn read_hash(&mut self) -> Result<[u8; HASH_LEN]> {
-        self.read_bytes_sized()
-    }
-}
-
-impl<R: Read> ReadExt for R {}
-
-trait WriteExt: Write {
-    #[inline]
-    fn write_bytes<B: AsRef<[u8]>>(&mut self, bytes: B) -> io::Result<()> {
-        self.write_all(bytes.as_ref())
-    }
-
-    #[inline]
-    fn write_u8(&mut self, val: u8) -> io::Result<()> {
-        self.write_bytes(val.to_be_bytes())
-    }
-
-    #[inline]
-    fn write_u32(&mut self, val: u32) -> io::Result<()> {
-        self.write_bytes(val.to_be_bytes())
-    }
-}
-
-impl<W: Write> WriteExt for W {}
 
 // endregion
 
@@ -186,95 +132,16 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 // endregion
 
-// region: reader
-
-pub struct Reader<F: Read> {
-    inner: F,
-    config: Config,
-    hasher: Hasher,
-}
-
-impl<F: Read> Reader<F> {
-    #[inline]
-    pub fn config(&self) -> &Config {
-        &self.config
-    }
-
-    fn read_init(inner: &mut F) -> Result<Config> {
-        let version = inner.read_u32()?;
-        check!(version, BS_IDENT, Error::Version { existing: version });
-
-        let ident_len = u32_usize(inner.read_u32()?);
-        let ident = inner.read_bytes(ident_len)?;
-
-        let sizes_flag = inner.read_u8()?;
-        macro_rules! skv_op_impl {
-            ($($x:ident,)*) => {$(
-                let $x = ((sizes_flag & SIZES_FLAG_BASES.$x) != 0).then_some(inner.read_u32()?);
-            )*};
-        }
-        skv_op_impl!(scope, key, value,);
-        let sizes = Sizes { scope, key, value };
-
-        Ok(Config { ident, sizes })
-    }
-
-    pub fn read_row(&mut self) -> Result<Row> {
-        Ok(match self.inner.read_u8()?.try_into()? {
-            RowType::KV => Row::KV({
-                macro_rules! skv_op_impl {
-                    ($($x:ident,)*) => {$(
-                        let len = u32_usize(match self.config.sizes.$x {
-                            Some(len) => len,
-                            None => self.inner.read_u32()?,
-                        });
-                        let $x = self.inner.read_bytes(len)?;
-                        self.hasher.update(&$x);
-                    )*};
-                }
-                skv_op_impl!(scope, key, value,);
-                KV { scope, key, value }
-            }),
-            RowType::Hash => Row::Hash({
-                let existing = self.inner.read_hash()?;
-                let calculated = *self.hasher.finalize().as_bytes();
-                check!(existing, calculated, Error::Hash { existing, calculated });
-                self.hasher.reset();
-                calculated
-            }),
-            RowType::End => Row::End,
-        })
-    }
-
-    pub fn init(mut inner: F) -> Result<Reader<F>> {
-        let config = Reader::read_init(&mut inner)?;
-        Ok(Reader { inner, config, hasher: Hasher::new() })
-    }
-}
-
-impl<F: Read> Iterator for Reader<F> {
-    type Item = Result<Row>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match self.read_row() {
-            Ok(Row::End) => None,
-            result => Some(result),
-        }
-    }
-}
-
-// endregion
-
 // region: writer
 
-pub struct Writer<F: Write> {
+pub struct Writer<F: AsyncWrite + Unpin> {
     inner: F,
     config: Config,
     hasher: Hasher,
     closed: bool,
 }
 
-impl<F: Write> Writer<F> {
+impl<F: AsyncWrite + Unpin> Writer<F> {
     #[inline]
     pub fn config(&self) -> &Config {
         &self.config
@@ -286,16 +153,16 @@ impl<F: Write> Writer<F> {
         Ok(())
     }
 
-    fn write_init(&mut self) -> Result<()> {
-        self.inner.write_u32(BS_IDENT)?;
+    async fn write_init(&mut self) -> Result<()> {
+        self.inner.write_u32(BS_IDENT).await?;
 
-        self.inner.write_u32(usize_u32(self.config.ident.len())?)?;
-        self.inner.write_bytes(self.config.ident.clone())?;
+        self.inner.write_u32(usize_u32(self.config.ident.len())?).await?;
+        self.inner.write_all(&self.config.ident).await?;
 
-        self.inner.write_u8(self.config.sizes.flag())?;
+        self.inner.write_u8(self.config.sizes.flag()).await?;
         macro_rules! skv_op_impl {
             ($($x:ident,)*) => {$(
-                self.inner.write_u32(self.config.sizes.$x.unwrap_or(0))?;
+                self.inner.write_u32(self.config.sizes.$x.unwrap_or(0)).await?;
             )*};
         }
         skv_op_impl!(scope, key, value,);
@@ -304,10 +171,10 @@ impl<F: Write> Writer<F> {
         Ok(())
     }
 
-    pub fn write_kv(&mut self, kv: KV) -> Result<()> {
+    pub async fn write_kv(&mut self, kv: KV) -> Result<()> {
         self.close_guard()?;
         
-        self.inner.write_u8(RowType::KV as u8)?;
+        self.inner.write_u8(RowType::KV as u8).await?;
 
         macro_rules! skv_op_impl {
             ($($x:ident,)*) => {$({
@@ -320,10 +187,10 @@ impl<F: Write> Writer<F> {
                             which: stringify!($x).into(),
                         })
                     },
-                    None => self.inner.write_u32(input_len)?,
+                    None => self.inner.write_u32(input_len).await?,
                 }
                 self.hasher.update(&kv.$x);
-                self.inner.write_bytes(kv.$x)?;
+                self.inner.write_all(&kv.$x).await?;
             })*};
         }
         skv_op_impl!(scope, key, value,);
@@ -332,61 +199,61 @@ impl<F: Write> Writer<F> {
         Ok(())
     }
 
-    pub fn write_hash(&mut self) -> Result<Hash> {
+    pub async fn write_hash(&mut self) -> Result<Hash> {
         self.close_guard()?;
 
-        self.inner.write_u8(RowType::Hash as u8)?;
+        self.inner.write_u8(RowType::Hash as u8).await?;
 
         let hash = *self.hasher.finalize().as_bytes();
-        self.inner.write_bytes(hash)?;
+        self.inner.write_all(&hash).await?;
 
         // self.inner.flush()?;
         Ok(hash)
     }
 
-    fn write_end(&mut self) -> Result<()> {
-        self.inner.write_u8(RowType::End as u8)?;
+    async fn write_end(&mut self) -> Result<()> {
+        self.inner.write_u8(RowType::End as u8).await?;
 
         // self.inner.flush()?;
         Ok(())
     }
 
-    pub fn close(&mut self) -> Result<()> {
+    pub async fn close(&mut self) -> Result<()> {
         self.close_guard()?;
-        self.write_hash()?;
-        self.write_end()?;
+        self.write_hash().await?;
+        self.write_end().await?;
         self.closed = true;
         Ok(())
     }
 
-    pub fn init(inner: F, config: Config) -> Result<Writer<F>> {
+    pub async fn init(inner: F, config: Config) -> Result<Writer<F>> {
         let mut _self = Writer { inner, config, hasher: Hasher::new(), closed: false };
-        _self.write_init()?;
+        _self.write_init().await?;
         Ok(_self)
     }
 }
 
-impl Writer<std::fs::File> {
+impl Writer<tokio::fs::File> {
     #[inline]
-    pub fn fsync(&mut self) -> Result<()> {
-        Ok(self.inner.sync_all()?)
+    pub async fn fsync(&mut self) -> Result<()> {
+        Ok(self.inner.sync_all().await?)
     }
 
-    pub fn datasync(&mut self) -> Result<()> {
-        Ok(self.inner.sync_data()?)
+    pub async fn datasync(&mut self) -> Result<()> {
+        Ok(self.inner.sync_data().await?)
     }
 
-    pub fn close_file(&mut self) -> Result<()> {
-        self.close()?;
-        self.fsync()?;
+    pub async fn close_file(&mut self) -> Result<()> {
+        self.close().await?;
+        self.fsync().await?;
         Ok(())
     }
 }
 
-impl<F: Write> Drop for Writer<F> {
+impl<F: AsyncWrite + Unpin> Drop for Writer<F> {
     fn drop(&mut self) {
         if !self.closed {
-            self.close().expect("FATAL: Error occurred during closing");
+            tokio::runtime::Handle::try_current().unwrap().block_on(self.close()).expect("FATAL: Error occurred during closing");
         }
     }
 }
