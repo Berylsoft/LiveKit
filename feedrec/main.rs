@@ -76,10 +76,10 @@ use api::GetHostsInfo;
 use std::path::PathBuf;
 use rand::{seq::SliceRandom, thread_rng as rng};
 
-use futures::{Future, StreamExt};
-use tokio::{spawn, signal, time::{sleep, Duration}};
+use futures_util::{Future, StreamExt};
+use tokio::{spawn, signal, time::{sleep, Duration}, fs};
 
-use bilibili_restapi_client::client::Client;
+use bilibili_restapi_client::{client::Client, access::Access};
 use livekit_feed_stor_raw::Writer;
 use livekit_feed::stream::{FeedStream, INIT_INTERVAL_MS, INIT_RETRY_INTERVAL_SEC, RETRY_INTERVAL_MS};
 
@@ -146,6 +146,9 @@ struct Args {
     /// log file path and name
     #[argh(option, short = 'l')]
     log_path: Option<PathBuf>,
+    /// access path
+    #[argh(option, short = 'a')]
+    access_path: PathBuf,
     /// set log level to debug (default is info)
     #[argh(switch)]
     log_debug: bool,
@@ -153,12 +156,14 @@ struct Args {
 
 #[tokio::main]
 async fn main() {
-    let Args { roomid_list, stor_path, log_path, log_debug } = argh::from_env();
+    let Args { roomid_list, stor_path, log_path, access_path, log_debug } = argh::from_env();
     if let Some(log_path) = log_path {
         log4rs::init_config(log_config(log_path, log_debug)).expect("FATAL: error during init logger");
     }
+    let access = fs::read(access_path).await.unwrap();
+    let access: Access = serde_json::from_slice(&access).unwrap();
     let (writer, mut writer_close) = Writer::open(stor_path).await.expect("FATAL: error during init feed raw storage");
-    let api_client = Client::new_bare();
+    let api_client = Client::new(Some(access), None);
     for roomid in roomid_list.split(',').map(|roomid| roomid.parse::<u32>().expect("FATAL: invaild roomid")) {
         spawn(rec(roomid, &api_client, &writer));
         sleep(Duration::from_millis(INIT_INTERVAL_MS)).await;
