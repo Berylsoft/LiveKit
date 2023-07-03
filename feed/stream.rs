@@ -1,5 +1,5 @@
 use std::{pin::Pin, task::{Context, Poll}};
-use futures::{Stream, StreamExt, SinkExt, ready};
+use futures_util::{Stream, StreamExt, SinkExt, ready};
 use tokio::{spawn, time::{self, Duration}, net::TcpStream};
 // for TcpFeedStream
 use tokio::{io::{Error as IoError, AsyncRead, AsyncWriteExt, ReadBuf}, net::tcp::OwnedReadHalf as TcpStreamRx};
@@ -46,7 +46,7 @@ pub struct FeedStream<T> {
     rx: T,
 }
 
-type WsStreamRx = futures::stream::SplitStream<tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<TcpStream>>>;
+type WsStreamRx = futures_util::stream::SplitStream<tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<TcpStream>>>;
 pub type WsFeedStream = FeedStream<WsStreamRx>;
 
 #[inline]
