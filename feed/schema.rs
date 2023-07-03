@@ -117,6 +117,17 @@ impl InitRequest {
             key: token,
         }
     }
+
+    pub fn new_v3_web_with_uid(roomid: u32, uid: u64, token: String) -> InitRequest {
+        InitRequest {
+            uid,
+            roomid,
+            protover: 3,
+            platform: "web".to_owned(),
+            r#type: 2,
+            key: token,
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
