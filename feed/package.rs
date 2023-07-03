@@ -1,4 +1,4 @@
-use byterepr::*;
+use foundations::{byterepr::*, byterepr_struct, error_enum};
 
 byterepr_struct! {
     #[derive(Debug)]
@@ -174,7 +174,7 @@ impl Package {
 
 // endregion
 
-macros::error_enum! {
+error_enum! {
     #[derive(Debug)]
     pub enum PackageCodecError {
         UnknownHeadLength(u16),

@@ -5,6 +5,7 @@ use tokio::{spawn, time::{self, Duration}, net::TcpStream};
 use tokio::{io::{Error as IoError, AsyncRead, AsyncWriteExt, ReadBuf}, net::tcp::OwnedReadHalf as TcpStreamRx};
 // for WsFeedStream
 use tokio_tungstenite::{connect_async as connect_ws_stream, tungstenite::{protocol::Message, Error as WsError, http::Uri}};
+use foundations::concat_string;
 use crate::{package::Package, schema::InitRequest};
 
 // for FeedStream
@@ -52,7 +53,7 @@ pub type WsFeedStream = FeedStream<WsStreamRx>;
 fn create_ws_url(host: &str, port: u16) -> Uri {
     Uri::builder()
         .scheme("wss")
-        .authority(macros::concat_string!(host, ":", port.to_string()))
+        .authority(concat_string!(host, ":", port.to_string()))
         .path_and_query("/sub")
         .build().unwrap()
 }

@@ -4,5 +4,4 @@ members = [
     "feed",
     "feed-stor-raw",
     "feedrec",
-    "livekit",
 ]
