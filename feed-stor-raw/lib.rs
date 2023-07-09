@@ -11,6 +11,7 @@ use livekit_feed::stream::{Payload, now};
 
 pub const IDENT: &str = "livekit-feed-raw";
 pub const SIZES: Sizes = Sizes { scope: Some(4), key: Some(12), value: None };
+pub const FILE_SYNC_INTERVAL_COUNT: u16 = 500;
 
 #[derive(Debug)]
 pub struct Key {
@@ -52,15 +53,24 @@ enum Request {
 
 struct WriterContext {
     writer: AsyncWriter<File>,
+    non_synced_count: u16,
 }
 
 impl WriterContext {
     async fn exec(&mut self, req: Request) -> Result<()> {
         match req {
-            Request::KV(kv) => self.writer.write_kv(kv).await,
-            Request::Hash => self.writer.write_hash().await.map(|_| ()),
-            Request::Sync => self.writer.datasync().await,
+            Request::KV(kv) => {
+                self.writer.write_kv(kv).await?;
+                self.non_synced_count += 1;
+                if self.non_synced_count >= FILE_SYNC_INTERVAL_COUNT {
+                    self.writer.datasync().await?;
+                    self.non_synced_count = 0;
+                }
+            },
+            Request::Hash => self.writer.write_hash().await.map(|_| ())?,
+            Request::Sync => self.writer.datasync().await?,
         }
+        Ok(())
     }
 
     async fn close(mut self) {
@@ -86,7 +96,7 @@ impl Writer {
             let config = Config { ident: Box::from(IDENT.as_bytes()), sizes: SIZES.clone() };
             AsyncWriter::init(file, config).await?
         };
-        let (tx, close) = actor::spawn(WriterContext { writer });
+        let (tx, close) = actor::spawn(WriterContext { writer, non_synced_count: 0 });
         Ok((Writer { tx }, close))
     }
 
