@@ -81,10 +81,11 @@ impl<F: AsyncWrite + Unpin> AsyncWriter<F> {
     }
 
     pub async fn close(&mut self) -> Result<()> {
-        self.close_guard()?;
-        self.write_hash().await?;
-        self.write_end().await?;
-        self.closed = true;
+        if !self.closed {
+            self.write_hash().await?;
+            self.write_end().await?;
+            self.closed = true;
+        }
         Ok(())
     }
 
