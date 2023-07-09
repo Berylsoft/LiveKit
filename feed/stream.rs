@@ -37,8 +37,8 @@ impl Payload {
 }
 
 #[inline]
-fn create_init_request(roomid: u32, uid: u64, token: String) -> Package {
-    Package::InitRequest(serde_json::to_string(&InitRequest::new_v3_web_with_uid(roomid, uid, token)).unwrap())
+fn create_init_request(roomid: u32, uid: u64, devid3: String, token: String) -> Package {
+    Package::InitRequest(serde_json::to_string(&InitRequest::new_v3_web_with_access(roomid, uid, devid3, token)).unwrap())
 }
 
 pub struct FeedStream<T> {
@@ -59,7 +59,7 @@ fn create_ws_url(host: &str, port: u16) -> Uri {
 }
 
 impl WsFeedStream {
-    pub async fn connect_ws(host: &str, port: u16, roomid: u32, uid: u64, token: String) -> Result<WsFeedStream, WsError> {
+    pub async fn connect_ws(host: &str, port: u16, roomid: u32, uid: u64, devid3: String, token: String) -> Result<WsFeedStream, WsError> {
         let (stream, _) = connect_ws_stream(create_ws_url(host, port)).await?;
         let (mut tx, rx) = stream.split();
         log::debug!("[{: >10}] (ws) connected", roomid);
@@ -70,7 +70,7 @@ impl WsFeedStream {
             };
         }
 
-        let init = message!(create_init_request(roomid, uid, token).encode().unwrap());
+        let init = message!(create_init_request(roomid, uid, devid3, token).encode().unwrap());
         tx.send(init).await?;
         log::debug!("[{: >10}] (ws) sent: init", roomid);
 
@@ -129,12 +129,12 @@ impl Stream for WsFeedStream {
 pub type TcpFeedStream = FeedStream<TcpStreamRx>;
 
 impl TcpFeedStream {
-    pub async fn connect_tcp(host: &str, port: u16, roomid: u32, uid: u64, token: String) -> Result<TcpFeedStream, IoError> {
+    pub async fn connect_tcp(host: &str, port: u16, roomid: u32, uid: u64, devid3: String, token: String) -> Result<TcpFeedStream, IoError> {
         let stream = TcpStream::connect((host, port)).await?;
         let (rx, mut tx) = stream.into_split();
         log::debug!("[{: >10}] (tcp) connected", roomid);
 
-        let init = create_init_request(roomid, uid, token).encode().unwrap();
+        let init = create_init_request(roomid, uid, devid3, token).encode().unwrap();
         tx.write_all(&init).await?;
         log::debug!("[{: >10}] (tcp) sent: init", roomid);
 

@@ -111,7 +111,7 @@ fn rec(roomid: u32, api_client: &Client, writer: &Writer) -> impl Future<Output 
 
             let host = hosts_info.host_list.choose(&mut rng()).expect("FATAL: empty host list");
             let mut stream = unwrap_or_continue!(
-                FeedStream::connect_ws(&host.host, host.wss_port, roomid, api_client.uid().unwrap(), hosts_info.token).await,
+                FeedStream::connect_ws(&host.host, host.wss_port, roomid, api_client.uid().unwrap(), api_client.devid3().unwrap(), hosts_info.token).await,
                 |err| log::warn!("[{: >10}] error during connecting {:?}", roomid, err)
             );
 

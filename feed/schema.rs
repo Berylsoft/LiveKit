@@ -101,29 +101,20 @@ pub struct InitRequest {
     pub uid: u64,
     pub roomid: u32,
     pub protover: u8,
-    pub platform: String,
+    pub buvid: String,
+    pub platform: &'static str,
     pub r#type: u8,
     pub key: String,
 }
 
 impl InitRequest {
-    pub fn new_v3_web_without_uid(roomid: u32, token: String) -> InitRequest {
-        InitRequest {
-            uid: 0,
-            roomid,
-            protover: 3,
-            platform: "web".to_owned(),
-            r#type: 2,
-            key: token,
-        }
-    }
-
-    pub fn new_v3_web_with_uid(roomid: u32, uid: u64, token: String) -> InitRequest {
+    pub fn new_v3_web_with_access(roomid: u32, uid: u64, devid3: String, token: String) -> InitRequest {
         InitRequest {
             uid,
             roomid,
             protover: 3,
-            platform: "web".to_owned(),
+            buvid: devid3,
+            platform: "web",
             r#type: 2,
             key: token,
         }
@@ -600,9 +591,6 @@ mod tests {
     use serde_json::json as json_value;
     use super::*;
 
-    const TEST_ROOMID: u32 = 10308958;
-    const PACKAGE_INIT_BEGINNING: &str = "{\"uid\":0,\"roomid\":10308958,\"protover\":3,\"platform\":\"web\",\"type\":2,\"key\":\"";
-
     #[test]
     fn test_unknown_cmd() {
         let raw = "{\"cmd\":\"RUST_YYDS\"}";
@@ -621,9 +609,8 @@ mod tests {
 
     #[test]
     fn test_init_request() {
-        let init = InitRequest::new_v3_web_without_uid(TEST_ROOMID, "key".to_owned());
+        let init = InitRequest::new_v3_web_with_access(10308958, 573732342, "DEVID3".to_owned(), "TOKEN".to_owned());
         let init = serde_json::to_string(&init).unwrap();
-        assert!(init.starts_with(PACKAGE_INIT_BEGINNING));
-        assert_eq!(init.len(), 94 - 16);
+        assert_eq!(init, r#"{"uid":573732342,"roomid":10308958,"protover":3,"buvid":"DEVID3","platform":"web","type":2,"key":"TOKEN"}"#);
     }
 }
