@@ -3,7 +3,9 @@ use tokio::fs::{self, OpenOptions, File};
 pub use crc32fast::hash as crc32;
 mod actor;
 use actor::{ReqTx, CloseHandle};
-pub mod kvdump;
+pub use kvdump;
+mod async_kvdump;
+use async_kvdump::AsyncWriter;
 use kvdump::{KV, Config, Sizes, Error, Result};
 use livekit_feed::stream::{Payload, now};
 
@@ -48,7 +50,7 @@ enum Request {
 }
 
 struct WriterContext {
-    writer: kvdump::Writer<File>,
+    writer: AsyncWriter<File>,
 }
 
 impl WriterContext {
@@ -80,7 +82,7 @@ impl Writer {
             let path = path.as_ref().join(now().to_string());
             let file = OpenOptions::new().write(true).create_new(true).open(path).await?;
             let config = Config { ident: Box::from(IDENT.as_bytes()), sizes: SIZES.clone() };
-            kvdump::Writer::init(file, config).await?
+            AsyncWriter::init(file, config).await?
         };
         let (tx, close) = actor::spawn(WriterContext { writer });
         Ok((Writer { tx }, close))

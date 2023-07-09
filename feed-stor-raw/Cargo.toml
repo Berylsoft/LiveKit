@@ -13,6 +13,5 @@ path = "lib.rs"
 hex = "0.4"
 crc32fast = "1"
 tokio = { version = "1", features = ["rt"] }
-blake3 = "1"
-foundations = { git = "https://github.com/Berylsoft/foundations", features = ["num-enum", "usize-casting", "error-enum"] }
+kvdump = { git = "https://github.com/Berylsoft/KVDump" }
 livekit-feed = { path = "../feed" }
