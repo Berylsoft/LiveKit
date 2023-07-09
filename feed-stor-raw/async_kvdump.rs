@@ -101,6 +101,7 @@ impl AsyncWriter<tokio::fs::File> {
         Ok(self.inner.sync_all().await?)
     }
 
+    #[inline]
     pub async fn datasync(&mut self) -> Result<()> {
         Ok(self.inner.sync_data().await?)
     }

@@ -47,6 +47,7 @@ impl Key {
 enum Request {
     KV(KV),
     Hash,
+    Sync,
 }
 
 struct WriterContext {
@@ -58,11 +59,12 @@ impl WriterContext {
         match req {
             Request::KV(kv) => self.writer.write_kv(kv).await,
             Request::Hash => self.writer.write_hash().await.map(|_| ()),
+            Request::Sync => self.writer.datasync().await,
         }
     }
 
     async fn close(mut self) {
-        self.writer.close().await.expect("FATAL: Error occurred during closing");
+        self.writer.close_file().await.expect("FATAL: Error occurred during closing");
     }
 }
 
@@ -94,6 +96,10 @@ impl Writer {
 
     pub async fn write_hash(&self) -> Result<()> {
         self.tx.request(Request::Hash).await.unwrap_or(Err(Error::AsyncFileClosed))
+    }
+
+    pub async fn sync(&self) -> Result<()> {
+        self.tx.request(Request::Sync).await.unwrap_or(Err(Error::AsyncFileClosed))
     }
 }
 
