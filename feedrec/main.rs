@@ -35,10 +35,10 @@ use log_config::log_config;
 
 // endregion
 
-// region: bilibili_restapi_live::feed
+// region: brapi_live::feed
 
 mod api {
-    use bilibili_restapi_model::{*, prelude::*};
+    use brapi_model::{*, prelude::*};
 
     #[derive(Clone, Debug, Serialize)]
     pub struct GetHostsInfo {
@@ -79,7 +79,7 @@ use rand::{seq::SliceRandom, thread_rng as rng};
 use futures_util::{Future, StreamExt};
 use tokio::{spawn, signal, time::{sleep, Duration}, fs};
 
-use bilibili_restapi_client::{client::Client, access::Access};
+use brapi_client::{client::Client, access::Access};
 use livekit_feed_stor_raw::Writer;
 use livekit_feed::stream::{FeedStream, INIT_INTERVAL_MS, INIT_RETRY_INTERVAL_SEC, RETRY_INTERVAL_MS};
 

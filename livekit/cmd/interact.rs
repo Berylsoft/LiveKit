@@ -1,6 +1,6 @@
 use std::{path::PathBuf, fs};
-use bilibili_restapi_client::{client::Client, access::Access};
-use bilibili_restapi_cli_live::Request;
+use brapi_client::{client::Client, access::Access};
+use brapi_cli_live::Request;
 
 /// call interact apis with json from command line
 #[derive(argh::FromArgs)]
