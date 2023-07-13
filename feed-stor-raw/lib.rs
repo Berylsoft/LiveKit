@@ -1,11 +1,8 @@
-use std::path::Path;
-use tokio::fs::{self, OpenOptions, File};
+use std::{path::{Path, PathBuf}, fs::{self, OpenOptions, File}};
 pub use crc32fast::hash as crc32;
 mod actor;
 use actor::{ReqTx, CloseHandle};
 pub use kvdump;
-mod async_kvdump;
-use async_kvdump::AsyncWriter;
 use kvdump::{KV, Config, Sizes, Error, Result};
 use livekit_feed::stream::{Payload, now};
 
@@ -49,32 +46,44 @@ enum Request {
     KV(KV),
     Hash,
     Sync,
+    Close,
 }
 
 struct WriterContext {
-    writer: AsyncWriter<File>,
+    writer: kvdump::Writer<File>,
     non_synced_count: u16,
 }
 
 impl WriterContext {
-    async fn exec(&mut self, req: Request) -> Result<()> {
+    fn init(path: &Path) -> Result<WriterContext> {
+        fs::create_dir_all(&path)?;
+        let path = path.join(now().to_string());
+        let file = OpenOptions::new().write(true).create_new(true).open(path)?;
+        let config = Config { ident: Box::from(IDENT.as_bytes()), sizes: SIZES.clone() };
+        Ok(WriterContext { writer: kvdump::Writer::init(file, config)?, non_synced_count: 0 })
+    }
+
+    fn exec(&mut self, req: Request) -> Result<()> {
         match req {
             Request::KV(kv) => {
-                self.writer.write_kv(kv).await?;
+                self.writer.write_kv(kv)?;
                 self.non_synced_count += 1;
                 if self.non_synced_count >= FILE_SYNC_INTERVAL_COUNT {
-                    self.writer.datasync().await?;
+                    self.writer.datasync()?;
                     self.non_synced_count = 0;
                 }
             },
-            Request::Hash => self.writer.write_hash().await.map(|_| ())?,
-            Request::Sync => self.writer.datasync().await?,
+            Request::Hash => {
+                let _ = self.writer.write_hash()?;
+            },
+            Request::Sync => {
+                self.writer.datasync()?;
+            },
+            Request::Close => {
+                self.writer.close_file()?;
+            }
         }
         Ok(())
-    }
-
-    async fn close(mut self) {
-        self.writer.close_file().await.expect("FATAL: Error occurred during closing");
     }
 }
 
@@ -88,15 +97,8 @@ pub struct RoomWriter {
 }
 
 impl Writer {
-    pub async fn open<P: AsRef<Path>>(path: P) -> Result<(Writer, CloseHandle)> {
-        let writer = {
-            fs::create_dir_all(&path).await?;
-            let path = path.as_ref().join(now().to_string());
-            let file = OpenOptions::new().write(true).create_new(true).open(path).await?;
-            let config = Config { ident: Box::from(IDENT.as_bytes()), sizes: SIZES.clone() };
-            AsyncWriter::init(file, config).await?
-        };
-        let (tx, close) = actor::spawn(WriterContext { writer, non_synced_count: 0 });
+    pub async fn open(path: PathBuf) -> Result<(Writer, CloseHandle)> {
+        let (tx, close) = actor::spawn(path).await?;
         Ok((Writer { tx }, close))
     }
 

@@ -162,13 +162,12 @@ async fn main() {
     }
     let access = fs::read(access_path).await.unwrap();
     let access: Access = serde_json::from_slice(&access).unwrap();
-    let (writer, mut writer_close) = Writer::open(stor_path).await.expect("FATAL: error during init feed raw storage");
+    let (writer, writer_close) = Writer::open(stor_path).await.expect("FATAL: error during init feed raw storage");
     let api_client = Client::new(Some(access), None);
     for roomid in roomid_list.split(',').map(|roomid| roomid.parse::<u32>().expect("FATAL: invaild roomid")) {
         spawn(rec(roomid, &api_client, &writer));
         sleep(Duration::from_millis(INIT_INTERVAL_MS)).await;
     }
     signal::ctrl_c().await.expect("FATAL: error during setting ctrl-c listener");
-    writer_close.close();
-    writer_close.wait().await;
+    writer_close.close_and_wait().await.expect("FATAL: Error occurred during closing");
 }

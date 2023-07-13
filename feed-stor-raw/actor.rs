@@ -1,5 +1,5 @@
 use tokio::sync::{
-    oneshot::{channel as one_channel, Sender as OneTx, Receiver as OneRx},
+    oneshot::{channel as one_channel, Sender as OneTx},
     mpsc::{unbounded_channel as _req_channel, UnboundedSender as _ReqTx},
 };
 use crate::*;
@@ -26,44 +26,34 @@ impl Clone for ReqTx {
 }
 
 pub struct CloseHandle {
-    tx: Option<OneTx<()>>,
-    rx: OneRx<()>,
+    inner: ReqTx,
 }
 
 impl CloseHandle {
-    pub fn close(&mut self) -> Option<()> {
-        self.tx.take().unwrap().send(()).ok()
-    }
-
-    pub async fn wait(self) -> Option<()> {
-        self.rx.await.ok()
+    pub async fn close_and_wait(self) -> Result<()> {
+        self.inner.request(Request::Close).await.unwrap_or(Err(Error::AsyncFileClosed))
     }
 }
 
-pub(crate) fn spawn(mut ctx: WriterContext) -> (ReqTx, CloseHandle) {
-    let (tx, mut wait) = one_channel();
-    let (finish, rx) = one_channel();
+pub(crate) async fn spawn(path: PathBuf) -> Result<(ReqTx, CloseHandle)> {
     let (req_tx, mut req_rx) = _req_channel::<ReqPayload>();
-    tokio::spawn(async move {
+    let req_tx = ReqTx { inner: req_tx };
+    let rt = tokio::runtime::Handle::current();
+    let mut ctx = rt.spawn_blocking(move || {
+        WriterContext::init(&path)
+    }).await.map_err(|err| std::io::Error::new(
+        std::io::ErrorKind::Other,
+        err,
+    ))??;
+    rt.spawn_blocking(move || {
         loop {
-            tokio::select! {
-                biased;
-                Ok(()) = &mut wait => {
-                    ctx.close().await;
-                    finish.send(()).unwrap();
-                    break;
-                }
-                maybe_req = req_rx.recv() => {
-                    if let Some((req, res_tx)) = maybe_req {
-                        res_tx.send(ctx.exec(req).await).unwrap();
-                    } else {
-                        ctx.close().await;
-                        finish.send(()).unwrap();
-                        break;
-                    }
-                }
+            if let Some((req, res_tx)) = req_rx.blocking_recv() {
+                res_tx.send(ctx.exec(req)).expect("FATAL: all request sender dropped");
+            } else {
+                ctx.exec(Request::Close).expect("FATAL: Error occurred during closing");
+                break;
             }
-        }    
+        }
     });
-    (ReqTx { inner: req_tx }, CloseHandle { tx: Some(tx), rx })
+    Ok((req_tx.clone(), CloseHandle { inner: req_tx }))
 }
