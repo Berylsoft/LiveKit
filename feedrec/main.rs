@@ -169,5 +169,5 @@ async fn main() {
         sleep(Duration::from_millis(INIT_INTERVAL_MS)).await;
     }
     signal::ctrl_c().await.expect("FATAL: error during setting ctrl-c listener");
-    writer_close.close_and_wait().await.expect("FATAL: Error occurred during closing");
+    writer_close.wait_close().await.expect("FATAL: Error occurred during closing");
 }
