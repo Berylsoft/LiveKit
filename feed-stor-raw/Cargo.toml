@@ -13,5 +13,6 @@ path = "lib.rs"
 hex = "0.4"
 crc32fast = "1"
 tokio = { version = "1", features = ["rt"] }
-async-kvdump = { git = "https://github.com/Berylsoft/KVDump" }
+kvdump = { git = "https://github.com/Berylsoft/KVDump", features = ["actor"] }
+actor = { git = "https://github.com/Berylsoft/actor" }
 livekit-feed = { path = "../feed" }

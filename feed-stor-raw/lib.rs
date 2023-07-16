@@ -1,9 +1,10 @@
 use std::path::PathBuf;
 pub use crc32fast::hash as crc32;
-pub use async_kvdump::kvdump;
-use kvdump::{KV, Config, Sizes, Error, Result};
-use async_kvdump::*;
+pub use kvdump;
+use kvdump::{KV, Config, Sizes, Result, actor::*};
 use livekit_feed::stream::{Payload, now};
+
+type Handle = actor::Handle<WriterContext>;
 
 pub const IDENT: &str = "livekit-feed-raw";
 pub const SIZES: Sizes = Sizes { scope: Some(4), key: Some(12), value: None };
@@ -55,9 +56,11 @@ pub struct CloseHandle {
 
 impl Writer {
     pub async fn open(path: PathBuf) -> Result<(Writer, CloseHandle)> {
-        let path = path.join(now().to_string());
-        let config = Config { ident: Box::from(IDENT.as_bytes()), sizes: SIZES.clone() };
-        let tx = open(path, config, FILE_SYNC_INTERVAL_COUNT).await?;
+        let tx = actor::spawn(WriterContextConfig {
+            path: path.join(now().to_string()),
+            config: Config { ident: Box::from(IDENT.as_bytes()), sizes: SIZES.clone() },
+            sync_interval: FILE_SYNC_INTERVAL_COUNT,
+        }).await?;
         Ok((Writer { tx: tx.clone() }, CloseHandle { tx }))
     }
 
@@ -66,11 +69,11 @@ impl Writer {
     }
 
     pub async fn write_hash(&self) -> Result<()> {
-        self.tx.request(Request::Hash).await.unwrap_or(Err(Error::AsyncFileClosed))
+        self.tx.request(Request::Hash).await
     }
 
     pub async fn sync(&self) -> Result<()> {
-        self.tx.request(Request::Sync).await.unwrap_or(Err(Error::AsyncFileClosed))
+        self.tx.request(Request::Sync).await
     }
 }
 
@@ -85,7 +88,7 @@ impl RoomWriter {
             scope: Box::from(self.roomid.to_be_bytes()),
             key: key.encode(),
             value: payload.payload.clone(),
-        })).await.unwrap_or(Err(Error::AsyncFileClosed)).map_err(|err| format!(
+        })).await.map_err(|err| format!(
             "[{: >10}] (stor-raw) FATAL: insert error: {:?} key={:?} val(hex)={}",
             self.roomid, err, key, hex::encode(&payload.payload),
         ))
