@@ -56,7 +56,7 @@ pub struct CloseHandle {
 
 impl Writer {
     pub async fn open(path: PathBuf) -> Result<(Writer, CloseHandle)> {
-        let tx = actor::spawn(WriterContextConfig {
+        let tx = actor::spawn_async(WriterContextConfig {
             path: path.join(now().to_string()),
             config: Config { ident: Box::from(IDENT.as_bytes()), sizes: SIZES.clone() },
             sync_interval: FILE_SYNC_INTERVAL_COUNT,
