@@ -146,17 +146,22 @@ impl TcpFeedStream {
     }
 
     pub async fn recv(&mut self) -> Option<Payload> {
-        let log_error = |error: IoError| {
-            log::warn!("[{: >10}] (tcp) close: caused by {:?}", self.roomid, error);
-        };
+        macro_rules! read_exact {
+            ($buf:expr) => {
+                if let Err(error) = self.rx.read_exact($buf).await {
+                    log::warn!("[{: >10}] (tcp) close: caused by {:?}", self.roomid, error);
+                    return None;
+                }
+            };
+        }
 
         // TODO avoid copy with "peek_exact"
         let mut len_buf = [0; 4];
-        self.rx.read_exact(&mut len_buf).await.map_err(log_error).ok()?;
+        read_exact!(&mut len_buf);
         let len = u32::from_be_bytes(len_buf).try_into().unwrap();
         let mut payload = vec![0; len];
         payload[0..4].copy_from_slice(&len_buf);
-        self.rx.read_exact(&mut payload[4..]).await.map_err(log_error).ok()?;
+        read_exact!(&mut payload[4..]);
         log::debug!("[{: >10}] (tcp) recv: message {}", self.roomid, len);
         Some(Payload::new_now(payload))
     }
