@@ -1,5 +1,7 @@
 use std::path::PathBuf;
+use bytes::Bytes;
 pub use crc32fast::hash as crc32;
+use foundations::{byterepr_struct, byterepr::ByteRepr};
 pub use kvdump;
 use kvdump::{KV, Sizes, Result, actor::{Request, WriterContextConfig}};
 use livekit_feed::stream::{Payload, now};
@@ -23,29 +25,15 @@ impl kvdump::Config for Config {
     }
 }
 
-#[derive(Debug)]
-pub struct Key {
-    pub time: u64,
-    pub hash: u32,
+byterepr_struct! {
+    #[derive(Debug)]
+    pub struct Key {
+        pub time: u64,
+        pub hash: u32,
+    }
 }
 
 impl Key {
-    pub fn encode(&self) -> Box<[u8]> {
-        [
-            self.time.to_be_bytes().as_slice(),
-            self.hash.to_be_bytes().as_slice(),
-        ].concat().into_boxed_slice()
-    }
-
-    pub fn decode(raw: &[u8]) -> Key {
-        assert_eq!(raw.len(), 12);
-        let (time, hash) = raw.split_at(8);
-        Key {
-            time: u64::from_be_bytes(time.try_into().unwrap()),
-            hash: u32::from_be_bytes(hash.try_into().unwrap()),
-        }
-    }
-
     pub fn from_payload(payload: &Payload) -> Key {
         Key {
             time: payload.time,
@@ -60,6 +48,7 @@ pub struct Writer {
 
 pub struct RoomWriter {
     roomid: u32,
+    roomid_bytes: Bytes,
     tx: Handle,
 }
 
@@ -77,7 +66,7 @@ impl Writer {
     }
 
     pub fn open_room(&self, roomid: u32) -> RoomWriter {
-        RoomWriter { roomid, tx: self.tx.clone() }
+        RoomWriter { roomid, roomid_bytes: Bytes::copy_from_slice(&roomid.to_be_bytes()), tx: self.tx.clone() }
     }
 
     pub async fn write_hash(&self) -> Result<()> {
@@ -97,8 +86,8 @@ impl RoomWriter {
     pub async fn insert_payload(&self, payload: &Payload) -> std::result::Result<(), String> {
         let key = Key::from_payload(payload);
         self.tx.request(Request::KV(KV {
-            scope: Box::from(self.roomid.to_be_bytes()),
-            key: key.encode(),
+            scope: self.roomid_bytes.clone(),
+            key: Bytes::copy_from_slice(&key.to_bytes()),
             value: payload.payload.clone(),
         })).await.map_err(|err| format!(
             "[{: >10}] (stor-raw) FATAL: insert error: {:?} key={:?} val(hex)={}",

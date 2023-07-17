@@ -37,11 +37,13 @@ pub enum Package {
 }
 
 impl Package {
-    pub fn decode<B: AsRef<[u8]>>(raw: B) -> PackageCodecResult<Package> {
-        let raw = raw.as_ref();
+    pub fn decode(raw: &[u8]) -> PackageCodecResult<Package> {
         let (head, payload) = raw.split_at(Head::SIZE);
         let head = Head::from_bytes(head.try_into().unwrap());
+        Package::decode_payload(head, payload)
+    }
 
+    pub fn decode_payload(head: Head, payload: &[u8]) -> PackageCodecResult<Package> {
         if head.head_length != Head::SIZE_16 {
             return Err(PackageCodecError::UnknownHeadLength(head.head_length));
         }
@@ -97,14 +99,14 @@ impl Package {
         })
     }
 
-    pub fn encode(self) -> PackageCodecResult<Box<[u8]>> {
+    pub fn encode(self) -> PackageCodecResult<Vec<u8>> {
         Ok(match self {
-            Package::HeartbeatRequest => Box::from(Head::new(2, 0).to_bytes()),
+            Package::HeartbeatRequest => Head::new(2, 0).to_bytes().to_vec(),
             Package::InitRequest(payload) => {
                 [
                     &Head::new(7, payload.len().try_into()?).to_bytes(),
                     payload.as_bytes(),
-                ].concat().into_boxed_slice()
+                ].concat()
             },
             _ => return Err(PackageCodecError::NotEncodable),
         })
@@ -290,8 +292,8 @@ mod tests {
         let less = encode!(3, [0x00, 0x00, 0xff]);
         let non_align = encode!(3, [0x00, 0x00, 0x00, 0xff]);
 
-        assert!(matches!(Package::decode(more), Err(PackageCodecError::BytesSilceError(_))));
-        assert!(matches!(Package::decode(less), Err(PackageCodecError::BytesSilceError(_))));
-        assert!(matches!(Package::decode(non_align), Err(PackageCodecError::IncorrectPayloadLength { .. })));
+        assert!(matches!(Package::decode(&more), Err(PackageCodecError::BytesSilceError(_))));
+        assert!(matches!(Package::decode(&less), Err(PackageCodecError::BytesSilceError(_))));
+        assert!(matches!(Package::decode(&non_align), Err(PackageCodecError::IncorrectPayloadLength { .. })));
     }
 }

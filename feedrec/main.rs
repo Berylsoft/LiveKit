@@ -73,10 +73,9 @@ use api::GetHostsInfo;
 
 // endregion
 
-use std::path::PathBuf;
+use std::{path::PathBuf, future::Future};
 use rand::{seq::SliceRandom, thread_rng as rng};
 
-use futures_util::{Future, StreamExt};
 use tokio::{spawn, signal, time::{sleep, Duration}, fs};
 
 use brapi_client::{client::Client, access::Access};
@@ -117,11 +116,9 @@ fn rec(roomid: u32, api_client: &Client, writer: &Writer) -> impl Future<Output 
 
             log::info!("[{: >10}] open", roomid);
 
-            while let Some(may_payload) = stream.next().await {
-                if let Some(payload) = may_payload {
-                    if let Err(msg) = room_writer.insert_payload(&payload).await {
-                        panic!("{}", msg);
-                    }
+            while let Some(payload) = stream.recv().await {
+                if let Err(msg) = room_writer.insert_payload(&payload).await {
+                    panic!("{}", msg);
                 }
             }
 

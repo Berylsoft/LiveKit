@@ -1,4 +1,5 @@
 use std::{path::PathBuf, io::Write, fs::{self, OpenOptions}};
+use foundations::byterepr::ByteRepr;
 use livekit_feed::package::{Package, JsonPackage};
 use livekit_feed_stor_raw::{kvdump::{self, Row, KV}, crc32, Key};
 
@@ -40,7 +41,7 @@ pub fn main(Args { raw_stor_path, export_path, roomid_list }: Args) {
                     Row::KV(KV { scope, key, value }) => {
                         let roomid = u32::from_be_bytes(scope.as_ref().try_into().unwrap());
                         if if let Some(roomid_list) = &roomid_list { roomid_list.contains(&roomid) } else { true } {
-                            let Key { time, hash } = Key::decode(&key);
+                            let Key { time, hash } = Key::from_bytes(key.as_ref().try_into().unwrap());
                             assert_eq!(hash, crc32(&value));
                             let inner = Package::decode(&value).unwrap().to_json().unwrap();
                             let record = Record { roomid, time, inner };

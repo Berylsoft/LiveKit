@@ -1,11 +1,10 @@
-use std::{pin::Pin, task::{Context, Poll}};
-use futures_util::{Stream, StreamExt, SinkExt, ready};
+use bytes::Bytes;
+use futures_util::{StreamExt, SinkExt};
 use tokio::{spawn, time::{self, Duration}, net::TcpStream};
 // for TcpFeedStream
-use tokio::{io::{Error as IoError, AsyncRead, AsyncWriteExt, ReadBuf}, net::tcp::OwnedReadHalf as TcpStreamRx};
+use tokio::{io::{Error as IoError, AsyncReadExt, AsyncWriteExt}, net::tcp::OwnedReadHalf as TcpStreamRx};
 // for WsFeedStream
 use tokio_tungstenite::{connect_async as connect_ws_stream, tungstenite::{protocol::Message, Error as WsError, http::Uri}};
-use foundations::concat_string;
 use crate::{package::Package, schema::InitRequest};
 
 // for FeedStream
@@ -24,14 +23,14 @@ pub fn now() -> u64 {
 
 pub struct Payload {
     pub time: u64,
-    pub payload: Box<[u8]>,
+    pub payload: Bytes,
 }
 
 impl Payload {
-    pub fn new_now(payload: Box<[u8]>) -> Payload {
+    pub fn new_now(payload: Vec<u8>) -> Payload {
         Payload {
             time: now(),
-            payload,
+            payload: payload.into(),
         }
     }
 }
@@ -53,7 +52,7 @@ pub type WsFeedStream = FeedStream<WsStreamRx>;
 fn create_ws_url(host: &str, port: u16) -> Uri {
     Uri::builder()
         .scheme("wss")
-        .authority(concat_string!(host, ":", port.to_string()))
+        .authority(format!("{host}:{port}"))
         .path_and_query("/sub")
         .build().unwrap()
 }
@@ -64,18 +63,12 @@ impl WsFeedStream {
         let (mut tx, rx) = stream.split();
         log::debug!("[{: >10}] (ws) connected", roomid);
 
-        macro_rules! message {
-            ($bytes:expr) => {
-                Message::Binary($bytes.to_vec())
-            };
-        }
-
-        let init = message!(create_init_request(roomid, uid, devid3, token).encode().unwrap());
+        let init = Message::Binary(create_init_request(roomid, uid, devid3, token).encode().unwrap());
         tx.send(init).await?;
         log::debug!("[{: >10}] (ws) sent: init", roomid);
 
         spawn(async move {
-            let heartbeat = message!(Package::HeartbeatRequest.encode().unwrap());
+            let heartbeat = Message::Binary(Package::HeartbeatRequest.encode().unwrap());
             let mut interval = time::interval(Duration::from_secs(HEARTBEAT_RATE_SEC));
             loop {
                 interval.tick().await;
@@ -89,40 +82,38 @@ impl WsFeedStream {
 
         Ok(WsFeedStream { roomid, rx })
     }
-}
 
-impl Stream for WsFeedStream {
-    type Item = Option<Payload>;
-
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        Poll::Ready(match ready!(Pin::new(&mut self.rx).poll_next(cx)) {
-            Some(Ok(message)) => Some(match message {
-                Message::Binary(payload) => {
-                    log::debug!("[{: >10}] (ws) recv: message {}", self.roomid, payload.len());
-                    Some(Payload::new_now(payload.into_boxed_slice()))
+    pub async fn recv(&mut self) -> Option<Payload> {
+        loop {
+            match self.rx.next().await {
+                Some(Ok(message)) => match message {
+                    Message::Binary(payload) => {
+                        log::debug!("[{: >10}] (ws) recv: message {}", self.roomid, payload.len());
+                        return Some(Payload::new_now(payload.into()));
+                    },
+                    Message::Ping(payload) => {
+                        if payload.is_empty() {
+                            log::debug!("[{: >10}] (ws) recv: empty ping", self.roomid);
+                        } else {
+                            log::error!("[{: >10}] (ws) recv: non-empty ping {:?}", self.roomid, payload);
+                        }
+                        continue;
+                    },
+                    message => {
+                        log::error!("[{: >10}] (ws) recv: unexpected message type {:?}", self.roomid, message);
+                        continue;
+                    },
                 },
-                Message::Ping(payload) => {
-                    if payload.is_empty() {
-                        log::debug!("[{: >10}] (ws) recv: empty ping", self.roomid);
-                    } else {
-                        log::error!("[{: >10}] (ws) recv: non-empty ping {:?}", self.roomid, payload);
-                    }
-                    None
+                Some(Err(error)) => {
+                    log::warn!("[{: >10}] (ws) close: caused by {:?}", self.roomid, error);
+                    return None;
                 },
-                message => {
-                    log::error!("[{: >10}] (ws) recv: unexpected message type {:?}", self.roomid, message);
-                    None
+                None => {
+                    log::warn!("[{: >10}] (ws) close: normally", self.roomid);
+                    return None;
                 },
-            }),
-            Some(Err(error)) => {
-                log::warn!("[{: >10}] (ws) close: caused by {:?}", self.roomid, error);
-                None
-            },
-            None => {
-                log::warn!("[{: >10}] (ws) close: normally", self.roomid);
-                None
-            },
-        })
+            }
+        }
     }
 }
 
@@ -153,25 +144,20 @@ impl TcpFeedStream {
 
         Ok(TcpFeedStream { roomid, rx })
     }
-}
 
-impl Stream for TcpFeedStream {
-    type Item = Option<Payload>;
+    pub async fn recv(&mut self) -> Option<Payload> {
+        let log_error = |error: IoError| {
+            log::warn!("[{: >10}] (tcp) close: caused by {:?}", self.roomid, error);
+        };
 
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        let mut bytes = [0u8; TCP_BUFFER_SIZE];
-        let mut readbuf = ReadBuf::new(&mut bytes);
-
-        Poll::Ready(match ready!(Pin::new(&mut self.rx).poll_read(cx, &mut readbuf)) {
-            Ok(()) => Some({
-                let payload = readbuf.filled();
-                log::debug!("[{: >10}] (tcp) recv: message {}", self.roomid, payload.len());
-                Some(Payload::new_now(Box::from(payload)))
-            }),
-            Err(error) => {
-                log::warn!("[{: >10}] (tcp) close: caused by {:?}", self.roomid, error);
-                None
-            },
-        })
+        // TODO avoid copy with "peek_exact"
+        let mut len_buf = [0; 4];
+        self.rx.read_exact(&mut len_buf).await.map_err(log_error).ok()?;
+        let len = u32::from_be_bytes(len_buf).try_into().unwrap();
+        let mut payload = vec![0; len];
+        payload[0..4].copy_from_slice(&len_buf);
+        self.rx.read_exact(&mut payload[4..]).await.map_err(log_error).ok()?;
+        log::debug!("[{: >10}] (tcp) recv: message {}", self.roomid, len);
+        Some(Payload::new_now(payload))
     }
 }

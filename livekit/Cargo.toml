@@ -21,6 +21,7 @@ argh = "0.1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["full"] }
+foundations = { git = "https://github.com/Berylsoft/foundations", features = ["byterepr"] }
 brapi-live = { git = "https://github.com/Berylsoft/brapi" }
 brapi-client = { git = "https://github.com/Berylsoft/brapi" }
 brapi-cli-live = { git = "https://github.com/Berylsoft/brapi" }

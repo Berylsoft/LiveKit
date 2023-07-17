@@ -13,6 +13,7 @@ name = "livekit_feed"
 path = "lib.rs"
 
 [dependencies]
+bytes = "1"
 hex = "0.4"
 brotli-decompressor = "2"
 serde = { version = "1", features = ["derive"] }

@@ -10,9 +10,11 @@ name = "livekit_feed_stor_raw"
 path = "lib.rs"
 
 [dependencies]
+bytes = "1"
 hex = "0.4"
 crc32fast = "1"
 tokio = { version = "1", features = ["rt"] }
-kvdump = { git = "https://github.com/Berylsoft/KVDump", features = ["actor"] }
+foundations = { git = "https://github.com/Berylsoft/foundations", features = ["byterepr", "byterepr-macros"] }
+kvdump = { git = "https://github.com/Berylsoft/KVDump", features = ["actor", "bytesbuf"] }
 actor = { git = "https://github.com/Berylsoft/actor" }
 livekit-feed = { path = "../feed" }
