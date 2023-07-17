@@ -1,14 +1,27 @@
 use std::path::PathBuf;
 pub use crc32fast::hash as crc32;
 pub use kvdump;
-use kvdump::{KV, Config, Sizes, Result, actor::*};
+use kvdump::{KV, Sizes, Result, actor::{Request, WriterContextConfig}};
 use livekit_feed::stream::{Payload, now};
 
+type WriterContext = kvdump::actor::WriterContext<Config, FILE_SYNC_INTERVAL_COUNT>;
 type Handle = actor::Handle<WriterContext>;
 
 pub const IDENT: &str = "livekit-feed-raw";
 pub const SIZES: Sizes = Sizes { scope: Some(4), key: Some(12), value: None };
 pub const FILE_SYNC_INTERVAL_COUNT: u16 = 500;
+
+pub struct Config;
+
+impl kvdump::Config for Config {
+    fn ident<'a>(&'a self) -> &'a [u8] {
+        IDENT.as_bytes()
+    }
+
+    fn sizes<'a>(&'a self) -> &'a Sizes {
+        &SIZES
+    }
+}
 
 #[derive(Debug)]
 pub struct Key {
@@ -58,8 +71,7 @@ impl Writer {
     pub async fn open(path: PathBuf) -> Result<(Writer, CloseHandle)> {
         let tx = actor::spawn_async(WriterContextConfig {
             path: path.join(now().to_string()),
-            config: Config { ident: Box::from(IDENT.as_bytes()), sizes: SIZES.clone() },
-            sync_interval: FILE_SYNC_INTERVAL_COUNT,
+            config: Config,
         }).await?;
         Ok((Writer { tx: tx.clone() }, CloseHandle { tx }))
     }
