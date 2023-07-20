@@ -16,5 +16,5 @@ crc32fast = "1"
 tokio = { version = "1", features = ["rt"] }
 foundations = { git = "https://github.com/Berylsoft/foundations", features = ["byterepr", "byterepr-macros"] }
 kvdump = { git = "https://github.com/Berylsoft/KVDump", features = ["actor", "bytesbuf"] }
-actor = { git = "https://github.com/Berylsoft/actor" }
+tokio-actor = { git = "https://github.com/Berylsoft/actor" }
 livekit-feed = { path = "../feed" }

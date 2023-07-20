@@ -7,7 +7,7 @@ use kvdump::{KV, Sizes, Result, actor::{Request, WriterContextConfig}};
 use livekit_feed::stream::{Payload, now};
 
 type WriterContext = kvdump::actor::WriterContext<Config, FILE_SYNC_INTERVAL_COUNT>;
-type Handle = actor::Handle<WriterContext>;
+type Handle = tokio_actor::Handle<WriterContext>;
 
 pub const IDENT: &str = "livekit-feed-raw";
 pub const SIZES: Sizes = Sizes { scope: Some(4), key: Some(12), value: None };
@@ -58,7 +58,7 @@ pub struct CloseHandle {
 
 impl Writer {
     pub async fn open(path: PathBuf) -> Result<(Writer, CloseHandle)> {
-        let tx = actor::spawn_async(WriterContextConfig {
+        let tx: Handle = tokio_actor::spawn_async(WriterContextConfig {
             path: path.join(now().to_string()),
             config: Config,
         }).await?;
