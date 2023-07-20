@@ -4,7 +4,7 @@ use tokio::{spawn, time::{self, Duration}, net::TcpStream};
 // for TcpFeedStream
 use tokio::{io::{Error as IoError, AsyncReadExt, AsyncWriteExt}, net::tcp::OwnedReadHalf as TcpStreamRx};
 // for WsFeedStream
-use tokio_tungstenite::{connect_async as connect_ws_stream, tungstenite::{protocol::Message, Error as WsError, http::Uri}};
+use tokio_tungstenite::tungstenite::{protocol::Message, Error as WsError};
 use crate::{package::Package, schema::InitRequest};
 
 // for FeedStream
@@ -15,6 +15,9 @@ pub const TCP_BUFFER_SIZE: usize = 1024 * 8;
 pub const RETRY_INTERVAL_MS: u64 = 5000;
 pub const INIT_INTERVAL_MS: u64 = 100;
 pub const INIT_RETRY_INTERVAL_SEC: u64 = 5;
+
+pub const WEB_USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36";
+pub const WEB_ORIGIN: &str = concat!("https://live.", include!("../name"), ".com");
 
 pub fn now() -> u64 {
     use std::time::{SystemTime, UNIX_EPOCH};
@@ -45,21 +48,34 @@ pub struct FeedStream<T> {
     rx: T,
 }
 
-type WsStreamRx = futures_util::stream::SplitStream<tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<TcpStream>>>;
+type WsStream = tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<TcpStream>>;
+type WsStreamRx = futures_util::stream::SplitStream<WsStream>;
 pub type WsFeedStream = FeedStream<WsStreamRx>;
 
-#[inline]
-fn create_ws_url(host: &str, port: u16) -> Uri {
-    Uri::builder()
-        .scheme("wss")
-        .authority(format!("{host}:{port}"))
-        .path_and_query("/sub")
-        .build().unwrap()
+async fn ws_connect(host: &str, port: u16) -> Result<WsStream, WsError> {
+    use tokio_tungstenite::{connect_async, tungstenite::{handshake::client::{Request as WsRequest, generate_key}, http::{Uri, header}}};
+    let req = WsRequest::builder()
+        .method("GET")
+        .header(header::HOST, host)
+        .header(header::CONNECTION, "Upgrade")
+        .header(header::USER_AGENT, WEB_USER_AGENT)
+        .header(header::ORIGIN, WEB_ORIGIN)
+        .header(header::UPGRADE, "websocket")
+        .header(header::SEC_WEBSOCKET_VERSION, "13")
+        .header(header::SEC_WEBSOCKET_KEY, generate_key())
+        .uri(Uri::builder()
+            .scheme("wss")
+            .authority(format!("{host}:{port}"))
+            .path_and_query("/sub")
+            .build()?)
+        .body(())?;
+    let (stream, _) = connect_async(req).await?;
+    Ok(stream)
 }
 
 impl WsFeedStream {
     pub async fn connect_ws(host: &str, port: u16, roomid: u32, uid: u64, devid3: String, token: String) -> Result<WsFeedStream, WsError> {
-        let (stream, _) = connect_ws_stream(create_ws_url(host, port)).await?;
+        let stream = ws_connect(host, port).await?;
         let (mut tx, rx) = stream.split();
         log::debug!("[{: >10}] (ws) connected", roomid);
 
