@@ -58,7 +58,8 @@ pub struct CloseHandle {
 
 impl Writer {
     pub async fn open(path: PathBuf) -> Result<(Writer, CloseHandle)> {
-        let tx: Handle = tokio_actor::spawn_async(WriterContextConfig {
+        tokio::fs::create_dir_all(&path).await?;
+        let tx = tokio_actor::spawn_async(WriterContextConfig {
             path: path.join(now().to_string()),
             config: Config,
         }).await?;
