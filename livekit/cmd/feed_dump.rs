@@ -1,4 +1,4 @@
-use std::{path::PathBuf, io::Write, fs::{self, OpenOptions}};
+use std::{path::PathBuf, io::{Write, stdout}, fs::{self, OpenOptions}};
 use foundations::byterepr::ByteRepr;
 use livekit_feed::package::{Package, JsonPackage};
 use livekit_feed_stor_raw::{kvdump::{self, Row, KV}, crc32, Key};
@@ -10,9 +10,9 @@ pub struct Args {
     /// feed raw storage directory path
     #[argh(option, short = 'i')]
     raw_stor_path: PathBuf,
-    /// export jsonl file path and name
+    /// export jsonl file path and name (default stdout)
     #[argh(option, short = 'o')]
-    export_path: PathBuf,
+    export_path: Option<PathBuf>,
     /// comma-separated list of roomid (no short id) to export (default all)
     #[argh(option, short = 'r')]
     roomid_list: Option<String>,
@@ -34,7 +34,11 @@ struct Record {
 
 pub fn main(Args { raw_stor_path, export_path, roomid_list, from, to }: Args) {
     let roomid_list: Option<Vec<u32>> = roomid_list.map(|l| l.split(',').map(|roomid| roomid.parse::<u32>().expect("FATAL: invaild roomid")).collect());
-    let mut export_file = OpenOptions::new().write(true).create(true).append(true).open(export_path).unwrap();
+    let mut export_file: Box<dyn Write> = if let Some(path) = export_path {
+        Box::new(OpenOptions::new().write(true).create(true).append(true).open(path).unwrap())
+    } else {
+        Box::new(stdout().lock())
+    };
 
     for entry in fs::read_dir(raw_stor_path).unwrap() {
         let entry = entry.unwrap();
@@ -53,7 +57,7 @@ pub fn main(Args { raw_stor_path, export_path, roomid_list, from, to }: Args) {
                                 if if let Some(to) = &to { time < *to } else { true } {
                                     let inner = Package::decode(&value).unwrap().to_json().unwrap();
                                     let record = Record { roomid, time, inner };
-                                    serde_json::to_writer(&export_file, &record).unwrap();
+                                    serde_json::to_writer(&mut export_file, &record).unwrap();
                                     writeln!(export_file).unwrap();
                                 }
                             }
