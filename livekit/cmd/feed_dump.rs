@@ -16,11 +16,14 @@ pub struct Args {
     /// comma-separated list of roomid (no short id) to export (default all)
     #[argh(option, short = 'r')]
     roomid_list: Option<String>,
+    /// read file rather than dir
+    #[argh(switch)]
+    file: bool,
     /// start time (timestamp)
-    #[argh(option, short = 'f')]
+    #[argh(option)]
     from: Option<u64>,
     /// end time (timestamp)
-    #[argh(option, short = 't')]
+    #[argh(option)]
     to: Option<u64>,
 }
 
@@ -32,7 +35,7 @@ struct Record {
     inner: JsonPackage,
 }
 
-pub fn main(Args { raw_stor_path, export_path, roomid_list, from, to }: Args) {
+pub fn main(Args { raw_stor_path, export_path, roomid_list, file, from, to }: Args) {
     let roomid_list: Option<Vec<u32>> = roomid_list.map(|l| l.split(',').map(|roomid| roomid.parse::<u32>().expect("FATAL: invaild roomid")).collect());
     let mut export_file: Box<dyn Write> = if let Some(path) = export_path {
         Box::new(OpenOptions::new().write(true).create(true).append(true).open(path).unwrap())
@@ -40,30 +43,38 @@ pub fn main(Args { raw_stor_path, export_path, roomid_list, from, to }: Args) {
         Box::new(stdout().lock())
     };
 
-    for entry in fs::read_dir(raw_stor_path).unwrap() {
-        let entry = entry.unwrap();
-        if entry.file_type().unwrap().is_file() {
-            let kv_file = OpenOptions::new().read(true).open(entry.path()).unwrap();
-            let reader = kvdump::Reader::init(kv_file).unwrap();
-            for row in reader {
-                match row.unwrap() {
-                    Row::Hash(_) | Row::End => { },
-                    Row::KV(KV { scope, key, value }) => {
-                        let roomid = u32::from_be_bytes(scope.as_ref().try_into().unwrap());
-                        let Key { time, hash } = Key::from_bytes(key.as_ref().try_into().unwrap());
-                        assert_eq!(hash, crc32(&value));
-                        if if let Some(roomid_list) = &roomid_list { roomid_list.contains(&roomid) } else { true } {
-                            if if let Some(from) = &from { time > *from } else { true } {
-                                if if let Some(to) = &to { time < *to } else { true } {
-                                    let inner = Package::decode(&value).unwrap().to_json().unwrap();
-                                    let record = Record { roomid, time, inner };
-                                    serde_json::to_writer(&mut export_file, &record).unwrap();
-                                    writeln!(export_file).unwrap();
-                                }
+    let mut handle_file = move |path: PathBuf| {
+        let kv_file = OpenOptions::new().read(true).open(path).unwrap();
+        let reader = kvdump::Reader::init(kv_file).unwrap();
+        for row in reader {
+            match row.unwrap() {
+                Row::Hash(_) | Row::End => { },
+                Row::KV(KV { scope, key, value }) => {
+                    let roomid = u32::from_be_bytes(scope.as_ref().try_into().unwrap());
+                    let Key { time, hash } = Key::from_bytes(key.as_ref().try_into().unwrap());
+                    assert_eq!(hash, crc32(&value));
+                    if if let Some(roomid_list) = &roomid_list { roomid_list.contains(&roomid) } else { true } {
+                        if if let Some(from) = &from { time > *from } else { true } {
+                            if if let Some(to) = &to { time < *to } else { true } {
+                                let inner = Package::decode(&value).unwrap().to_json().unwrap();
+                                let record = Record { roomid, time, inner };
+                                serde_json::to_writer(&mut export_file, &record).unwrap();
+                                writeln!(export_file).unwrap();
                             }
                         }
                     }
                 }
+            }
+        }
+    };
+
+    if file {
+        handle_file(raw_stor_path);
+    } else {
+        for entry in fs::read_dir(raw_stor_path).unwrap() {
+            let entry = entry.unwrap();
+            if entry.file_type().unwrap().is_file() {
+                handle_file(entry.path());
             }
         }
     }
