@@ -16,6 +16,12 @@ pub struct Args {
     /// comma-separated list of roomid (no short id) to export (default all)
     #[argh(option, short = 'r')]
     roomid_list: Option<String>,
+    /// start time (timestamp)
+    #[argh(option, short = 'f')]
+    from: Option<u64>,
+    /// end time (timestamp)
+    #[argh(option, short = 't')]
+    to: Option<u64>,
 }
 
 #[derive(serde::Serialize)]
@@ -26,7 +32,7 @@ struct Record {
     inner: JsonPackage,
 }
 
-pub fn main(Args { raw_stor_path, export_path, roomid_list }: Args) {
+pub fn main(Args { raw_stor_path, export_path, roomid_list, from, to }: Args) {
     let roomid_list: Option<Vec<u32>> = roomid_list.map(|l| l.split(',').map(|roomid| roomid.parse::<u32>().expect("FATAL: invaild roomid")).collect());
     let mut export_file = OpenOptions::new().write(true).create(true).append(true).open(export_path).unwrap();
 
@@ -40,13 +46,17 @@ pub fn main(Args { raw_stor_path, export_path, roomid_list }: Args) {
                     Row::Hash(_) | Row::End => { },
                     Row::KV(KV { scope, key, value }) => {
                         let roomid = u32::from_be_bytes(scope.as_ref().try_into().unwrap());
+                        let Key { time, hash } = Key::from_bytes(key.as_ref().try_into().unwrap());
+                        assert_eq!(hash, crc32(&value));
                         if if let Some(roomid_list) = &roomid_list { roomid_list.contains(&roomid) } else { true } {
-                            let Key { time, hash } = Key::from_bytes(key.as_ref().try_into().unwrap());
-                            assert_eq!(hash, crc32(&value));
-                            let inner = Package::decode(&value).unwrap().to_json().unwrap();
-                            let record = Record { roomid, time, inner };
-                            serde_json::to_writer(&export_file, &record).unwrap();
-                            writeln!(export_file).unwrap();
+                            if if let Some(from) = &from { time > *from } else { true } {
+                                if if let Some(to) = &to { time < *to } else { true } {
+                                    let inner = Package::decode(&value).unwrap().to_json().unwrap();
+                                    let record = Record { roomid, time, inner };
+                                    serde_json::to_writer(&export_file, &record).unwrap();
+                                    writeln!(export_file).unwrap();
+                                }
+                            }
                         }
                     }
                 }
