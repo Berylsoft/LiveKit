@@ -25,6 +25,9 @@ pub struct Args {
     /// end time (timestamp)
     #[argh(option)]
     to: Option<u64>,
+    /// comma-separated list of not included single cmd (not for multi)
+    #[argh(option, long = "filter-out")]
+    filter_list: Option<String>,
 }
 
 #[derive(serde::Serialize)]
@@ -35,8 +38,18 @@ struct Record {
     inner: JsonPackage,
 }
 
-pub fn main(Args { raw_stor_path, export_path, roomid_list, file, from, to }: Args) {
+fn get_single_cmd(pkg: &JsonPackage) -> Option<&str> {
+    if let JsonPackage::Json(json) = pkg {
+        Some(json.as_object()?.get("cmd")?.as_str()?)
+    } else {
+        None
+    }
+}
+
+pub fn main(Args { raw_stor_path, export_path, roomid_list, file, from, to, filter_list }: Args) {
     let roomid_list: Option<Vec<u32>> = roomid_list.map(|l| l.split(',').map(|roomid| roomid.parse::<u32>().expect("FATAL: invaild roomid")).collect());
+    let filter_list: Option<&str> = filter_list.as_deref();
+    let filter_list: Option<Vec<&str>> = filter_list.map(|l| l.split(',').collect());
     let mut export_file: Box<dyn Write> = if let Some(path) = export_path {
         Box::new(OpenOptions::new().write(true).create(true).append(true).open(path).unwrap())
     } else {
@@ -57,9 +70,22 @@ pub fn main(Args { raw_stor_path, export_path, roomid_list, file, from, to }: Ar
                         if if let Some(from) = &from { time > *from } else { true } {
                             if if let Some(to) = &to { time < *to } else { true } {
                                 let inner = Package::decode(&value).unwrap().to_json().unwrap();
-                                let record = Record { roomid, time, inner };
-                                serde_json::to_writer(&mut export_file, &record).unwrap();
-                                writeln!(export_file).unwrap();
+                                if if let Some(filter_list) = filter_list.as_deref() {
+                                    if let Some(cmd) = get_single_cmd(&inner) {
+                                        let mut ret = true;
+                                        for filtered_cmd in filter_list {
+                                            if *filtered_cmd == cmd {
+                                                ret = false;
+                                                break;
+                                            }
+                                        }
+                                        ret
+                                    } else { true }
+                                } else { true } {
+                                    let record = Record { roomid, time, inner };
+                                    serde_json::to_writer(&mut export_file, &record).unwrap();
+                                    writeln!(export_file).unwrap();
+                                }
                             }
                         }
                     }
