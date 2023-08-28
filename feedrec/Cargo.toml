@@ -21,7 +21,7 @@ argh = "0.1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 futures-util = "0.3"
-tokio = { version = "1", features = ["rt", "time", "sync", "net"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal"] } # "time", "sync", "net"
 brapi-model = { git = "https://github.com/Berylsoft/brapi" }
 brapi-client = { git = "https://github.com/Berylsoft/brapi" }
 livekit-feed = { path = "../feed" }

@@ -20,7 +20,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 log = "0.4"
 futures-util = "0.3"
-tokio = { version = "1", features = ["rt", "time", "sync", "net"] }
+tokio = { version = "1", features = [] } # "rt", "time", "sync", "net"
 tokio-tungstenite = { version = "0.19", features = ["rustls-tls-webpki-roots"] }
 foundations = { git = "https://github.com/Berylsoft/foundations", features = ["concat-string", "byterepr", "byterepr-macros", "error-enum"] }
 
