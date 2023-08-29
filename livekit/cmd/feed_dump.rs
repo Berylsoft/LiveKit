@@ -67,14 +67,14 @@ pub fn main(Args { raw_stor_path, export_path, roomid_list, file, from, to, filt
                 (@opt $arg:ident: $pass_cond:block) => {
                     if let Some($arg) = &$arg {
                         if !$pass_cond {
-                            break 'iter_row;
+                            continue 'iter_row;
                         }
                     }
                 };
                 (@bool $arg:ident: $pass_cond:block) => {
                     // equals if $arg then if !$pass_cond
                     if $arg != $pass_cond {
-                        break 'iter_row;
+                        continue 'iter_row;
                     }
                 };
             }
