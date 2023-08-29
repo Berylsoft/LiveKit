@@ -64,15 +64,16 @@ pub fn main(Args { raw_stor_path, export_path, roomid_list, file, from, to, filt
         let reader = kvdump::Reader::init(kv_file).unwrap();
         'iter_row: for row in reader {
             macro_rules! gate {
-                ($arg:ident, $inner:block) => {
-                    if !(if let Some($arg) = &$arg $inner else { true }) {
-                        break 'iter_row;
+                (@opt $arg:ident: $pass_cond:block) => {
+                    if let Some($arg) = &$arg {
+                        if !$pass_cond {
+                            break 'iter_row;
+                        }
                     }
                 };
-            }
-            macro_rules! gate_boolarg {
-                ($arg:ident, $inner:block) => {
-                    if !(if $arg $inner else { true }) {
+                (@bool $arg:ident: $pass_cond:block) => {
+                    // equals if $arg then if !$pass_cond
+                    if $arg != $pass_cond {
                         break 'iter_row;
                     }
                 };
@@ -84,12 +85,12 @@ pub fn main(Args { raw_stor_path, export_path, roomid_list, file, from, to, filt
                     let roomid = u32::from_be_bytes(scope.as_ref().try_into().unwrap());
                     let Key { time, hash } = Key::from_bytes(key.as_ref().try_into().unwrap());
                     assert_eq!(hash, crc32(&value));
-                    gate!(roomid_list, { roomid_list.contains(&roomid) });
-                    gate!(from, { time > *from });
-                    gate!(to, { time < *to });
+                    gate!(@opt roomid_list: { roomid_list.contains(&roomid) });
+                    gate!(@opt from: { time > *from });
+                    gate!(@opt to: { time < *to });
                     let inner = Package::decode(&value).unwrap().to_json().unwrap();
-                    gate_boolarg!(filter_out_heartbeat_eq1, { !matches!(inner, JsonPackage::HeartbeatResponse(1)) });
-                    gate!(filter_list, {
+                    gate!(@bool filter_out_heartbeat_eq1: { !matches!(inner, JsonPackage::HeartbeatResponse(1)) });
+                    gate!(@opt filter_list: {
                         let mut ret = true;
                         if let Some(cmd) = get_single_cmd(&inner) {
                             for filtered_cmd in filter_list {
