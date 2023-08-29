@@ -90,18 +90,7 @@ pub fn main(Args { raw_stor_path, export_path, roomid_list, file, from, to, filt
                     gate!(@opt to: { time < *to });
                     let inner = Package::decode(&value).unwrap().to_json().unwrap();
                     gate!(@bool filter_out_heartbeat_eq1: { !matches!(inner, JsonPackage::HeartbeatResponse(1)) });
-                    gate!(@opt filter_list: {
-                        let mut ret = true;
-                        if let Some(cmd) = get_single_cmd(&inner) {
-                            for filtered_cmd in filter_list {
-                                if *filtered_cmd == cmd {
-                                    ret = false;
-                                    break;
-                                }
-                            }
-                        }
-                        ret
-                    });
+                    gate!(@opt filter_list: { get_single_cmd(&inner).map_or(true, |cmd| filter_list.contains(&cmd)) });
                     let record = Record { roomid, time, inner };
                     serde_json::to_writer(&mut export_file, &record).unwrap();
                     writeln!(export_file).unwrap();
