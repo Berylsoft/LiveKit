@@ -74,19 +74,39 @@ pub fn main(Args { raw_stor_path, export_path, roomid_list, file, from, to, filt
     let mut handle_file = move |path: PathBuf| {
         let kv_file = OpenOptions::new().read(true).open(path).unwrap();
         let reader = kvdump::Reader::init(kv_file).unwrap();
-        for row in reader {
+        'iter_row: for row in reader {
+            // wcf: with control flow
+            macro_rules! wcf_filter {
+                ($arg:ident, $inner:block) => {
+                    if !filter!($arg, $inner) {
+                        break 'iter_row;
+                    }
+                };
+            }
+            macro_rules! wcf_filter_bool {
+                ($arg:ident, $inner:block) => {
+                    if !filter_bool!($arg, $inner) {
+                        break 'iter_row;
+                    }
+                };
+            }
+
             match row.unwrap() {
                 Row::Hash(_) | Row::End => { },
                 Row::KV(KV { scope, key, value }) => {
                     let roomid = u32::from_be_bytes(scope.as_ref().try_into().unwrap());
                     let Key { time, hash } = Key::from_bytes(key.as_ref().try_into().unwrap());
                     assert_eq!(hash, crc32(&value));
-                    if filter!(roomid_list, { roomid_list.contains(&roomid) }) {
-                        if filter!(from, { time > *from }) {
-                            if filter!(to, { time < *to }) {
+                    wcf_filter!(roomid_list, { roomid_list.contains(&roomid) });
+                    {
+                        wcf_filter!(from, { time > *from });
+                        {
+                            wcf_filter!(to, { time < *to });
+                            {
                                 let inner = Package::decode(&value).unwrap().to_json().unwrap();
-                                if filter_bool!(filter_out_heartbeat_eq1, { !matches!(inner, JsonPackage::HeartbeatResponse(1)) }) {
-                                    if filter!(filter_list, {
+                                wcf_filter_bool!(filter_out_heartbeat_eq1, { !matches!(inner, JsonPackage::HeartbeatResponse(1)) });
+                                {
+                                    wcf_filter!(filter_list, {
                                         let mut ret = true;
                                         if let Some(cmd) = get_single_cmd(&inner) {
                                             for filtered_cmd in filter_list {
@@ -97,7 +117,8 @@ pub fn main(Args { raw_stor_path, export_path, roomid_list, file, from, to, filt
                                             }
                                         }
                                         ret
-                                    }) {
+                                    });
+                                    {
                                         let record = Record { roomid, time, inner };
                                         serde_json::to_writer(&mut export_file, &record).unwrap();
                                         writeln!(export_file).unwrap();
