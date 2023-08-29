@@ -49,18 +49,6 @@ fn get_single_cmd(pkg: &JsonPackage) -> Option<&str> {
     }
 }
 
-macro_rules! filter {
-    ($arg:ident, $inner:block) => {
-        if let Some($arg) = &$arg $inner else { true }
-    };
-}
-
-macro_rules! filter_bool {
-    ($arg:ident, $inner:block) => {
-        if $arg $inner else { true }
-    };
-}
-
 pub fn main(Args { raw_stor_path, export_path, roomid_list, file, from, to, filter_list, filter_out_heartbeat_eq1 }: Args) {
     let roomid_list: Option<Vec<u32>> = roomid_list.map(|l| l.split(',').map(|roomid| roomid.parse::<u32>().expect("FATAL: invaild roomid")).collect());
     let filter_list: Option<&str> = filter_list.as_deref();
@@ -75,17 +63,16 @@ pub fn main(Args { raw_stor_path, export_path, roomid_list, file, from, to, filt
         let kv_file = OpenOptions::new().read(true).open(path).unwrap();
         let reader = kvdump::Reader::init(kv_file).unwrap();
         'iter_row: for row in reader {
-            // wcf: with control flow
-            macro_rules! wcf_filter {
+            macro_rules! gate {
                 ($arg:ident, $inner:block) => {
-                    if !filter!($arg, $inner) {
+                    if !(if let Some($arg) = &$arg $inner else { true }) {
                         break 'iter_row;
                     }
                 };
             }
-            macro_rules! wcf_filter_bool {
+            macro_rules! gate_boolarg {
                 ($arg:ident, $inner:block) => {
-                    if !filter_bool!($arg, $inner) {
+                    if !(if $arg $inner else { true }) {
                         break 'iter_row;
                     }
                 };
@@ -97,36 +84,26 @@ pub fn main(Args { raw_stor_path, export_path, roomid_list, file, from, to, filt
                     let roomid = u32::from_be_bytes(scope.as_ref().try_into().unwrap());
                     let Key { time, hash } = Key::from_bytes(key.as_ref().try_into().unwrap());
                     assert_eq!(hash, crc32(&value));
-                    wcf_filter!(roomid_list, { roomid_list.contains(&roomid) });
-                    {
-                        wcf_filter!(from, { time > *from });
-                        {
-                            wcf_filter!(to, { time < *to });
-                            {
-                                let inner = Package::decode(&value).unwrap().to_json().unwrap();
-                                wcf_filter_bool!(filter_out_heartbeat_eq1, { !matches!(inner, JsonPackage::HeartbeatResponse(1)) });
-                                {
-                                    wcf_filter!(filter_list, {
-                                        let mut ret = true;
-                                        if let Some(cmd) = get_single_cmd(&inner) {
-                                            for filtered_cmd in filter_list {
-                                                if *filtered_cmd == cmd {
-                                                    ret = false;
-                                                    break;
-                                                }
-                                            }
-                                        }
-                                        ret
-                                    });
-                                    {
-                                        let record = Record { roomid, time, inner };
-                                        serde_json::to_writer(&mut export_file, &record).unwrap();
-                                        writeln!(export_file).unwrap();
-                                    }
+                    gate!(roomid_list, { roomid_list.contains(&roomid) });
+                    gate!(from, { time > *from });
+                    gate!(to, { time < *to });
+                    let inner = Package::decode(&value).unwrap().to_json().unwrap();
+                    gate_boolarg!(filter_out_heartbeat_eq1, { !matches!(inner, JsonPackage::HeartbeatResponse(1)) });
+                    gate!(filter_list, {
+                        let mut ret = true;
+                        if let Some(cmd) = get_single_cmd(&inner) {
+                            for filtered_cmd in filter_list {
+                                if *filtered_cmd == cmd {
+                                    ret = false;
+                                    break;
                                 }
                             }
                         }
-                    }
+                        ret
+                    });
+                    let record = Record { roomid, time, inner };
+                    serde_json::to_writer(&mut export_file, &record).unwrap();
+                    writeln!(export_file).unwrap();
                 }
             }
         }
