@@ -78,8 +78,8 @@ use rand::{seq::SliceRandom, thread_rng as rng};
 
 use tokio::{spawn, signal, time::{sleep, Duration}, fs};
 
-use brapi_client::{client::Client, access::Access};
-use livekit_feed_stor_raw::Writer;
+use brapi_client::client::{Client, ClientRef};
+use livekit_feed_stor_raw::{Writer, RoomWriter};
 use livekit_feed::stream::{FeedStream, INIT_INTERVAL_MS, INIT_RETRY_INTERVAL_SEC, RETRY_INTERVAL_MS};
 
 // region: rec
@@ -97,10 +97,7 @@ macro_rules! unwrap_or_continue {
     };
 }
 
-fn rec(roomid: u32, api_client: &Client, writer: &Writer) -> impl Future<Output = ()> {
-    let api_client = api_client.clone();
-    let room_writer = writer.open_room(roomid);
-
+fn rec(roomid: u32, api_client: ClientRef, room_writer: RoomWriter) -> impl Future<Output = ()> {
     async move {
         loop {
             let hosts_info = unwrap_or_continue!(
@@ -157,12 +154,11 @@ async fn main() {
     if let Some(log_path) = log_path {
         log4rs::init_config(log_config(log_path, log_debug)).expect("FATAL: error during init logger");
     }
-    let access = fs::read(access_path).await.unwrap();
-    let access: Access = serde_json::from_slice(&access).unwrap();
+    let access = fs::read_to_string(access_path).await.unwrap();
     let (writer, writer_close) = Writer::open(stor_path).await.expect("FATAL: error during init feed raw storage");
-    let api_client = Client::new(Some(access), None);
+    let api_client = Client::with_access(access, None).expect("FATAL: access invaild");
     for roomid in roomid_list.split(',').map(|roomid| roomid.parse::<u32>().expect("FATAL: invaild roomid")) {
-        spawn(rec(roomid, &api_client, &writer));
+        spawn(rec(roomid, api_client.clone(), writer.open_room(roomid)));
         sleep(Duration::from_millis(INIT_INTERVAL_MS)).await;
     }
     signal::ctrl_c().await.expect("FATAL: error during setting ctrl-c listener");
