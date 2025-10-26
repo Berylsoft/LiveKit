@@ -79,12 +79,12 @@ impl WsFeedStream {
         let (mut tx, rx) = stream.split();
         log::debug!("[{: >10}] (ws) connected", roomid);
 
-        let init = Message::Binary(create_init_request(roomid, uid, devid3, token).encode().unwrap());
+        let init = Message::Binary(create_init_request(roomid, uid, devid3, token).encode().unwrap().into());
         tx.send(init).await?;
         log::debug!("[{: >10}] (ws) sent: init", roomid);
 
         spawn(async move {
-            let heartbeat = Message::Binary(Package::HeartbeatRequest.encode().unwrap());
+            let heartbeat = Message::Binary(Package::HeartbeatRequest.encode().unwrap().into());
             let mut interval = time::interval(Duration::from_secs(HEARTBEAT_RATE_SEC));
             loop {
                 interval.tick().await;

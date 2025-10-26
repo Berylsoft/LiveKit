@@ -75,7 +75,7 @@ use api::GetHostsInfo;
 // endregion
 
 use std::{path::PathBuf, future::Future};
-use rand::{seq::SliceRandom, thread_rng as rng};
+use rand::{seq::IndexedRandom, rng};
 
 use tokio::{spawn, signal, time::{sleep, Duration}, fs};
 
