@@ -42,7 +42,7 @@ mod api {
 
     #[derive(Clone, Debug, Serialize)]
     pub struct GetHostsInfo {
-        #[serde(rename = "id")]
+        #[serde(rename(serialize = "id"))]
         pub roomid: u32,
     }
 
@@ -55,16 +55,17 @@ mod api {
     #[derive(Clone, Debug, Deserialize)]
     pub struct HostInfo {
         pub host: String,
-        pub port: u16,
-        pub ws_port: u16,
+        // pub port: u16,
+        // pub ws_port: u16,
         pub wss_port: u16,
     }
 
     impl RestApi for GetHostsInfo {
         const BIZ: BizKind = BizKind::Live;
-        const METHOD: RestApiRequestMethod = RestApiRequestMethod::BareGet;
+        const METHOD: RestApiRequestMethod = RestApiRequestMethod::Get;
         const PATH: &'static str = "/xlive/web-room/v1/index/getDanmuInfo";
-        const DEFAULT: Option<&'static str> = Some("type=0");
+        const DEFAULT: Option<&'static str> = Some("type=0&web_location=444.8");
+        const WBI: bool = true;
         type Response = HostsInfo;
     }
 }
@@ -157,6 +158,7 @@ async fn main() {
     let access = fs::read_to_string(access_path).await.unwrap();
     let (writer, writer_close) = Writer::open(stor_path).await.expect("FATAL: error during init feed raw storage");
     let api_client = Client::with_access(access, None).expect("FATAL: access invaild");
+    api_client.update_wbi_key().await.expect("FATAL: update_wbi_key failed");
     for roomid in roomid_list.split(',').map(|roomid| roomid.parse::<u32>().expect("FATAL: invaild roomid")) {
         spawn(rec(roomid, api_client.clone(), writer.open_room(roomid)));
         sleep(Duration::from_millis(INIT_INTERVAL_MS)).await;
