@@ -28,9 +28,6 @@ pub struct Args {
     /// comma-separated list of not included single cmd (not for multi)
     #[argh(option, long = "filter-out")]
     filter_list: Option<String>,
-    /// filter out HeartbeatResponse(1)
-    #[argh(switch)]
-    filter_out_heartbeat_eq1: bool,
 }
 
 #[derive(serde::Serialize)]
@@ -49,7 +46,7 @@ fn get_single_cmd(pkg: &JsonPackage) -> Option<&str> {
     }
 }
 
-pub fn main(Args { raw_stor_path, export_path, roomid_list, file, from, to, filter_list, filter_out_heartbeat_eq1 }: Args) {
+pub fn main(Args { raw_stor_path, export_path, roomid_list, file, from, to, filter_list }: Args) {
     let roomid_list: Option<Vec<u32>> = roomid_list.map(|l| l.split(',').map(|roomid| roomid.parse::<u32>().expect("FATAL: invaild roomid")).collect());
     let filter_list: Option<&str> = filter_list.as_deref();
     let filter_list: Option<Vec<&str>> = filter_list.map(|l| l.split(',').collect());
@@ -89,7 +86,6 @@ pub fn main(Args { raw_stor_path, export_path, roomid_list, file, from, to, filt
                     gate!(@opt from: { time > *from });
                     gate!(@opt to: { time < *to });
                     let inner = Package::decode(&value).unwrap().to_json().unwrap();
-                    gate!(@bool filter_out_heartbeat_eq1: { !matches!(inner, JsonPackage::HeartbeatResponse(1)) });
                     gate!(@opt filter_list: { get_single_cmd(&inner).map_or(true, |cmd| filter_list.contains(&cmd)) });
                     let record = Record { roomid, time, inner };
                     serde_json::to_writer(&mut export_file, &record).unwrap();
