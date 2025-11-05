@@ -1,10 +1,11 @@
 use bytes::Bytes;
-use futures_util::{StreamExt, SinkExt};
+use futures_util::StreamExt;
 use tokio::{spawn, time::{self, Duration}, net::TcpStream};
 // for TcpFeedStream
 use tokio::{io::{Error as IoError, AsyncReadExt, AsyncWriteExt}, net::tcp::OwnedReadHalf as TcpStreamRx};
 // for WsFeedStream
-use tokio_tungstenite::tungstenite::{protocol::Message, Error as WsError};
+use tokio_rustls::client::TlsStream;
+use async_tungstenite::{WebSocketStream, WebSocketReceiver, tokio::TokioAdapter, tungstenite::{Error as WsError, protocol::Message}};
 use crate::{package::Package, schema::InitRequest};
 
 // for FeedStream
@@ -16,7 +17,7 @@ pub const RETRY_INTERVAL_MS: u64 = 5000;
 pub const INIT_INTERVAL_MS: u64 = 100;
 pub const INIT_RETRY_INTERVAL_SEC: u64 = 5;
 
-pub const WEB_USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36";
+pub const WEB_USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36";
 pub const WEB_ORIGIN: &str = concat!("https://live.", include!("../name"), ".com");
 
 pub fn now() -> u64 {
@@ -48,13 +49,14 @@ pub struct FeedStream<T> {
     rx: T,
 }
 
-type WsStream = tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<TcpStream>>;
-type WsStreamRx = futures_util::stream::SplitStream<WsStream>;
+type WsStreamBase = async_tungstenite::stream::Stream<TokioAdapter<TcpStream>, TokioAdapter<TlsStream<TcpStream>>>;
+type WsStream = WebSocketStream<WsStreamBase>;
+type WsStreamRx = WebSocketReceiver<WsStreamBase>;
 pub type WsFeedStream = FeedStream<WsStreamRx>;
 
 async fn ws_connect(host: &str, port: u16) -> Result<WsStream, WsError> {
-    use tokio_tungstenite::{connect_async, tungstenite::{handshake::client::{Request as WsRequest, generate_key}, http::{Uri, header}}};
-    let req = WsRequest::builder()
+    use async_tungstenite::{tokio::connect_async, tungstenite::{handshake::client::{Request, generate_key}, http::{Uri, header}}};
+    let req = Request::builder()
         .method("GET")
         .header(header::HOST, host)
         .header(header::CONNECTION, "Upgrade")
