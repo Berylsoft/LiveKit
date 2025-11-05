@@ -31,10 +31,10 @@ pub struct Payload {
 }
 
 impl Payload {
-    pub fn new_now(payload: Vec<u8>) -> Payload {
+    pub fn new_now(payload: Bytes) -> Payload {
         Payload {
             time: now(),
-            payload: payload.into(),
+            payload,
         }
     }
 }
@@ -107,7 +107,7 @@ impl WsFeedStream {
                 Some(Ok(message)) => match message {
                     Message::Binary(payload) => {
                         log::debug!("[{: >10}] (ws) recv: message {}", self.roomid, payload.len());
-                        return Some(Payload::new_now(payload.into()));
+                        return Some(Payload::new_now(payload));
                     },
                     Message::Ping(payload) => {
                         if payload.is_empty() {
@@ -181,6 +181,6 @@ impl TcpFeedStream {
         payload[0..4].copy_from_slice(&len_buf);
         read_exact!(&mut payload[4..]);
         log::debug!("[{: >10}] (tcp) recv: message {}", self.roomid, len);
-        Some(Payload::new_now(payload))
+        Some(Payload::new_now(payload.into()))
     }
 }
