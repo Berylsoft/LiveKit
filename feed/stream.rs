@@ -1,11 +1,10 @@
 use bytes::Bytes;
-use futures_util::StreamExt;
+use futures_util::{StreamExt, SinkExt};
 use tokio::{spawn, time::{self, Duration}, net::TcpStream};
 // for TcpFeedStream
 use tokio::{io::{Error as IoError, AsyncReadExt, AsyncWriteExt}, net::tcp::OwnedReadHalf as TcpStreamRx};
 // for WsFeedStream
-use tokio_rustls::client::TlsStream;
-use async_tungstenite::{WebSocketStream, WebSocketReceiver, tokio::TokioAdapter, tungstenite::{Error as WsError, protocol::Message}};
+use tokio_tungstenite::tungstenite::{protocol::Message, Error as WsError};
 use crate::{package::Package, schema::InitRequest};
 
 // for FeedStream
@@ -49,13 +48,12 @@ pub struct FeedStream<T> {
     rx: T,
 }
 
-type WsStreamBase = async_tungstenite::stream::Stream<TokioAdapter<TcpStream>, TokioAdapter<TlsStream<TcpStream>>>;
-type WsStream = WebSocketStream<WsStreamBase>;
-type WsStreamRx = WebSocketReceiver<WsStreamBase>;
+type WsStream = tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<TcpStream>>;
+type WsStreamRx = futures_util::stream::SplitStream<WsStream>;
 pub type WsFeedStream = FeedStream<WsStreamRx>;
 
 async fn ws_connect(host: &str, port: u16) -> Result<WsStream, WsError> {
-    use async_tungstenite::{tokio::connect_async, tungstenite::{handshake::client::{Request, generate_key}, http::{Uri, header}}};
+    use tokio_tungstenite::{connect_async, tungstenite::{handshake::client::{Request, generate_key}, http::{Uri, header}}};
     let req = Request::builder()
         .method("GET")
         .header(header::HOST, host)

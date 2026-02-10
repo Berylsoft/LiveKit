@@ -21,8 +21,7 @@ serde_json = "1"
 log = "0.4"
 futures-util = "0.3"
 tokio = { version = "1", features = [] } # "rt", "time", "sync", "net"
-tokio-rustls = { version = "0.26", default-features = false }
-async-tungstenite = { version = "0.32", features = ["tokio-rustls-webpki-roots"] }
+tokio-tungstenite = { version = "0.28", features = ["rustls-tls-webpki-roots"] }
 foundations = { git = "https://github.com/Berylsoft/foundations", features = ["concat-string", "byterepr", "byterepr-macros", "error-enum"] }
 
 [dev-dependencies]
