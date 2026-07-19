@@ -129,7 +129,7 @@ fn rec(roomid: u32, api_client: ClientRef, room_writer: RoomWriter) -> impl Futu
 
 // endregion
 
-/// Berylsoft LiveKit feedrec
+/// LiveKit feedrec
 #[derive(argh::FromArgs)]
 struct Args {
     /// comma-separated list of roomid (no short id)

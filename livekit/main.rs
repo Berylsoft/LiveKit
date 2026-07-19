@@ -1,6 +1,6 @@
 use livekit::cmd::*;
 
-/// Berylsoft Livekit
+/// Livekit
 #[derive(argh::FromArgs)]
 struct Args {
     #[argh(subcommand)]
