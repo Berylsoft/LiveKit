@@ -4,7 +4,7 @@ version = "0.4.0"
 edition = "2021"
 authors = ["stackinspector"]
 license = "MPL-2.0"
-repository = "https://github.com/Berylsoft/LiveKit"
+repository = "https://github.com/livekit-neo/LiveKit"
 # description
 # readme
 
@@ -22,8 +22,8 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = [] } # 
 foundations = { git = "https://github.com/Berylsoft/foundations", features = ["byterepr"] }
-brapi-live = { git = "https://github.com/Berylsoft/brapi" }
-brapi-client = { git = "https://github.com/Berylsoft/brapi" }
-brapi-cli-live = { git = "https://github.com/Berylsoft/brapi" }
+brapi-live = { git = "https://github.com/livekit-neo/brapi" }
+brapi-client = { git = "https://github.com/livekit-neo/brapi" }
+brapi-cli-live = { git = "https://github.com/livekit-neo/brapi" }
 livekit-feed = { path = "../feed" }
 livekit-feed-stor-raw = { path = "../feed-stor-raw" }
