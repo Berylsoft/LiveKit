@@ -51,7 +51,7 @@ pub fn main(Args { raw_stor_path, export_path, roomid_list, file, from, to, filt
     let filter_list: Option<&str> = filter_list.as_deref();
     let filter_list: Option<Vec<&str>> = filter_list.map(|l| l.split(',').collect());
     let mut export_file: Box<dyn Write> = if let Some(path) = export_path {
-        Box::new(OpenOptions::new().write(true).create(true).append(true).open(path).unwrap())
+        Box::new(OpenOptions::new().create(true).append(true).open(path).unwrap())
     } else {
         Box::new(stdout().lock())
     };
@@ -86,7 +86,7 @@ pub fn main(Args { raw_stor_path, export_path, roomid_list, file, from, to, filt
                     gate!(@opt from: { time > *from });
                     gate!(@opt to: { time < *to });
                     let inner = Package::decode(&value).unwrap().to_json().unwrap();
-                    gate!(@opt filter_list: { get_single_cmd(&inner).map_or(true, |cmd| filter_list.contains(&cmd)) });
+                    gate!(@opt filter_list: { get_single_cmd(&inner).is_none_or(|cmd| filter_list.contains(&cmd)) });
                     let record = Record { roomid, time, inner };
                     serde_json::to_writer(&mut export_file, &record).unwrap();
                     writeln!(export_file).unwrap();
