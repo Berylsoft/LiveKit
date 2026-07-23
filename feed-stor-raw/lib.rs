@@ -16,11 +16,11 @@ pub const FILE_SYNC_INTERVAL_COUNT: u16 = 500;
 pub struct Config;
 
 impl kvdump::Config for Config {
-    fn ident<'a>(&'a self) -> &'a [u8] {
+    fn ident(&self) -> &[u8] {
         IDENT.as_bytes()
     }
 
-    fn sizes<'a>(&'a self) -> &'a Sizes {
+    fn sizes(&self) -> &Sizes {
         &SIZES
     }
 }

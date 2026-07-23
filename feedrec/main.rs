@@ -74,7 +74,7 @@ use api::GetHostsInfo;
 
 // endregion
 
-use std::{path::PathBuf, future::Future};
+use std::path::PathBuf;
 use rand::{seq::IndexedRandom, rng};
 
 use tokio::{spawn, signal, time::{sleep, Duration}, fs};
@@ -98,32 +98,30 @@ macro_rules! unwrap_or_continue {
     };
 }
 
-fn rec(roomid: u32, api_client: ClientRef, room_writer: RoomWriter) -> impl Future<Output = ()> {
-    async move {
-        loop {
-            let hosts_info = unwrap_or_continue!(
-                api_client.call(&GetHostsInfo { roomid }).await,
-                |err| log::warn!("[{: >10}] get hosts error {:?}", roomid, err)
-            );
+async fn rec(roomid: u32, api_client: ClientRef, room_writer: RoomWriter) {
+    loop {
+        let hosts_info = unwrap_or_continue!(
+            api_client.call(&GetHostsInfo { roomid }).await,
+            |err| log::warn!("[{: >10}] get hosts error {:?}", roomid, err)
+        );
 
-            let host = hosts_info.host_list.choose(&mut rng()).expect("FATAL: empty host list");
-            let mut stream = unwrap_or_continue!(
-                FeedStream::connect_ws(&host.host, host.wss_port, roomid, api_client.uid().unwrap(), api_client.devid3().unwrap(), hosts_info.token).await,
-                |err| log::warn!("[{: >10}] error during connecting {:?}", roomid, err)
-            );
+        let host = hosts_info.host_list.choose(&mut rng()).expect("FATAL: empty host list");
+        let mut stream = unwrap_or_continue!(
+            FeedStream::connect_ws(&host.host, host.wss_port, roomid, api_client.uid().unwrap(), api_client.devid3().unwrap(), hosts_info.token).await,
+            |err| log::warn!("[{: >10}] error during connecting {:?}", roomid, err)
+        );
 
-            log::info!("[{: >10}] open", roomid);
+        log::info!("[{: >10}] open", roomid);
 
-            while let Some(payload) = stream.recv().await {
-                if let Err(msg) = room_writer.insert_payload(&payload).await {
-                    panic!("{}", msg);
-                }
+        while let Some(payload) = stream.recv().await {
+            if let Err(msg) = room_writer.insert_payload(&payload).await {
+                panic!("{}", msg);
             }
-
-            log::info!("[{: >10}] close", roomid);
-
-            sleep(Duration::from_millis(RETRY_INTERVAL_MS)).await;
         }
+
+        log::info!("[{: >10}] close", roomid);
+
+        sleep(Duration::from_millis(RETRY_INTERVAL_MS)).await;
     }
 }
 

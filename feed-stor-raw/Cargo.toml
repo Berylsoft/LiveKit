@@ -1,7 +1,7 @@
 [package]
 name = "livekit-feed-stor-raw"
 version = "0.4.0"
-edition = "2021"
+edition = "2024"
 authors = ["stackinspector"]
 license = "MPL-2.0"
 

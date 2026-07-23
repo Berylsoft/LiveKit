@@ -249,7 +249,7 @@ mod tests {
     #[test]
     fn test_package_decode() {
         assert_eq!(
-            Package::decode(&PACKAGE_RAW.to_vec()).unwrap(),
+            Package::decode(&PACKAGE_RAW).unwrap(),
             Package::Multi(vec![pkg_json!(PACKAGE_PAYLOAD)])
         )
     }
